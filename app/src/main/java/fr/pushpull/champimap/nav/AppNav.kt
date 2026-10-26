@@ -150,6 +150,9 @@ fun AppNav(startOnboarding: Boolean, importPending: Boolean) {
                 }
             }
 
+            // Liaisons entre modules (après la création du graphe de navigation).
+            ModuleGlue(nav)
+
             // Menu du bas, seulement sur les écrans principaux.
             if (currentRoute in Routes.TOP_LEVEL) {
                 NavigationBar(Modifier.navigationBarsPadding(), containerColor = MaterialTheme.colorScheme.surface) {
