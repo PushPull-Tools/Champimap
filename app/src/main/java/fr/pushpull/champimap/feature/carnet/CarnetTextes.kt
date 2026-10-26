@@ -273,7 +273,7 @@ object CarnetTextes {
             "Prendre ta première photo d'espèce.",
             Ton2(
                 "Première photo d'espèce : un beau souvenir, et une aide précieuse pour bien identifier.",
-                "Une photo de champignon. Ton téléphone n'en revient pas, lui qui n'avait que des photos de chats.",
+                "Une photo de champignon. C’est les tiens ?",
             ),
         ),
         "premier_spot_vide" to TexteSucces(
@@ -318,10 +318,10 @@ object CarnetTextes {
         ),
         "premiere_trompette" to TexteSucces(
             "Ça sonne bien",
-            "Trouver ta première trompette des morts.",
+            "Trouver ta première trompette de la mort.",
             Ton2(
-                "Première trompette des morts ! Pas facile à voir : bel œil.",
-                "Une trompette des morts. Le nom fait peur, le goût beaucoup moins.",
+                "Première trompette de la mort ! Pas facile à voir : bel œil.",
+                "En voilà une belle trompette !",
             ),
         ),
         "premier_retour" to TexteSucces(
@@ -329,7 +329,7 @@ object CarnetTextes {
             "Revenir sur un spot déjà noté, lors d'une autre sortie.",
             Ton2(
                 "Tu es revenu sur un de tes coins : c'est comme ça qu'on apprend à les connaître.",
-                "Retour sur un spot connu. Tu commences à avoir des habitudes, attention.",
+                "Retour sur un spot connu. C’est le début d’une routine ça !",
             ),
         ),
     )
@@ -394,7 +394,7 @@ object CarnetTextes {
         ),
         "chanterelles" to TexteSucces(
             "Famille chanterelle",
-            "Trouver girolle, trompette des morts, chanterelle en tube et chanterelle jaunissante.",
+            "Trouver girolle, trompette de la mort, chanterelle en tube et chanterelle jaunissante.",
             Ton2(
                 "Toute la famille chanterelle est réunie dans ton panier !",
                 "Toute la famille chanterelle. Il ne manque plus que la photo de groupe.",
@@ -402,7 +402,7 @@ object CarnetTextes {
         ),
         "trio_limousin" to TexteSucces(
             "Le tiercé gagnant",
-            "Trouver cèpe, girolle et trompette des morts pendant la même sortie.",
+            "Trouver cèpe, girolle et trompette de la mort pendant la même sortie.",
             Ton2(
                 "Cèpe, girolle et trompette dans la même sortie : la journée parfaite !",
                 "Le tiercé dans l'ordre ! Garde ça pour toi, sinon tout le village sera dans tes bois demain.",
