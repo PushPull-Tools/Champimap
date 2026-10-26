@@ -10,6 +10,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import java.io.FileNotFoundException
 
@@ -21,7 +22,7 @@ import java.io.FileNotFoundException
 
 /** Une espèce telle qu'écrite dans species.json (champs facultatifs nullables). */
 @Serializable
-private data class SpeciesJson(
+internal data class SpeciesJson(
     val id: String,
     val nameFr: String,
     val nameLatin: String,
@@ -42,13 +43,18 @@ object SpeciesLoader {
     private val mutex = Mutex() // évite deux chargements simultanés (démarrage + catalogue)
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
-    suspend fun ensureLoaded(context: Context) = withContext(Dispatchers.IO) {
+    suspend fun ensureLoaded(context: Context) {
+        withContext(Dispatchers.IO) { load(context) }
+    }
+
+    /** Lecture du fichier et insertion en base (sur le fil d'entrées-sorties). */
+    private suspend fun load(context: Context) {
         mutex.withLock {
             val dao = AppGraph.db.speciesDao()
             if (dao.count() > 0) return@withLock
             try {
                 val text = context.assets.open(ASSET).bufferedReader(Charsets.UTF_8).use { it.readText() }
-                val list = json.decodeFromString<List<SpeciesJson>>(text).map { it.toEntity() }
+                val list = json.decodeFromString(ListSerializer(SpeciesJson.serializer()), text).map { it.toEntity() }
                 dao.upsertAll(list)
             } catch (e: FileNotFoundException) {
                 ErrorLogger.log("Espèces", "Fichier $ASSET absent des assets : catalogue vide", e)

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -90,10 +91,10 @@ fun RecolteCard(
 ) {
     val db = AppGraph.db
     val recolte by remember(recolteId) {
-        if (recolteId != null) db.recolteDao().flow(recolteId) else flowOf(null)
+        if (recolteId != null) db.recolteDao().flow(recolteId) else flowOf<Recolte?>(null)
     }.collectAsState(initial = null)
     val items by remember(recolteId) {
-        if (recolteId != null) db.recolteDao().items(recolteId) else flowOf(emptyList())
+        if (recolteId != null) db.recolteDao().items(recolteId) else flowOf(emptyList<RecolteItem>())
     }.collectAsState(initial = emptyList())
     val species by remember { db.speciesDao().all() }.collectAsState(initial = emptyList())
     val byId = remember(species) { species.associateBy { it.id } }
@@ -225,6 +226,7 @@ private fun RecolteItemRow(
                         saver.now { SpotRepository.updateItem(item.id) { it.copy(weightG = (it.weightG ?: 0) + add) } }
                     },
                     enabled = !locked,
+                    contentPadding = PaddingValues(0.dp),
                     modifier = Modifier.size(width = 76.dp, height = 56.dp),
                 ) { Text("+$add") }
             }

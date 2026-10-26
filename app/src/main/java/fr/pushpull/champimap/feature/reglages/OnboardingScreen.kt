@@ -41,7 +41,6 @@ import fr.pushpull.champimap.core.ErrorLogger
 import fr.pushpull.champimap.core.db.Person
 import fr.pushpull.champimap.core.newId
 import fr.pushpull.champimap.core.ui.ChampiButton
-import fr.pushpull.champimap.core.ui.ChampiOutlinedButton
 import fr.pushpull.champimap.core.ui.ChampiScreen
 import fr.pushpull.champimap.core.ui.VSpace
 import fr.pushpull.champimap.feature.bonus.champiText

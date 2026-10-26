@@ -113,7 +113,8 @@ fun LockGate(content: @Composable () -> Unit) {
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_STOP -> LockState.backgroundAt = SystemClock.elapsedRealtime()
+                // Pendant la saisie du code (écran système), ce n'est pas un vrai passage en arrière-plan.
+                Lifecycle.Event.ON_STOP -> if (!promptOpen) LockState.backgroundAt = SystemClock.elapsedRealtime()
                 Lifecycle.Event.ON_START -> {
                     val at = LockState.backgroundAt
                     if (at != 0L && SystemClock.elapsedRealtime() - at > LockState.RELOCK_AFTER_MS) {

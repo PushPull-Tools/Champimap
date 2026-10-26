@@ -5,9 +5,9 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
+import android.net.Uri
 import androidx.core.content.ContextCompat
 import fr.pushpull.champimap.core.util.AstroCalc
-import java.net.URLEncoder
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -73,7 +73,7 @@ object HomeLogic {
     /** Recherche web des arrêtés (ouverte dans le navigateur, l'appli n'a pas Internet). */
     fun arretesUrl(date: LocalDate, departement: Departement): String {
         val q = "Période de chasse ${huntingSeason(date)} ${departement.nom} arrêté préfectoral"
-        return "https://duckduckgo.com/?q=" + URLEncoder.encode(q, "UTF-8")
+        return "https://duckduckgo.com/?q=" + Uri.encode(q)
     }
 
     /**

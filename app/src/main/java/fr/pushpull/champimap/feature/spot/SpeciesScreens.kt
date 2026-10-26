@@ -208,7 +208,7 @@ fun FicheEspeceScreen(nav: NavController, speciesId: String) {
     val species by remember(speciesId) { db.speciesDao().flow(speciesId) }.collectAsState(initial = null)
     val lookalikeIds = species?.lookalikes?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
     val lookalikes by remember(lookalikeIds) {
-        if (lookalikeIds.isEmpty()) flowOf(emptyList()) else db.speciesDao().all()
+        if (lookalikeIds.isEmpty()) flowOf(emptyList<Species>()) else db.speciesDao().all()
     }.collectAsState(initial = emptyList())
     val sosies = lookalikes.filter { it.id in lookalikeIds }
 

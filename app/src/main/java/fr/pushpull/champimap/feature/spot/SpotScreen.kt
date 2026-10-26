@@ -1,6 +1,7 @@
 package fr.pushpull.champimap.feature.spot
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -77,6 +79,7 @@ import java.io.File
 @Composable
 fun SpotScreen(nav: NavController, spotId: String, sortieId: String?) {
     val db = AppGraph.db
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val spot by remember(spotId) { db.spotDao().flow(spotId) }.collectAsState(initial = null)
 
@@ -228,7 +231,7 @@ fun SpotScreen(nav: NavController, spotId: String, sortieId: String?) {
                 Row(horizontalArrangement = ROW_GAP) {
                     ChampiOutlinedButton(
                         "Je suis au pied",
-                        onClick = { if (hasFineLocation(nav.context)) auPied = true else locationPerm() },
+                        onClick = { if (hasFineLocation(context)) auPied = true else locationPerm() },
                         modifier = Modifier.weight(1f).heightIn(min = 56.dp),
                     )
                     ChampiOutlinedButton(
@@ -315,10 +318,10 @@ private fun SpotHero(spotId: String, onTakePhoto: () -> Unit) {
             ForestIllustration(Modifier.fillMaxSize())
         }
         Surface(
-            onClick = onTakePhoto,
             shape = RoundedCornerShape(14.dp),
             color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
-            modifier = Modifier.align(Alignment.BottomEnd).padding(10.dp),
+            modifier = Modifier.align(Alignment.BottomEnd).padding(10.dp)
+                .clip(RoundedCornerShape(14.dp)).clickable(onClick = onTakePhoto),
         ) {
             Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.PhotoCamera, contentDescription = null, modifier = Modifier.size(20.dp))
