@@ -56,10 +56,11 @@ class MotionDetector(context: Context, private val onMove: () -> Unit) {
     }
 
     fun stop() {
-        if (!active || sm == null) return
+        val manager = sm ?: return
+        if (!active) return
         active = false
-        if (significant != null) runCatching { sm.cancelTriggerSensor(trigger, significant) }
-        runCatching { sm.unregisterListener(accelListener) }
+        if (significant != null) runCatching { manager.cancelTriggerSensor(trigger, significant) }
+        runCatching { manager.unregisterListener(accelListener) }
     }
 
     private fun fire() {
