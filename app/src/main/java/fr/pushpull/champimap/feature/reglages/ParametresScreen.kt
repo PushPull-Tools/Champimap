@@ -36,12 +36,14 @@ import androidx.navigation.NavController
 import fr.pushpull.champimap.core.AppGraph
 import fr.pushpull.champimap.core.ErrorLogger
 import fr.pushpull.champimap.core.settings.AppSettings
+import fr.pushpull.champimap.core.settings.MessageTone
 import fr.pushpull.champimap.core.settings.ThemeMode
 import fr.pushpull.champimap.core.ui.ChampiButton
 import fr.pushpull.champimap.core.ui.ChampiCard
 import fr.pushpull.champimap.core.ui.ChampiScreen
 import fr.pushpull.champimap.core.ui.VSpace
 import fr.pushpull.champimap.feature.bonus.champiText
+import fr.pushpull.champimap.feature.carnet.CarnetTextes
 import fr.pushpull.champimap.nav.Routes
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -80,6 +82,8 @@ fun ParametresScreen(nav: NavController) {
         ) {
             CollapsibleSection("Profil", Sections.PROFIL in s.collapsedSections, { toggle(Sections.PROFIL) }) {
                 ProfilSection(s)
+                // Carnet : lien vers « Mon carnet » (niveau, titre, succès).
+                LinkRow(CarnetTextes.LIEN_PARAMETRES_TITRE, CarnetTextes.LIEN_PARAMETRES_EXPLICATION) { nav.navigate(Routes.CARNET) }
             }
             CollapsibleSection("Affichage", Sections.AFFICHAGE in s.collapsedSections, { toggle(Sections.AFFICHAGE) }) {
                 AffichageSection(s)
@@ -200,6 +204,22 @@ private fun AffichageSection(s: AppSettings) {
     }
     SwitchRow("Tu dis le g toi ?", "Pour celles et ceux qui disent « champignong ».", s.champignong) {
         scope.launch { AppGraph.settings.setChampignong(it) }
+    }
+    // Carnet : ton des messages du carnet (Normal / Sarcastique).
+    Text(champiText(CarnetTextes.REGLAGE_TON_TITRE), style = MaterialTheme.typography.titleMedium)
+    Text(
+        champiText(CarnetTextes.REGLAGE_TON_EXPLICATION),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf(MessageTone.NORMAL to CarnetTextes.TON_NORMAL, MessageTone.SARCASTIQUE to CarnetTextes.TON_SARCASTIQUE).forEach { (tone, label) ->
+            FilterChip(
+                selected = s.messageTone == tone,
+                onClick = { scope.launch { AppGraph.settings.setMessageTone(tone) } },
+                label = { Text(champiText(label)) },
+            )
+        }
     }
     SwitchRow("Lien « En cas d'intoxication »", "Affiche le lien discret en fin de sortie. La fiche reste accessible ici.", s.intoxLinkVisible) {
         scope.launch { AppGraph.settings.setIntoxLinkVisible(it) }

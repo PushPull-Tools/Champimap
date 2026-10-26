@@ -238,3 +238,14 @@ data class Hospital(
     val phone: String? = null,
     val departement: String? = null,
 )
+
+/**
+ * Carnet : un succès obtenu. `id` = identifiant du succès (voir feature/carnet/CarnetBadges.kt),
+ * `unlockedAt` = date d'obtention, `announced` = déjà annoncé à l'utilisateur (carte de fin de sortie).
+ */
+@Entity(tableName = "unlocked_badge")
+data class UnlockedBadge(
+    @PrimaryKey val id: String,
+    val unlockedAt: Long,
+    val announced: Boolean = false,
+)

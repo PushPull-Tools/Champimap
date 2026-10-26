@@ -63,6 +63,8 @@ import fr.pushpull.champimap.core.util.AstroCalc
 import fr.pushpull.champimap.feature.bonus.Picto
 import fr.pushpull.champimap.feature.bonus.StartMessages
 import fr.pushpull.champimap.feature.bonus.champiText
+import fr.pushpull.champimap.feature.carnet.CarnetEngine
+import fr.pushpull.champimap.feature.carnet.CarnetHomeLine
 import fr.pushpull.champimap.feature.stats.SeasonAlertScheduler
 import fr.pushpull.champimap.nav.Routes
 import java.time.Instant
@@ -95,6 +97,8 @@ fun HomeScreen(nav: NavController) {
     val seasonSpots by remember { dao.seasonSpots(since) }.collectAsState(initial = 0)
     val lastStart by remember { dao.lastSortieStart() }.collectAsState(initial = null)
     var battues by remember { mutableStateOf(emptyList<Battue>()) }
+    // Carnet : niveau et titre, recalculés à chaque changement des données.
+    val carnet by remember { CarnetEngine.stateFlow() }.collectAsState(initial = null)
 
     // Message de départ (pioche du module bonus), tiré une fois par affichage.
     var message by rememberSaveable { mutableStateOf("") }
@@ -125,6 +129,8 @@ fun HomeScreen(nav: NavController) {
         ) {
             VSpace(8.dp)
             Greeting(s, onSecret = { nav.navigate(Routes.AVATAR) })
+            // Carnet : niveau + titre + barre d'XP compacte, appui → « Mon carnet ».
+            carnet?.let { c -> CarnetHomeLine(c.level, onClick = { nav.navigate(Routes.CARNET) }) }
             InfoLine(today, sunset, moon)
             StartCard(
                 message = message,

@@ -15,6 +15,7 @@ import androidx.room.TypeConverters
         Person::class, Sortie::class, TrackPoint::class, Spot::class, SpotPosition::class,
         SpotVisit::class, Recolte::class, RecolteItem::class, Photo::class, Species::class,
         WeatherDay::class, IntoxFiche::class, Battue::class, ErrorLog::class, Hospital::class,
+        UnlockedBadge::class, // Carnet : succès obtenus
     ],
     version = 1,
     exportSchema = true,
@@ -34,6 +35,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun intoxDao(): IntoxDao
     abstract fun hospitalDao(): HospitalDao
     abstract fun battueDao(): BattueDao
+    abstract fun carnetDao(): CarnetDao // Carnet : niveaux et succès
 
     companion object {
         /** Nom du fichier de base (réutilisé par la sauvegarde / restauration). */

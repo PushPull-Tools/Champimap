@@ -59,6 +59,9 @@ object Routes {
     // Easter egg
     const val AVATAR = "avatar"
 
+    // Carnet : niveaux et succès
+    const val CARNET = "carnet"
+
     /** Routes qui affichent le menu du bas. */
     val TOP_LEVEL = setOf(HOME, CARTE, STATS, CATALOGUE, PARAMETRES)
 }

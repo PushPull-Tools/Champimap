@@ -13,6 +13,9 @@ import kotlinx.coroutines.flow.map
 /** Thèmes disponibles. PSYCHE n'apparaît dans le menu qu'une fois découvert. */
 enum class ThemeMode { AUTO, CLAIR, SOMBRE, PSYCHE }
 
+/** Carnet : ton des messages du carnet (succès, niveaux). Sarcastique = taquin, mais bon esprit. */
+enum class MessageTone { NORMAL, SARCASTIQUE }
+
 /** Instantané de tous les réglages, observé par l'interface. */
 data class AppSettings(
     val onboardingDone: Boolean = false,
@@ -39,6 +42,10 @@ data class AppSettings(
     /** Pioche des messages de départ restants (indices séparés par des virgules). */
     val startMessageBag: String = "",
     val lastStartMessage: Int = -1,
+    /** Carnet : ton des messages (Normal / Sarcastique). */
+    val messageTone: MessageTone = MessageTone.NORMAL,
+    /** Carnet : pluies cachées déjà vues, parmi "leaves", "rain", "mushrooms" (succès secrets). */
+    val rainsSeen: Set<String> = emptySet(),
 )
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -63,6 +70,9 @@ class SettingsRepository(private val context: Context) {
         val collapsedSections = stringPreferencesKey("collapsedSections")
         val startMessageBag = stringPreferencesKey("startMessageBag")
         val lastStartMessage = stringPreferencesKey("lastStartMessage")
+        // Carnet : ton des messages et pluies cachées vues (ensemble séparé par des virgules).
+        val messageTone = stringPreferencesKey("messageTone")
+        val rainsSeen = stringPreferencesKey("rainsSeen")
     }
 
     val flow: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -83,6 +93,8 @@ class SettingsRepository(private val context: Context) {
             collapsedSections = (p[K.collapsedSections] ?: "").split(',').filter { it.isNotBlank() }.toSet(),
             startMessageBag = p[K.startMessageBag] ?: "",
             lastStartMessage = (p[K.lastStartMessage] ?: "-1").toIntOrNull() ?: -1,
+            messageTone = runCatching { MessageTone.valueOf(p[K.messageTone] ?: "NORMAL") }.getOrDefault(MessageTone.NORMAL),
+            rainsSeen = (p[K.rainsSeen] ?: "").split(',').filter { it.isNotBlank() }.toSet(),
         )
     }
 
@@ -103,5 +115,12 @@ class SettingsRepository(private val context: Context) {
     suspend fun setStartMessageBag(bag: String, last: Int) = context.dataStore.edit {
         it[K.startMessageBag] = bag
         it[K.lastStartMessage] = last.toString()
+    }
+
+    // Carnet : ton des messages, et ajout d'une pluie cachée vue ("leaves", "rain" ou "mushrooms").
+    suspend fun setMessageTone(v: MessageTone) = context.dataStore.edit { it[K.messageTone] = v.name }
+    suspend fun addRainSeen(kind: String) = context.dataStore.edit {
+        val seen = (it[K.rainsSeen] ?: "").split(',').filter { k -> k.isNotBlank() }.toSet()
+        if (kind !in seen) it[K.rainsSeen] = (seen + kind).sorted().joinToString(",")
     }
 }

@@ -31,6 +31,7 @@ import fr.pushpull.champimap.feature.bonus.AvatarScreen
 import fr.pushpull.champimap.feature.bonus.HiddenRainsOverlay
 import fr.pushpull.champimap.feature.bonus.champiText
 import fr.pushpull.champimap.feature.bonus.emojiFor
+import fr.pushpull.champimap.feature.carnet.CarnetScreen
 import fr.pushpull.champimap.feature.connect.ConnectScreen
 import fr.pushpull.champimap.feature.connect.IntoxListScreen
 import fr.pushpull.champimap.feature.connect.IntoxScreen
@@ -147,6 +148,7 @@ fun AppNav(startOnboarding: Boolean, importPending: Boolean) {
                     composable(Routes.IMPORT_PARTAGE) { ImportPartageScreen(nav) }
 
                     composable(Routes.AVATAR) { AvatarScreen(nav) }
+                    composable(Routes.CARNET) { CarnetScreen(nav) } // Carnet : niveaux et succès
                 }
             }
 

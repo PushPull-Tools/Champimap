@@ -33,6 +33,7 @@ import fr.pushpull.champimap.core.ui.ChampiOutlinedButton
 import fr.pushpull.champimap.core.ui.ChampiScreen
 import fr.pushpull.champimap.core.ui.SectionTitle
 import fr.pushpull.champimap.feature.bonus.champiText
+import fr.pushpull.champimap.feature.carnet.CarnetFinSortie
 import fr.pushpull.champimap.nav.Routes
 import java.util.Locale
 
@@ -78,6 +79,9 @@ fun FinSortieScreen(nav: NavController, sortieId: String) {
                     textAlign = TextAlign.Center,
                 )
             }
+
+            // Carnet : XP gagnée pendant la sortie, passage de niveau, nouveaux succès (un par un).
+            CarnetFinSortie(sortie, onOpenCarnet = { nav.navigate(Routes.CARNET) })
 
             SectionTitle("Spots de la sortie")
             ChampiCard(Modifier.fillMaxWidth()) {

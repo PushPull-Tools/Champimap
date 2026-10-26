@@ -22,6 +22,8 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
+import fr.pushpull.champimap.core.AppGraph
+import kotlinx.coroutines.launch
 import kotlin.math.sin
 import kotlin.random.Random
 
@@ -86,6 +88,11 @@ fun HiddenRainsOverlay(content: @Composable () -> Unit) {
                                         val quick = change.uptimeMillis - startTime <= TAP_MAX_MS
                                         if (!cancelled && !change.isConsumed && quick) {
                                             val kind = counter.onTap(change.uptimeMillis)
+                                            // Carnet : on mémorise la pluie déclenchée (succès secrets « pluies cachées »).
+                                            if (kind != null) {
+                                                val key = kind.name.lowercase() // "leaves", "rain", "mushrooms"
+                                                AppGraph.appScope.launch { runCatching { AppGraph.settings.addRainSeen(key) } }
+                                            }
                                             if (kind != null && anim) {
                                                 rain = kind
                                                 rainId++
