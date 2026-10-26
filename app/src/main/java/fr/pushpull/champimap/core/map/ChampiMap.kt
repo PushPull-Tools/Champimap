@@ -3,6 +3,7 @@ package fr.pushpull.champimap.core.map
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -106,7 +107,7 @@ fun ChampiMapView(
     }
 
     Box(modifier) {
-        AndroidView(factory = { mapView }, modifier = Modifier.matchParentSizeCompat())
+        AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
         // Attribution des données OpenStreetMap (obligatoire quand une carte est affichée).
         if (hasMaps) {
             Text(
@@ -122,11 +123,6 @@ fun ChampiMapView(
         }
     }
 }
-
-/** La carte occupe toute la place de son conteneur. */
-private fun Modifier.matchParentSizeCompat(): Modifier = this.then(Modifier.fillMaxSizeInternal())
-
-private fun Modifier.fillMaxSizeInternal(): Modifier = androidx.compose.foundation.layout.fillMaxSize().let { this.then(it) }
 
 /**
  * Initialise MapLibre sans réseau. L'appli n'a pas la permission ACCESS_NETWORK_STATE :

@@ -176,8 +176,8 @@ Panneau « Comment tu démarres ? » : « Je suis garé » (on enregistre la voi
 - Verrouillage : `LockGate { }` avec BiometricPrompt (empreinte ou code du téléphone).
 
 ### Sortie à plusieurs et partage (module groupe)
-- Créer : QR code (zxing) contenant les infos de connexion Wi-Fi Direct ; Rejoindre : scan.
-  Pas de maître : tous égaux, synchro en direct (Wi-Fi Direct, paquets toutes les 30–60 s), relais
+- Créer : QR code (zxing) avec les infos du groupe ; liaison Bluetooth Low Energy (L2CAP) — Wi-Fi Direct impossible sans permission INTERNET ; Rejoindre : scan.
+  Pas de maître : tous égaux, synchro en direct (Bluetooth, paquets toutes les 30–60 s), relais
   (chaque téléphone retransmet), fusion par `updatedAt`, chaque saisie marquée de son auteur, prénom partagé.
   Jusqu'à ~6 en direct.
 - Partager un spot : choix « Lieu seul » ou « Lieu + mon historique », « Garder la position GPS dans les

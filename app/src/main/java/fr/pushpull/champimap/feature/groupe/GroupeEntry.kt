@@ -2,30 +2,25 @@ package fr.pushpull.champimap.feature.groupe
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavController
-import fr.pushpull.champimap.core.ui.ChampiScreen
 
 /*
- * SOCLE : points d'entrée des écrans du module « groupe ».
- * Le module remplace ces écrans provisoires en gardant EXACTEMENT les mêmes signatures
- * (elles sont appelées par nav/AppNav.kt).
+ * Points d'entrée des écrans du module « groupe » (appelés par nav/AppNav.kt, signatures fixes).
+ * Chaque écran est dans son propre fichier :
+ *  - GroupeCreerUi.kt      : « Sortie à plusieurs » (création du réseau + QR code) ;
+ *  - GroupeRejoindreUi.kt  : « Rejoindre » (scan du QR code + connexion) ;
+ *  - PartageSpotUi.kt      : « Partager le spot » (QR code ou fichier .champi) ;
+ *  - ImportPartageUi.kt    : « Spot reçu » (fichier .champi ou QR code scanné).
+ * Moteur de synchro : GroupSync.kt ; fusion : GroupRepository.kt ; partage : SpotShare.kt.
  */
 
 @Composable
-fun GroupeCreerScreen(nav: NavController, sortieId: String) {
-    ChampiScreen(title = "Sortie à plusieurs", onBack = { nav.popBackStack() }) {}
-}
+fun GroupeCreerScreen(nav: NavController, sortieId: String) = GroupeCreerContent(nav, sortieId)
 
 @Composable
-fun GroupeRejoindreScreen(nav: NavController) {
-    ChampiScreen(title = "Rejoindre", onBack = { nav.popBackStack() }) {}
-}
+fun GroupeRejoindreScreen(nav: NavController) = GroupeRejoindreContent(nav)
 
 @Composable
-fun PartageSpotScreen(nav: NavController, spotId: String) {
-    ChampiScreen(title = "Partager le spot", onBack = { nav.popBackStack() }) {}
-}
+fun PartageSpotScreen(nav: NavController, spotId: String) = PartageSpotContent(nav, spotId)
 
 @Composable
-fun ImportPartageScreen(nav: NavController) {
-    ChampiScreen(title = "Spot reçu", onBack = { nav.popBackStack() }) {}
-}
+fun ImportPartageScreen(nav: NavController) = ImportPartageContent(nav)

@@ -23,13 +23,18 @@
     <!-- Micro : mémo vocal sur un spot. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
-    <!-- Wi-Fi Direct : sortie à plusieurs, sans Internet. -->
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <!--
+      Bluetooth : sortie à plusieurs, sans Internet.
+      (Wi-Fi Direct est impossible : tout socket IP exige la permission INTERNET.)
+    -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
     <uses-permission
-        android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation"
-        tools:targetApi="33" />
+        tools:targetApi="31" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
 
     <!-- Installer le module Champimap Connect livré dans l'appli (ne donne aucun accès réseau). -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
@@ -45,7 +50,7 @@
     <uses-permission android:name="fr.pushpull.champimap.permission.CONNECT" />
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
-    <uses-feature android:name="android.hardware.wifi.direct" android:required="false" />
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 
     <queries>
