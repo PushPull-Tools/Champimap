@@ -20,25 +20,20 @@ import java.util.Locale
 /*
  * Hôpitaux avec service d'urgences d'un département, via l'API Overpass (OpenStreetMap).
  * Seule l'emprise rectangulaire du département est envoyée : aucune position de spot.
- * Sortie : hospitals_<code>.json (format documenté dans SyncProtocol).
+ * Sortie : hospitals_<code>.json, tableau d'objets (format figé, documenté dans SyncProtocol).
  */
 object HospitalDownloader {
     private const val URL = "https://overpass-api.de/api/interpreter"
 
-    /** Interroge Overpass et renvoie le JSON prêt à écrire. */
-    fun download(dept: Dept, generatedAt: Long): JsonObject {
+    /** Interroge Overpass et renvoie le tableau JSON prêt à écrire (hospitals_<code>.json). */
+    fun download(dept: Dept): JsonArray {
         val b = dept.bbox
         // Overpass attend (sud, ouest, nord, est).
         val bbox = String.format(Locale.US, "%.4f,%.4f,%.4f,%.4f", b.minLat, b.minLon, b.maxLat, b.maxLon)
         val query = "[out:json][timeout:60];nwr[\"amenity\"=\"hospital\"][\"emergency\"=\"yes\"]($bbox);out center tags;"
         val body = "data=" + URLEncoder.encode(query, "UTF-8")
         val raw = Http.postForm(URL, body)
-        return jsonObj(
-            "generatedAt" to generatedAt,
-            "departement" to dept.code,
-            "source" to "OpenStreetMap (Overpass)",
-            "hospitals" to JsonArray(parse(raw, dept.code)),
-        )
+        return JsonArray(parse(raw, dept.code))
     }
 
     /** Transforme la réponse Overpass en liste d'hôpitaux (id, nom, lat, lon, téléphone, département). */
@@ -57,7 +52,7 @@ object HospitalDownloader {
             // Nœud : lat/lon directs ; chemin ou relation : « center » calculé par Overpass.
             val pos = if (type == "node") o else o["center"]?.jsonObject
             val lat = pos?.get("lat")?.jsonPrimitive?.doubleOrNull ?: continue
-            val lon = pos["lon"]?.jsonPrimitive?.doubleOrNull ?: continue
+            val lon = pos?.get("lon")?.jsonPrimitive?.doubleOrNull ?: continue
             val tags = o["tags"]?.jsonObject
             fun tag(k: String): String? = tags?.get(k)?.jsonPrimitive?.contentOrNull
             val name = tag("name") ?: tag("official_name") ?: tag("short_name")

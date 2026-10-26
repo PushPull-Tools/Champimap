@@ -24,6 +24,7 @@ import java.util.Locale
  *  - dates récentes : API « forecast » avec past_days (observations/modèles des derniers jours).
  * Seul le CENTRE du carré est envoyé, jamais une position de spot.
  * Valeurs : cumul de pluie (mm), température min et max (°C), journées en heure de Paris.
+ * Sortie : weather.json, tableau plat (format figé, documenté dans SyncProtocol).
  */
 object WeatherDownloader {
     private const val ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
@@ -110,21 +111,14 @@ object WeatherDownloader {
     /** Valeur numérique à l'index i d'une colonne (null si absente ou nulle). */
     private fun JsonArray?.num(i: Int): Double? = (this?.getOrNull(i) as? JsonPrimitive)?.doubleOrNull
 
-    /** Objet JSON d'une zone réussie (format weather.json). */
-    fun zoneJson(zoneId: String, lat: Double, lon: Double, from: LocalDate, to: LocalDate, days: List<Day>): JsonObject =
-        jsonObj(
-            "zoneId" to zoneId, "lat" to lat, "lon" to lon, "from" to from.toString(), "to" to to.toString(),
-            "days" to JsonArray(days.map {
-                jsonObj(
-                    "date" to it.date.toString(), "precipitationMm" to it.precipitationMm,
-                    "tempMinC" to it.tempMinC, "tempMaxC" to it.tempMaxC,
-                )
-            }),
-        )
-
-    /** Contenu complet de weather.json. */
-    fun fileJson(generatedAt: Long, zones: List<JsonObject>, errors: List<JsonObject>): JsonObject = jsonObj(
-        "generatedAt" to generatedAt, "timezone" to "Europe/Paris", "source" to "Open-Meteo",
-        "zones" to JsonArray(zones), "errors" to JsonArray(errors),
-    )
+    /**
+     * Lignes de weather.json pour une zone : { zoneId, date, rainMm, tMinC, tMaxC }.
+     * Les jours incomplets (une valeur absente) sont omis : l'appli ne saurait pas les enregistrer.
+     */
+    fun rows(zoneId: String, days: List<Day>): List<JsonObject> = days.mapNotNull { d ->
+        val rain = d.precipitationMm ?: return@mapNotNull null
+        val lo = d.tempMinC ?: return@mapNotNull null
+        val hi = d.tempMaxC ?: return@mapNotNull null
+        jsonObj("zoneId" to zoneId, "date" to d.date.toString(), "rainMm" to rain, "tMinC" to lo, "tMaxC" to hi)
+    }
 }

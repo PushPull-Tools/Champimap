@@ -41,22 +41,16 @@ import kotlinx.serialization.json.JsonPrimitive
  *   - RESULT_CANCELED : annulé ou aucun fichier obtenu (raisons dans snapshot.errors) ;
  *   - dans tous les cas l'extra EXTRA_SNAPSHOT (texte JSON de SyncSnapshot) est présent.
  *
- * Formats des fichiers JSON (UTF-8, dates locales Europe/Paris, generatedAt en millisecondes) :
- *   weather.json :
- *     { "generatedAt": 0, "timezone": "Europe/Paris", "source": "Open-Meteo",
- *       "zones": [ { "zoneId": "45.75_1.25", "lat": 45.875, "lon": 1.375, "from": "AAAA-MM-JJ", "to": "AAAA-MM-JJ",
- *                    "days": [ { "date": "AAAA-MM-JJ", "precipitationMm": 3.2, "tempMinC": 4.1, "tempMaxC": 13.8 } ] } ],
- *       "errors": [ { "zoneId": "…", "message": "…" } ] }
- *     (valeurs numériques possiblement null ; dates futures ignorées ; plusieurs périodes d'une même zone fusionnées)
- *   hospitals_<code>.json :
- *     { "generatedAt": 0, "departement": "87", "source": "OpenStreetMap (Overpass)",
- *       "hospitals": [ { "id": "way/123", "name": "CHU Dupuytren", "lat": 45.81, "lon": 1.23,
- *                        "phone": "05 55 05 55 55", "departement": "87" } ] }
- *     (phone et name possiblement null ; emprise rectangulaire : des hôpitaux voisins peuvent y figurer)
- *   antipoison.json :
- *     { "generatedAt": 0, "verified": false,
- *       "centers": [ { "id": "angers", "name": "Centre antipoison d'Angers", "city": "Angers",
- *                      "phone": "02 41 48 21 21", "regions": ["Bretagne", …], "departements": ["22", …] } ] }
+ * Formats des fichiers JSON (FIGÉS, lus par l'appli principale) : UTF-8, TABLEAU d'objets à la racine.
+ *   weather.json : [ { "zoneId": "45.75_1.25", "date": "AAAA-MM-JJ", "rainMm": 3.2, "tMinC": 4.1, "tMaxC": 13.8 } ]
+ *     (une ligne par zone et par jour ; jours incomplets omis ; dates futures ignorées ; heure de Paris ;
+ *      les zones en échec ne figurent pas : elles sont signalées dans snapshot.errors)
+ *   hospitals_<code>.json : [ { "id": "way/123", "name": "CHU …", "lat": 45.81, "lon": 1.23,
+ *                               "phone": "05 55 05 55 55" ou null, "departement": "87" } ]
+ *     (emprise rectangulaire du département : des hôpitaux voisins peuvent y figurer)
+ *   antipoison.json : [ { "name": "Centre antipoison de Bordeaux", "phone": "05 56 96 40 80",
+ *                         "departements": ["33", …] } ]
+ *     (champs en plus, ignorés si inutiles : "id", "city", "lat", "lon", "regions", "verified")
  *   contour_<code>.geojson : GeoJSON du département (dépôt france-geojson, tel quel).
  */
 object SyncProtocol {

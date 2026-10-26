@@ -13,6 +13,7 @@ import android.os.IBinder
 import fr.pushpull.champimap.connect.ConnectActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
@@ -54,7 +55,8 @@ class SyncService : Service() {
         } else {
             startForeground(NOTIF_ID, first)
         }
-        scope.coroutineContext[kotlinx.coroutines.Job]?.children?.forEach { it.cancel() }
+        // Un seul observateur à la fois (onStartCommand peut être rappelé).
+        scope.coroutineContext[Job]?.children?.forEach { it.cancel() }
         scope.launch {
             SyncEngine.state.collectLatest { s ->
                 if (!s.running) {
@@ -91,7 +93,6 @@ class SyncService : Service() {
             this, 1, Intent(this, SyncService::class.java).setAction(ACTION_CANCEL),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        @Suppress("DEPRECATION")
         return Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setContentTitle("Champimap Connect · $percent %")

@@ -12,7 +12,6 @@ import fr.pushpull.champimap.connect.SyncItem
 import fr.pushpull.champimap.connect.SyncProtocol
 import fr.pushpull.champimap.connect.SyncSnapshot
 import fr.pushpull.champimap.connect.data.Departements
-import fr.pushpull.champimap.connect.jsonObj
 import fr.pushpull.champimap.connect.download.ContourDownloader
 import fr.pushpull.champimap.connect.download.HospitalDownloader
 import fr.pushpull.champimap.connect.download.MapDownloader
@@ -31,9 +30,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runInterruptible
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonArray
 import java.io.File
 import java.io.IOException
 import java.time.LocalDate
@@ -137,13 +136,12 @@ object SyncEngine {
         try {
             prepareDir(dir)
             if (p.isEmpty) throw IOException("Rien à télécharger dans la demande")
-            val now = System.currentTimeMillis()
 
             // 1. Centres antipoison (aucun réseau).
             if (r.poisonCenters) {
                 step("Centres antipoison")
                 runItem("antipoison") {
-                    writeJson(dir, "antipoison.json", PoisonCenters.toJson(now))
+                    writeJson(dir, "antipoison.json", PoisonCenters.toJson())
                     "${PoisonCenters.ALL.size} centres"
                 }
             }
@@ -158,9 +156,9 @@ object SyncEngine {
                     sizeText(bytes.size.toLong())
                 }
                 runItem("urgences_$code") {
-                    val json = runInterruptible { HospitalDownloader.download(dept, now) }
+                    val json = runInterruptible { HospitalDownloader.download(dept) }
                     writeJson(dir, "hospitals_$code.json", json)
-                    val n = json["hospitals"]?.jsonArray?.size ?: 0
+                    val n = json.size
                     "$n hôpita${if (n > 1) "ux" else "l"} avec urgences"
                 }
                 delay(500) // politesse envers le serveur Overpass public
@@ -169,7 +167,7 @@ object SyncEngine {
             // 3. Météo.
             if (r.zones.isNotEmpty()) {
                 step("Météo")
-                runItem("meteo") { downloadWeather(p, dir, now) }
+                runItem("meteo") { downloadWeather(p, dir) }
             }
 
             // 4. Cartes.
@@ -214,15 +212,16 @@ object SyncEngine {
     }
 
     /** Météo : fusion des périodes par zone, une requête (ou deux) par zone, weather.json. */
-    private suspend fun downloadWeather(p: ParsedRequest, dir: File, now: Long): String {
+    private suspend fun downloadWeather(p: ParsedRequest, dir: File): String {
         val today = LocalDate.now(WeatherDownloader.PARIS)
         val byZone = LinkedHashMap<String, MutableSet<LocalDate>>()
         for (z in p.request.zones) {
             val dates = WeatherDownloader.datesBetween(LocalDate.parse(z.from), LocalDate.parse(z.to), today)
             byZone.getOrPut(z.zoneId) { TreeSet() }.addAll(dates)
         }
-        val okZones = ArrayList<JsonObject>()
-        val errZones = ArrayList<JsonObject>()
+        val rows = ArrayList<JsonObject>()
+        var okZones = 0
+        var errZones = 0
         val centers = p.request.zones.associateBy { it.zoneId }
         var i = 0
         for ((zoneId, dates) in byZone) {
@@ -230,22 +229,20 @@ object SyncEngine {
             setItem("meteo") { it.copy(detail = "Zone ${i + 1} sur ${byZone.size}") }
             try {
                 val days = runInterruptible { WeatherDownloader.downloadZone(zr.centerLat, zr.centerLon, dates, today) }
-                val from = dates.minOrNull() ?: today
-                val to = dates.maxOrNull() ?: today
-                okZones += WeatherDownloader.zoneJson(zoneId, zr.centerLat, zr.centerLon, from, to, days)
+                rows += WeatherDownloader.rows(zoneId, days)
+                okZones++
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                val msg = reason(e)
-                errZones += jsonObj("zoneId" to zoneId, "message" to msg)
-                addError("Météo · zone $zoneId : $msg")
+                errZones++
+                addError("Météo · zone $zoneId : ${reason(e)}")
             }
             i++
             setItem("meteo") { it.copy(percent = i * 100 / byZone.size) }
         }
-        if (okZones.isEmpty()) throw IOException("Aucune zone météo n'a pu être téléchargée")
-        writeJson(dir, "weather.json", WeatherDownloader.fileJson(now, okZones, errZones))
-        return if (errZones.isEmpty()) "${okZones.size} zone(s)" else "${okZones.size} zone(s), ${errZones.size} en échec"
+        if (okZones == 0) throw IOException("Aucune zone météo n'a pu être téléchargée")
+        writeJson(dir, "weather.json", JsonArray(rows))
+        return if (errZones == 0) "$okZones zone(s) · ${rows.size} jours" else "$okZones zone(s), $errZones en échec"
     }
 
     /**
@@ -353,7 +350,7 @@ object SyncEngine {
     }
 
     /** Écrit un JSON de façon atomique (fichier temporaire puis renommage) et l'annonce. */
-    private fun writeJson(dir: File, name: String, json: JsonObject) =
+    private fun writeJson(dir: File, name: String, json: JsonElement) =
         writeBytes(dir, name, SyncProtocol.json.encodeToString(JsonElement.serializer(), json).toByteArray(Charsets.UTF_8))
 
     /** Écrit des octets de façon atomique et annonce le fichier. */
