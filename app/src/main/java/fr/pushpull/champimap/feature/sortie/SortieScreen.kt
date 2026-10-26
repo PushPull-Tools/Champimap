@@ -5,9 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -27,6 +25,8 @@ import androidx.lifecycle.compose.currentStateAsState
 import androidx.navigation.NavController
 import fr.pushpull.champimap.core.AppGraph
 import fr.pushpull.champimap.core.ErrorLogger
+import fr.pushpull.champimap.core.db.DepartType
+import fr.pushpull.champimap.core.db.Person
 import fr.pushpull.champimap.core.db.PositionSource
 import fr.pushpull.champimap.core.db.SpotMarker
 import fr.pushpull.champimap.core.map.ChampiMapView
@@ -57,7 +57,7 @@ fun SortieScreen(nav: NavController, sortieId: String) {
     val settings by remember { AppGraph.settings.flow }.collectAsState(initial = null)
     val groupId = sortie?.groupId
     val companions by remember(groupId) {
-        if (groupId != null) db.personDao().companionsOfGroup(groupId) else flowOf(emptyList())
+        if (groupId != null) db.personDao().companionsOfGroup(groupId) else flowOf(emptyList<Person>())
     }.collectAsState(initial = emptyList())
     val fix by SortieTracker.lastFix.collectAsState()
     val paused by SortieTracker.gpsPaused.collectAsState()
@@ -150,7 +150,7 @@ fun SortieScreen(nav: NavController, sortieId: String) {
 
             // Haut : barre d'état, pastilles, bandeaux.
             Column(
-                Modifier.align(Alignment.TopCenter).fillMaxWidth().statusBarsPadding().padding(12.dp),
+                Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(12.dp),
             ) {
                 SortieTopBar(
                     startedAt = sortie?.startedAt ?: now,
@@ -186,10 +186,10 @@ fun SortieScreen(nav: NavController, sortieId: String) {
 
             // Bas : flèche, nuit, boutons.
             SortieBottomPanel(
-                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(12.dp),
+                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(12.dp),
                 fix = fix,
                 start = start,
-                departIsCar = sortie?.departType == fr.pushpull.champimap.core.db.DepartType.CAR,
+                departIsCar = sortie?.departType == DepartType.CAR,
                 target = target,
                 compassActive = visible,
                 nightMin = nightMin,

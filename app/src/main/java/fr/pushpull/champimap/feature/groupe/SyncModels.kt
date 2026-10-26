@@ -249,10 +249,13 @@ data class SyncBundle(
  *   pour les photos : `deletedAt` ou 0).
  * @param trackMax identifiant d'auteur → instant du dernier point de trace connu.
  * @param photoFiles identifiants des photos dont le FICHIER est présent sur ce téléphone.
+ * @param photoPartial photos en cours de réception : identifiant → octets déjà reçus
+ *   (l'envoi reprend à cet endroit, même après une coupure).
  */
 @Serializable
 data class SyncSummary(
     val versions: Map<String, Long> = emptyMap(),
     val trackMax: Map<String, Long> = emptyMap(),
     val photoFiles: List<String> = emptyList(),
+    val photoPartial: Map<String, Long> = emptyMap(),
 )

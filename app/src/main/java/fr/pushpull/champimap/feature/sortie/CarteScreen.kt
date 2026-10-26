@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
@@ -95,7 +94,7 @@ fun CarteScreen(nav: NavController) {
 
             // Barre haute : titre, sortie en cours, légende, recadrage.
             Row(
-                Modifier.align(Alignment.TopCenter).fillMaxWidth().statusBarsPadding().padding(12.dp),
+                Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f).panelBackground().padding(horizontal = 16.dp, vertical = 10.dp)) {
@@ -124,7 +123,7 @@ fun CarteScreen(nav: NavController) {
                 Legend(
                     spots = spots.orEmpty(),
                     onClose = { showLegend = false },
-                    modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 84.dp, end = 12.dp),
+                    modifier = Modifier.align(Alignment.TopEnd).padding(top = 84.dp, end = 12.dp),
                 )
             }
 

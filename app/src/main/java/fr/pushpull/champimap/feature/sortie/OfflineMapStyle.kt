@@ -72,8 +72,9 @@ object OfflineMapStyle {
 
     /** Ajoute les couches d'une source : végétation, eau, bâtiments, routes, chemins. */
     private fun addLayers(layers: JSONArray, src: String, p: Palette) {
-        val polygon = arr("==", arr("geometry-type"), "Polygon")
-        val line = arr("==", arr("geometry-type"), "LineString")
+        // « geometry-type » peut valoir Polygon ou MultiPolygon selon la version du moteur : on accepte les deux.
+        val polygon = arr("in", arr("geometry-type"), arr("literal", JSONArray(listOf("Polygon", "MultiPolygon"))))
+        val line = arr("in", arr("geometry-type"), arr("literal", JSONArray(listOf("LineString", "MultiLineString"))))
         fun kindIn(vararg kinds: String) = arr("in", arr("get", "kind"), arr("literal", JSONArray(kinds.toList())))
 
         // Végétation (landcover = grandes zones, landuse = parcelles détaillées).
@@ -135,11 +136,12 @@ object OfflineMapStyle {
      * Emprise d'un fichier PMTiles (v3), lue dans son en-tête de 127 octets, sans rien décompresser.
      * Sert à centrer la carte sur les départements cochés quand il n'y a pas encore de spot.
      */
-    fun bounds(file: File): LatLngBounds? = try {
-        RandomAccessFile(file, "r").use { raf ->
+    fun bounds(file: File): LatLngBounds? {
+        return try {
             val header = ByteArray(127)
-            raf.readFully(header)
+            RandomAccessFile(file, "r").use { raf -> raf.readFully(header) }
             if (String(header, 0, 7, Charsets.US_ASCII) != "PMTiles") return null
+            // Emprise en degrés × 10 000 000, entiers 32 bits petit-boutistes (octets 102 à 117).
             val b = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN)
             val minLon = b.getInt(102) / 1e7
             val minLat = b.getInt(106) / 1e7
@@ -147,10 +149,10 @@ object OfflineMapStyle {
             val maxLat = b.getInt(114) / 1e7
             if (maxLat <= minLat || maxLon <= minLon) null
             else LatLngBounds.Builder().include(LatLng(minLat, minLon)).include(LatLng(maxLat, maxLon)).build()
+        } catch (e: Exception) {
+            ErrorLogger.log("Carte", "En-tête de carte illisible", e)
+            null
         }
-    } catch (e: Exception) {
-        ErrorLogger.log("Carte", "En-tête de carte illisible", e)
-        null
     }
 
     /** Emprise réunie des cartes des départements donnés (ou de toutes les cartes si la liste est vide). */

@@ -1,7 +1,9 @@
 package fr.pushpull.champimap.feature.groupe
 
 import android.Manifest
+import android.bluetooth.BluetoothAdapter
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Build
@@ -105,12 +107,16 @@ fun qrScanOptions(prompt: String): ScanOptions = ScanOptions()
 // ------------------------------------------------------------------------------- Autorisations
 
 /**
- * Autorisations nécessaires au Wi-Fi Direct :
- * Android 13+ : « appareils Wi-Fi à proximité » ; avant : la position précise.
+ * Autorisations nécessaires à la sortie à plusieurs en Bluetooth :
+ * Android 12+ : rechercher, se connecter et s'annoncer (« appareils à proximité ») ;
+ * avant : la position précise (exigée par Android pour le scan Bluetooth).
  */
-fun wifiDirectPermissions(): Array<String> =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) arrayOf(Manifest.permission.NEARBY_WIFI_DEVICES)
-    else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
+fun bluetoothPermissions(): Array<String> =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) arrayOf(
+        Manifest.permission.BLUETOOTH_SCAN,
+        Manifest.permission.BLUETOOTH_CONNECT,
+        Manifest.permission.BLUETOOTH_ADVERTISE,
+    ) else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
 
 /** Toutes ces autorisations sont-elles accordées ? */
 fun hasPermissions(context: Context, perms: Array<String>): Boolean =
@@ -133,6 +139,31 @@ fun rememberPermissionGate(perms: Array<String>, onResult: (Boolean) -> Unit = {
             granted = true
             onResult(true)
         } else launcher.launch(perms)
+    }
+}
+
+/**
+ * Demande d'activation du Bluetooth (fenêtre système « Autoriser Champimap à activer le
+ * Bluetooth ? »). Renvoie la fonction qui ouvre la demande ; `onResult(true)` si le
+ * Bluetooth est allumé au retour.
+ */
+@Composable
+fun rememberBluetoothEnabler(onResult: (Boolean) -> Unit): () -> Unit {
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        onResult(BleLink.isEnabled(context))
+    }
+    return {
+        if (BleLink.isEnabled(context)) {
+            onResult(true)
+        } else {
+            try {
+                launcher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
+            } catch (e: Exception) {
+                // Autorisation BLUETOOTH_CONNECT absente ou écran système introuvable.
+                onResult(false)
+            }
+        }
     }
 }
 

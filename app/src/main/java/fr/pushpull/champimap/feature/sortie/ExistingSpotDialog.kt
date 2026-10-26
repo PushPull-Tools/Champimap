@@ -39,7 +39,7 @@ internal fun ExistingSpotDialog(
     onHere: (SpotMarker) -> Unit,
 ) {
     // Tri par distance ; sans position, par ordre de la liste (les plus récents d'abord).
-    val sorted = if (fix == null) spots.map { it to null }
+    val sorted: List<Pair<SpotMarker, Double?>> = if (fix == null) spots.map { it to null }
     else spots.map { it to Geo.distanceM(fix.lat, fix.lon, it.lat, it.lon) }.sortedBy { it.second }
     val list = sorted.take(30)
 

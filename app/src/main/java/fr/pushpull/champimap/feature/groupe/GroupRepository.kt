@@ -40,7 +40,7 @@ object GroupRepository {
     private const val CHUNK = 500
 
     /** Nombre maximum de points de trace envoyés par auteur et par échange. */
-    private const val TRACK_LIMIT = 3000
+    private const val TRACK_LIMIT = 800 // Bluetooth : petits paquets, le reste au tour suivant
 
     /** Exécute une requête `IN (:ids)` par paquets et concatène les résultats. */
     private suspend fun <T> inChunks(ids: Collection<String>, query: suspend (List<String>) -> List<T>): List<T> {
@@ -89,7 +89,7 @@ object GroupRepository {
         if (local != null && File(local.path).exists()) return // déjà là
         val target = receivedPhotoFile(context, dto.id)
         if (!target.exists()) {
-            val tmp = File(target.parentFile, "${dto.id}.part")
+            val tmp = File(target.parentFile, "${dto.id}.tmp") // (".part" est réservé aux réceptions Bluetooth en cours)
             tmp.writeBytes(bytes)
             if (!tmp.renameTo(target)) {
                 tmp.delete()
@@ -97,6 +97,46 @@ object GroupRepository {
             }
         }
         dao.upsertPhoto(local?.copy(path = target.absolutePath) ?: dto.toEntity(target.absolutePath))
+    }
+
+    /** Fichier temporaire d'une photo en cours de réception (morceau par morceau). */
+    private fun partFile(context: Context, photoId: String): File = File(photosDir(context), "$photoId.part")
+
+    /** Photos du groupe à moitié reçues : identifiant → octets déjà présents. */
+    private fun partialPhotos(d: GroupData): Map<String, Long> {
+        val dir = photosDir(AppGraph.appContext)
+        val out = HashMap<String, Long>()
+        dir.listFiles { f -> f.name.endsWith(".part") }?.forEach { f ->
+            val id = f.name.removeSuffix(".part")
+            if (d.photos.none { it.id == id && File(it.path).exists() }) out[id] = f.length()
+        }
+        return out
+    }
+
+    /**
+     * Reçoit un morceau de photo (Bluetooth : petits paquets reprenables).
+     * Le morceau est ajouté au fichier temporaire s'il arrive à la bonne position ; une fois
+     * le fichier complet, la photo est enregistrée (fiche + fichier définitif).
+     */
+    suspend fun savePhotoChunk(context: Context, dto: PhotoDto, offset: Long, total: Long, bytes: ByteArray) {
+        if (!isSafeId(dto.id) || total <= 0 || total > Proto.MAX_FRAME) return
+        val local = dao.photo(dto.id)
+        if (local != null && File(local.path).exists()) return // déjà là
+        val part = partFile(context, dto.id)
+        val have = if (part.exists()) part.length() else 0L
+        if (offset != have) {
+            // Désynchronisé (fichier temporaire abîmé) : on repartira de zéro au prochain tour.
+            if (offset == 0L) part.delete() else return
+        }
+        java.io.FileOutputStream(part, true).use { it.write(bytes) }
+        if (part.length() >= total) {
+            val target = receivedPhotoFile(context, dto.id)
+            if (part.length() != total || !part.renameTo(target)) {
+                part.delete()
+                return
+            }
+            dao.upsertPhoto(local?.copy(path = target.absolutePath) ?: dto.toEntity(target.absolutePath))
+        }
     }
 
     // ------------------------------------------------------------------------------- Sorties
@@ -207,7 +247,7 @@ object GroupRepository {
         d.items.forEach { v["I:${it.id}"] = it.updatedAt }
         d.photos.forEach { v["F:${it.id}"] = it.deletedAt ?: 0L }
         val files = d.photos.filter { File(it.path).exists() }.map { it.id }
-        return SyncSummary(versions = v, trackMax = d.trackMax, photoFiles = files)
+        return SyncSummary(versions = v, trackMax = d.trackMax, photoFiles = files, photoPartial = partialPhotos(d))
     }
 
     /**

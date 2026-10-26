@@ -17,6 +17,7 @@ import fr.pushpull.champimap.core.db.TrackPoint
 import fr.pushpull.champimap.core.newId
 import fr.pushpull.champimap.core.util.AstroCalc
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -69,6 +70,8 @@ class SortieTrackingService : Service() {
     private lateinit var motion: MotionDetector
 
     private var sortieId: String? = null
+    /** Sortie en cours de chargement (évite de la charger deux fois). */
+    private var loadingId: String? = null
     private var startedAt = 0L
     private var authorId = ""
     private var hasStart = false
@@ -86,6 +89,9 @@ class SortieTrackingService : Service() {
     private var lastSaved: GpsFix? = null
     private var distanceM = 0.0
 
+    /** Observations liées à la sortie suivie (annulées si le service reprend une autre sortie). */
+    private val watchJobs = mutableListOf<Job>()
+
     private var nightAlertSent = false
     private var batteryAlertSent = false
 
@@ -98,23 +104,25 @@ class SortieTrackingService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
+        val action = intent?.action
+        when (action) {
             ACTION_STOP -> { shutdown(); return START_NOT_STICKY }
             ACTION_END_REQUEST, ACTION_END_CONFIRM -> {
                 // Service relancé par un bouton de notification alors qu'il ne suivait plus rien : on s'arrête.
                 if (sortieId == null) { stopSelf(); return START_NOT_STICKY }
-                if (intent.action == ACTION_END_REQUEST) onEndRequest() else onEndConfirm()
+                if (action == ACTION_END_REQUEST) onEndRequest() else onEndConfirm()
                 return START_STICKY
             }
         }
         // ACTION_START, ou relance automatique par Android (intent nul) : on reprend la sortie en cours.
         val requested = intent?.getStringExtra(EXTRA_SORTIE_ID)
         if (!goForeground()) return START_NOT_STICKY
-        if (requested != null && requested == sortieId) {
-            resumeGps()
+        if (requested != null && (requested == sortieId || requested == loadingId)) {
+            if (requested == sortieId) resumeGps()
             return START_STICKY
         }
-        scope.launch { begin(requested) }
+        loadingId = requested
+        scope.launch { begin(requested); loadingId = null }
         return START_STICKY
     }
 
@@ -156,10 +164,13 @@ class SortieTrackingService : Service() {
         handler.removeCallbacks(minuteTick)
         handler.post(minuteTick)
         // Si la sortie est terminée depuis l'appli, le service s'arrête de lui-même.
-        scope.launch {
+        watchJobs.forEach { it.cancel() }
+        watchJobs.clear()
+        watchJobs += scope.launch {
             dao.flow(sortie.id).collectLatest { s -> if (s == null || s.endedAt != null || s.deletedAt != null) shutdown() }
         }
-        scope.launch {
+        // Un écran demande le GPS (écran ouvert, mesure précise) : on sort de la pause.
+        watchJobs += scope.launch {
             SortieTracker.wakeRequests.collectLatest { if (it > 0 && paused) resumeGps() }
         }
         updateNotification()
@@ -357,6 +368,8 @@ class SortieTrackingService : Service() {
 
     /** Arrêt complet : GPS, capteurs, minuteries, notification. */
     private fun shutdown() {
+        watchJobs.forEach { it.cancel() }
+        watchJobs.clear()
         stopGps()
         motion.stop()
         handler.removeCallbacksAndMessages(null)

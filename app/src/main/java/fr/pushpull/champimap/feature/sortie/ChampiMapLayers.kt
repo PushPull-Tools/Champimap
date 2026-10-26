@@ -135,7 +135,7 @@ class ChampiMapLayers(private val context: Context, private val map: MapLibreMap
         val style = map.style ?: return
         val pts = points.filter { it.accuracyM <= 40f }.map { Point.fromLngLat(it.lon, it.lat) }
         val src = style.getSourceAs<GeoJsonSource>(SRC_TRACK) ?: return
-        if (pts.size < 2) src.setGeoJson(FeatureCollection.fromFeatures(emptyList()))
+        if (pts.size < 2) src.setGeoJson(FeatureCollection.fromFeatures(emptyList<Feature>()))
         else src.setGeoJson(Feature.fromGeometry(LineString.fromLngLats(pts)))
     }
 
@@ -144,7 +144,7 @@ class ChampiMapLayers(private val context: Context, private val map: MapLibreMap
         val style = map.style ?: return
         val src = style.getSourceAs<GeoJsonSource>(SRC_POS) ?: return
         if (fix == null) {
-            src.setGeoJson(FeatureCollection.fromFeatures(emptyList()))
+            src.setGeoJson(FeatureCollection.fromFeatures(emptyList<Feature>()))
             return
         }
         src.setGeoJson(Feature.fromGeometry(Point.fromLngLat(fix.lon, fix.lat)))
@@ -169,7 +169,7 @@ class ChampiMapLayers(private val context: Context, private val map: MapLibreMap
         val style = map.style ?: return
         val src = style.getSourceAs<GeoJsonSource>(SRC_DEPART) ?: return
         if (lat == null || lon == null) {
-            src.setGeoJson(FeatureCollection.fromFeatures(emptyList()))
+            src.setGeoJson(FeatureCollection.fromFeatures(emptyList<Feature>()))
             return
         }
         val icon = MapIcons.departName(type, shared)

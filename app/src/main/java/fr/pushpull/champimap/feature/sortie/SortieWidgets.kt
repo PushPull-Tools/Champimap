@@ -2,6 +2,7 @@ package fr.pushpull.champimap.feature.sortie
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -236,13 +237,16 @@ internal fun SortieBottomPanel(
                     modifier = Modifier.weight(1f).heightIn(min = BUTTON_HEIGHT),
                     shape = RoundedCornerShape(16.dp),
                 ) { Text(champiText("Spot existant"), textAlign = TextAlign.Center) }
-                SafetyTheme {
-                    Button(
-                        onClick = onLost,
-                        modifier = Modifier.weight(1f).heightIn(min = BUTTON_HEIGHT),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF9DEDC), contentColor = Color(0xFF8C1D18)),
-                    ) { Text("Je suis perdu", fontWeight = FontWeight.Bold) }
+                // Bouton de sécurité : jamais en thème party.
+                Box(Modifier.weight(1f)) {
+                    SafetyTheme {
+                        Button(
+                            onClick = onLost,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = BUTTON_HEIGHT),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF9DEDC), contentColor = Color(0xFF8C1D18)),
+                        ) { Text("Je suis perdu", fontWeight = FontWeight.Bold) }
+                    }
                 }
             }
         }

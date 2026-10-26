@@ -1,6 +1,9 @@
 package fr.pushpull.champimap.feature.groupe
 
+import android.bluetooth.BluetoothSocket
+import android.bluetooth.le.AdvertiseCallback
 import android.content.Context
+import android.os.Build
 import fr.pushpull.champimap.core.AppGraph
 import fr.pushpull.champimap.core.ErrorLogger
 import fr.pushpull.champimap.core.db.Photo
@@ -27,51 +30,78 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.File
 import java.io.IOException
-import java.net.InetAddress
-import java.net.InetSocketAddress
-import java.net.ServerSocket
-import java.net.Socket
+import java.io.RandomAccessFile
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
 
 /*
- * Synchronisation en direct d'une sortie à plusieurs (Wi-Fi Direct, sans Internet).
+ * Synchronisation en direct d'une sortie à plusieurs, en Bluetooth Low Energy
+ * (canaux L2CAP, voir BleLink.kt) : aucun socket IP, aucun Internet.
  *
  * UTILISATION (API publique) :
  *  - `GroupSync.start(context, groupId)` : démarre (ou garde) la synchro du groupe. Appelé par
  *    les écrans « Sortie à plusieurs » et « Rejoindre » ; peut être rappelé sans risque
  *    (par ex. par l'écran de sortie en cours pour une sortie dont `groupId` n'est pas nul).
- *  - `GroupSync.stop()` : arrête la synchro (le réseau Wi-Fi Direct reste ouvert).
- *  - `GroupSync.leave(context)` : arrête la synchro ET quitte/ferme le réseau Wi-Fi Direct.
- *  - `GroupSync.syncNow()` : demande un échange immédiat.
+ *    Le rôle (hôte = créateur, ou invité) est mémorisé par le module : rien à préciser.
+ *  - `GroupSync.stop()` : arrête la synchro.
+ *  - `GroupSync.leave(context)` : arrête la synchro (et l'annonce Bluetooth) ; même effet que stop().
+ *  - `GroupSync.syncNow()` : demande un échange immédiat (côté invité).
  *  - `GroupSync.state` : état observable (participants, « synchro OK »), voir [GroupState].
  *    Texte prêt à afficher dans la pastille de la sortie en cours : `state.value.label()`.
  *  La synchro tourne dans `AppGraph.appScope` : elle continue quand on quitte l'écran
- *  (pendant toute la sortie) et s'arrête d'elle-même (en quittant le réseau) quand la sortie
- *  du groupe est terminée ou mise à la corbeille sur ce téléphone.
+ *  (pendant toute la sortie) et s'arrête d'elle-même quand la sortie du groupe est terminée
+ *  ou mise à la corbeille sur ce téléphone.
  *
  * FONCTIONNEMENT : pas de maître pour les données (tous égaux, fusion « la plus récente
- * gagne », voir GroupRepository). Côté réseau, le téléphone hôte du Wi-Fi Direct écoute
- * sur le port [Proto.PORT] et RELAIE : chacun échange avec lui toutes les 30 à 60 s (et dès
- * la (re)connexion), il fusionne tout et le retransmet aux autres au tour suivant.
+ * gagne », voir GroupRepository). Côté transport, le créateur de la sortie est l'hôte : il
+ * s'annonce en BLE et accepte jusqu'à 6 invités sur son canal L2CAP, et RELAIE (il fusionne
+ * tout et le retransmet aux autres au tour suivant). Chaque invité échange avec lui toutes
+ * les 30 à 60 s, et dès la (re)connexion. Portée : quelques dizaines de mètres ; hors de
+ * portée, chacun continue seul et tout se resynchronise au regroupement ou à la voiture.
  */
 
 /** État de la synchro de groupe, pour l'interface. */
 data class GroupState(
     val groupId: String? = null,
     val status: Status = Status.ARRETE,
-    /** Ce téléphone héberge-t-il le réseau Wi-Fi Direct (et relaie-t-il les autres) ? */
+    /** Ce téléphone est-il l'hôte (créateur de la sortie, qui relaie les autres) ? */
     val isHost: Boolean = false,
     /** Les autres participants (prénoms) avec leur dernier échange réussi. */
     val peers: List<PeerInfo> = emptyList(),
     /** Instant du dernier échange réussi (0 = jamais). */
     val lastSyncAt: Long = 0L,
-    /** Photos qu'il reste à envoyer (elles partent quelques-unes à chaque échange). */
+    /** Photos qu'il reste à envoyer (elles partent par petits morceaux, en tâche de fond). */
     val photosPending: Int = 0,
+    /** Le Bluetooth est coupé : l'écran propose de l'activer. */
+    val bluetoothOff: Boolean = false,
     /** Dernier problème rencontré (texte lisible), null si tout va bien. */
     val message: String? = null,
 ) {
-    enum class Status { ARRETE, ATTENTE_RESEAU, ATTENTE_PARTICIPANTS, CONNEXION, CONNECTE }
+    enum class Status {
+        /** Synchro arrêtée. */
+        ARRETE,
+
+        /** Android trop ancien (avant Android 10) : sortie à plusieurs impossible. */
+        INCOMPATIBLE,
+
+        /** Bluetooth coupé ou autorisation manquante. */
+        BLUETOOTH_INDISPONIBLE,
+
+        /** Hôte : en attente des invités. */
+        ATTENTE_PARTICIPANTS,
+
+        /** Invité : recherche de l'hôte. */
+        RECHERCHE,
+
+        /** Invité : hôte introuvable (trop loin). */
+        HORS_PORTEE,
+
+        /** Connexion en cours. */
+        CONNEXION,
+
+        /** Connecté et échanges en cours. */
+        CONNECTE,
+    }
 
     /** Synchro OK = connecté et dernier échange il y a moins de 2 minutes. */
     val syncOk: Boolean
@@ -82,10 +112,12 @@ data class GroupState(
         val names = peers.map { it.name }.filter { it.isNotBlank() }
         val with = if (names.isEmpty()) "Sortie à plusieurs" else "Avec " + names.joinToString(", ")
         val st = when {
-            status == Status.ARRETE -> "synchro arrêtée"
             syncOk -> "synchro OK"
+            status == Status.ARRETE -> "synchro arrêtée"
+            status == Status.INCOMPATIBLE -> "Android 10 minimum"
+            status == Status.BLUETOOTH_INDISPONIBLE -> "Bluetooth coupé"
             status == Status.ATTENTE_PARTICIPANTS -> "en attente des autres"
-            status == Status.CONNEXION -> "connexion…"
+            status == Status.RECHERCHE || status == Status.CONNEXION -> "connexion…"
             else -> "hors de portée"
         }
         return "$with · $st"
@@ -106,20 +138,28 @@ object GroupSync {
     private var job: Job? = null
     private var currentGroupId: String? = null
 
-    /** Demandes d'échange immédiat (bouton « Synchroniser », nouvelle saisie importante…). */
+    /** Demandes d'échange immédiat. */
     private val trigger = Channel<Unit>(Channel.CONFLATED)
 
-    /** Les fusions (plusieurs participants à la fois chez l'hôte) passent une par une. */
+    /** Les fusions (plusieurs invités à la fois chez l'hôte) passent une par une. */
     private val mergeMutex = Mutex()
 
-    /** Participants connectés à l'hôte (personId → infos). */
+    /** Invités connectés à l'hôte (personId → infos). */
     private val roster = ConcurrentHashMap<String, PeerInfo>()
 
-    /** Nombre de photos envoyées au maximum par échange (le reste au tour suivant). */
-    private const val PHOTOS_PER_ROUND = 4
+    /** Nombre maximum d'invités connectés en même temps à l'hôte. */
+    private const val MAX_GUESTS = 6
 
-    /** Délai maximum d'attente d'une réponse sur le réseau. */
-    private const val SOCKET_TIMEOUT_MS = 150_000
+    /** Durée d'un scan de recherche de l'hôte, et pause entre deux scans (batterie). */
+    private const val SCAN_MS = 15_000L
+    private const val SCAN_PAUSE_MS = 15_000L
+
+    /** Délai avant le tour suivant quand des photos sont en route. */
+    private const val PHOTO_ROUND_MS = 4_000L
+
+    /** Fichier de préférences du module : groupes dont ce téléphone est l'hôte. */
+    private const val PREFS = "groupe"
+    private const val KEY_HOSTED = "hostedGroups"
 
     // ------------------------------------------------------------------------------- API publique
 
@@ -130,12 +170,13 @@ object GroupSync {
         job?.cancel()
         currentGroupId = groupId
         roster.clear()
-        _state.value = GroupState(groupId = groupId, status = GroupState.Status.ATTENTE_RESEAU)
         val app = context.applicationContext
-        job = AppGraph.appScope.launch { runLoop(app, groupId) }
+        val host = isHostOf(app, groupId)
+        _state.value = GroupState(groupId = groupId, isHost = host, status = GroupState.Status.CONNEXION)
+        job = AppGraph.appScope.launch { runLoop(app, groupId, host) }
     }
 
-    /** Arrête la synchro (le réseau Wi-Fi Direct n'est pas fermé). */
+    /** Arrête la synchro. */
     @Synchronized
     fun stop() {
         job?.cancel()
@@ -145,69 +186,77 @@ object GroupSync {
         _state.value = GroupState()
     }
 
-    /** Arrête la synchro et quitte (ou ferme, pour l'hôte) le réseau Wi-Fi Direct. */
+    /** Arrête la synchro et l'annonce Bluetooth (rien d'autre à fermer en Bluetooth). */
     fun leave(context: Context) {
         stop()
-        val app = context.applicationContext
-        AppGraph.appScope.launch { runCatching { WifiDirect.removeGroup(app) } }
     }
 
-    /** Demande un échange tout de suite (côté participant ; l'hôte attend les autres). */
+    /** Demande un échange tout de suite. */
     fun syncNow() {
         trigger.trySend(Unit)
     }
 
+    /** Ce téléphone devient l'hôte de ce groupe (appelé par l'écran « Sortie à plusieurs »). */
+    internal fun markHost(context: Context, groupId: String) {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val set = prefs.getStringSet(KEY_HOSTED, emptySet()).orEmpty().toMutableSet()
+        // On ne garde que les 20 derniers groupes (la liste ne grossit pas indéfiniment).
+        if (set.size > 20) set.clear()
+        set += groupId
+        prefs.edit().putStringSet(KEY_HOSTED, set).apply()
+    }
+
+    /** Ce téléphone est-il l'hôte de ce groupe ? */
+    private fun isHostOf(context: Context, groupId: String): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getStringSet(KEY_HOSTED, emptySet()).orEmpty().contains(groupId)
+
     // ------------------------------------------------------------------------------- Boucle principale
 
     /**
-     * Boucle de vie : attend que le réseau Wi-Fi Direct soit formé, puis joue le rôle d'hôte
-     * ou de participant selon ce que le système a décidé ; recommence après chaque coupure.
+     * Boucle de vie : vérifie Android 10+, le Bluetooth et la sortie, puis joue le rôle
+     * d'hôte ou d'invité ; recommence après chaque coupure.
      */
-    private suspend fun runLoop(context: Context, groupId: String) = coroutineScope {
+    private suspend fun runLoop(context: Context, groupId: String, host: Boolean) = coroutineScope {
+        if (!BleLink.isSupported()) {
+            _state.update { it.copy(status = GroupState.Status.INCOMPATIBLE, message = "Sortie à plusieurs : Android 10 minimum.") }
+            return@coroutineScope
+        }
         while (isActive) {
             if (!sortieActive(groupId)) {
-                // Sortie terminée (ou supprimée) : on quitte proprement le groupe.
-                runCatching { WifiDirect.removeGroup(context) }
+                // Sortie terminée (ou supprimée) : on arrête tout.
                 _state.value = GroupState()
                 synchronized(this@GroupSync) { if (currentGroupId == groupId) currentGroupId = null }
                 break
             }
-            val info = runCatching { WifiDirect.connectionInfo(context) }.getOrNull()
-            val owner = info?.groupOwnerAddress
-            if (info == null || !info.groupFormed || owner == null) {
-                _state.update {
-                    it.copy(
-                        status = GroupState.Status.ATTENTE_RESEAU, isHost = false,
-                        message = if (WifiDirect.isWifiEnabled(context)) null else "Active le Wi-Fi (pas besoin d'Internet).",
-                    )
-                }
+            if (!BleLink.isEnabled(context)) {
+                _state.update { it.copy(status = GroupState.Status.BLUETOOTH_INDISPONIBLE, bluetoothOff = true, message = "Active le Bluetooth.") }
                 delay(3_000)
                 continue
             }
+            _state.update { it.copy(bluetoothOff = false) }
             try {
-                if (info.isGroupOwner) runHost(context, groupId, owner) else runClient(context, groupId, owner)
+                if (host) runHost(context, groupId) else runGuest(context, groupId)
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Exception) {
-                if (isSocketForbidden(e)) {
-                    // Android refuse d'ouvrir une socket sans la permission INTERNET (voir rapport du module).
-                    ErrorLogger.log("Groupe", "Sockets refusées par Android (permission INTERNET absente)", e)
-                    _state.update {
-                        it.copy(status = GroupState.Status.ATTENTE_RESEAU, message = "Échange impossible : Android bloque le réseau local de l'appli.")
-                    }
-                    delay(60_000)
-                } else {
-                    // Coupure réseau, téléphone hors de portée… : on réessaie.
-                    _state.update { it.copy(status = GroupState.Status.ATTENTE_RESEAU, message = "Connexion perdue, nouvel essai…") }
+            } catch (e: SecurityException) {
+                _state.update {
+                    it.copy(status = GroupState.Status.BLUETOOTH_INDISPONIBLE, message = "Autorisation Bluetooth refusée : ouvre à nouveau l'écran de la sortie à plusieurs.")
                 }
+                delay(10_000)
+            } catch (e: BleLink.BleException) {
+                _state.update { it.copy(message = e.message) }
+                delay(5_000)
+            } catch (e: IOException) {
+                // Coupure, téléphone hors de portée… : normal en forêt, on réessaie.
+                _state.update { it.copy(status = if (host) GroupState.Status.ATTENTE_PARTICIPANTS else GroupState.Status.HORS_PORTEE) }
+            } catch (e: Exception) {
+                ErrorLogger.log("Groupe", "Synchro de groupe interrompue", e)
+                _state.update { it.copy(message = "Connexion perdue, nouvel essai…") }
             }
             delay(2_000)
         }
     }
-
-    /** Erreur « EACCES » : Android interdit les sockets à une appli sans permission INTERNET. */
-    private fun isSocketForbidden(e: Throwable): Boolean =
-        e is SecurityException || (e.message?.contains("EACCES") == true)
 
     /** La sortie de ce groupe est-elle toujours en cours sur ce téléphone ? */
     private suspend fun sortieActive(groupId: String): Boolean {
@@ -216,7 +265,7 @@ object GroupSync {
     }
 
     /**
-     * Exécute `block` en fermant `c` si la coroutine est annulée (les lectures réseau
+     * Exécute `block` en fermant `c` si la coroutine est annulée (les lectures Bluetooth
      * bloquantes ne réagissent pas à l'annulation : fermer la socket les débloque).
      * `c` est aussi fermé à la fin normale de `block`.
      */
@@ -238,39 +287,49 @@ object GroupSync {
 
     // ------------------------------------------------------------------------------- Rôle d'hôte
 
-    /** Hôte : écoute les participants (uniquement sur l'adresse Wi-Fi Direct) et relaie leurs données. */
-    private suspend fun runHost(context: Context, groupId: String, address: InetAddress) {
-        val server = ServerSocket()
-        server.reuseAddress = true
-        server.bind(InetSocketAddress(address, Proto.PORT))
+    /** Hôte : ouvre le canal L2CAP, s'annonce en BLE et sert les invités (relais). */
+    private suspend fun runHost(context: Context, groupId: String) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        val server = BleLink.openServer(context)
+        var advert: AdvertiseCallback? = null
         roster.clear()
         _state.update { it.copy(status = GroupState.Status.ATTENTE_PARTICIPANTS, isHost = true, peers = emptyList(), message = null) }
-        closingOnCancel(server) {
-            coroutineScope {
-                // Surveillance : réseau toujours là et sortie toujours en cours ? Sinon on ferme.
-                val watchdog = launch {
-                    while (isActive) {
-                        delay(10_000)
-                        val i = runCatching { WifiDirect.connectionInfo(context) }.getOrNull()
-                        if (i == null || !i.groupFormed || !i.isGroupOwner || !sortieActive(groupId)) {
-                            runCatching { server.close() }
-                            break
+        try {
+            advert = BleLink.startAdvertising(context, groupId, server.psm)
+            closingOnCancel(server) {
+                coroutineScope {
+                    // Surveillance : Bluetooth toujours allumé et sortie toujours en cours ? Sinon on ferme.
+                    val watchdog = launch {
+                        while (isActive) {
+                            delay(10_000)
+                            if (!BleLink.isEnabled(context) || !sortieActive(groupId)) {
+                                runCatching { server.close() }
+                                break
+                            }
+                            refreshHostState()
                         }
-                        refreshHostState()
                     }
-                }
-                val clients = ArrayList<Job>()
-                while (isActive) {
-                    val socket = try {
-                        server.accept()
-                    } catch (e: IOException) {
-                        break // serveur fermé
+                    val guests = ArrayList<Job>()
+                    while (isActive) {
+                        val socket = try {
+                            server.accept()
+                        } catch (e: IOException) {
+                            break // canal fermé (Bluetooth coupé, sortie terminée…)
+                        }
+                        guests.removeAll { !it.isActive }
+                        if (guests.size >= MAX_GUESTS) {
+                            runCatching { socket.close() } // complet : l'invité réessaiera plus tard
+                            continue
+                        }
+                        guests += launch { serveGuest(context, groupId, socket) }
                     }
-                    clients += launch { serveClient(context, groupId, socket) }
+                    watchdog.cancel()
+                    guests.forEach { it.cancel() }
                 }
-                watchdog.cancel()
-                clients.forEach { it.cancel() }
             }
+        } finally {
+            advert?.let { BleLink.stopAdvertising(context, it) }
+            runCatching { server.close() }
         }
     }
 
@@ -286,15 +345,13 @@ object GroupSync {
         }
     }
 
-    /** Hôte : dialogue avec un participant, tour après tour, jusqu'à la coupure. */
-    private suspend fun serveClient(context: Context, groupId: String, socket: Socket) {
+    /** Hôte : dialogue avec un invité, tour après tour, jusqu'à la coupure. */
+    private suspend fun serveGuest(context: Context, groupId: String, socket: BluetoothSocket) {
         var peerId: String? = null
         try {
             closingOnCancel(socket) {
-                socket.soTimeout = SOCKET_TIMEOUT_MS
-                socket.tcpNoDelay = true
-                val inp = DataInputStream(BufferedInputStream(socket.getInputStream()))
-                val out = DataOutputStream(BufferedOutputStream(socket.getOutputStream()))
+                val inp = DataInputStream(BufferedInputStream(socket.inputStream))
+                val out = DataOutputStream(BufferedOutputStream(socket.outputStream))
                 val me = GroupRepository.me()
 
                 // Présentations : on vérifie que c'est bien la même sortie (le groupId sert de secret).
@@ -307,7 +364,7 @@ object GroupSync {
                 refreshHostState()
 
                 while (true) {
-                    // 1. Le participant envoie ce qu'il a.
+                    // 1. L'invité envoie ce qu'il a.
                     val summary = Proto.decode(Proto.read(inp), Proto.T_SUMMARY, SyncSummary.serializer())
                     // 2. On répond : ce qu'on a, ce qui lui manque, les participants.
                     val data = GroupRepository.collect(groupId)
@@ -320,21 +377,21 @@ object GroupSync {
                     // 3. Il envoie ce qui nous manque : on fusionne (et on le relaiera aux autres).
                     val fromHim = Proto.decode(Proto.read(inp), Proto.T_BUNDLE, SyncBundle.serializer())
                     mergeMutex.withLock { GroupRepository.merge(fromHim) }
-                    // 4. Échange des photos : les siennes d'abord, puis les nôtres.
-                    receivePhotos(context, inp)
+                    // 4. Photos par petits morceaux : les siennes d'abord, puis les nôtres.
+                    receivePhotoChunks(context, inp)
                     val photos = GroupRepository.photosToSend(data, summary)
-                    sendPhotos(out, photos.take(PHOTOS_PER_ROUND))
+                    sendPhotoChunks(out, photos, summary.photoPartial)
                     // Tour réussi.
                     val now = System.currentTimeMillis()
                     roster[hello.personId] = PeerInfo(hello.personId, hello.name.take(40), now)
-                    _state.update { it.copy(lastSyncAt = now, message = null, photosPending = maxOf(0, photos.size - PHOTOS_PER_ROUND)) }
+                    _state.update { it.copy(lastSyncAt = now, message = null, photosPending = photos.size) }
                     refreshHostState()
                 }
             }
         } catch (e: CancellationException) {
             throw e
         } catch (e: IOException) {
-            // Participant parti ou hors de portée : normal en forêt, pas d'entrée au journal.
+            // Invité parti ou hors de portée : normal en forêt, pas d'entrée au journal.
         } catch (e: Exception) {
             ErrorLogger.log("Groupe", "Échange avec un participant interrompu", e)
         } finally {
@@ -343,60 +400,52 @@ object GroupSync {
         }
     }
 
-    // ------------------------------------------------------------------------------- Rôle de participant
+    // ------------------------------------------------------------------------------- Rôle d'invité
 
-    /** Participant : se connecte à l'hôte et échange toutes les 30 à 60 s (et à la demande). */
-    private suspend fun runClient(context: Context, groupId: String, host: InetAddress) {
-        _state.update { it.copy(status = GroupState.Status.CONNEXION, isHost = false) }
-        val socket = connectWithRetry(host)
+    /** Invité : cherche l'hôte en BLE, se connecte et échange toutes les 30 à 60 s. */
+    private suspend fun runGuest(context: Context, groupId: String) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        _state.update { it.copy(status = GroupState.Status.RECHERCHE, isHost = false) }
+        if (BleLink.locationNeededButOff(context)) {
+            _state.update { it.copy(message = "Active la localisation du téléphone : Android en a besoin pour trouver les autres en Bluetooth.") }
+        }
+        val found = BleLink.findHost(context, groupId, SCAN_MS)
+        if (found == null) {
+            _state.update { it.copy(status = GroupState.Status.HORS_PORTEE) }
+            // Pause entre deux recherches (batterie), écourtée par syncNow().
+            withTimeoutOrNull(SCAN_PAUSE_MS) { trigger.receive() }
+            return
+        }
+
+        _state.update { it.copy(status = GroupState.Status.CONNEXION) }
+        val socket = BleLink.createSocket(found)
         closingOnCancel(socket) {
-            socket.soTimeout = SOCKET_TIMEOUT_MS
-            socket.tcpNoDelay = true
-            val inp = DataInputStream(BufferedInputStream(socket.getInputStream()))
-            val out = DataOutputStream(BufferedOutputStream(socket.getOutputStream()))
+            socket.connect() // bloquant ; IOException si l'hôte est parti ou complet
+            val inp = DataInputStream(BufferedInputStream(socket.inputStream))
+            val out = DataOutputStream(BufferedOutputStream(socket.outputStream))
             val me = GroupRepository.me()
 
             Proto.writeJson(out, Proto.T_HELLO, Hello.serializer(), Hello(Proto.VERSION, groupId, me.id, me.name))
             val hello = Proto.decode(Proto.read(inp), Proto.T_HELLO, Hello.serializer())
-            if (hello.groupId != groupId) {
-                _state.update { it.copy(message = "Ce réseau n'est pas celui de la sortie.") }
-                delay(10_000)
-                return@closingOnCancel
-            }
+            if (hello.groupId != groupId) return@closingOnCancel
             GroupRepository.rememberPerson(hello.personId, hello.name)
 
-            // Premier échange tout de suite (reconnexion), puis toutes les 30 à 60 s.
+            // Premier échange tout de suite (reconnexion), puis toutes les 30 à 60 s
+            // (toutes les quelques secondes tant que des photos sont en route).
             while (true) {
-                clientRound(context, groupId, me.id, inp, out)
-                withTimeoutOrNull(Random.nextLong(30_000L, 60_001L)) { trigger.receive() }
+                val photosMoving = guestRound(context, groupId, me.id, inp, out)
+                val wait = if (photosMoving) PHOTO_ROUND_MS else Random.nextLong(30_000L, 60_001L)
+                withTimeoutOrNull(wait) { trigger.receive() }
                 if (!sortieActive(groupId)) break
             }
         }
     }
 
     /**
-     * Ouvre la connexion vers l'hôte, avec quelques essais (il peut mettre quelques secondes
-     * à ouvrir son port). Java ferme une socket dont la connexion échoue : nouvelle socket à
-     * chaque essai.
+     * Invité : un tour d'échange complet avec l'hôte.
+     * @return true si des photos ont circulé (il en reste sans doute : tour suivant rapproché).
      */
-    private suspend fun connectWithRetry(host: InetAddress): Socket {
-        var attempt = 0
-        while (true) {
-            attempt++
-            val s = Socket()
-            try {
-                s.connect(InetSocketAddress(host, Proto.PORT), 5_000)
-                return s
-            } catch (e: IOException) {
-                runCatching { s.close() }
-                if (attempt >= 5) throw e
-                delay(2_000)
-            }
-        }
-    }
-
-    /** Participant : un tour d'échange complet avec l'hôte. */
-    private suspend fun clientRound(context: Context, groupId: String, myId: String, inp: DataInputStream, out: DataOutputStream) {
+    private suspend fun guestRound(context: Context, groupId: String, myId: String, inp: DataInputStream, out: DataOutputStream): Boolean {
         // 1. Ce que j'ai.
         val data = GroupRepository.collect(groupId)
         Proto.writeJson(out, Proto.T_SUMMARY, SyncSummary.serializer(), GroupRepository.summaryOf(data))
@@ -406,48 +455,78 @@ object GroupSync {
         reply.roster.forEach { GroupRepository.rememberPerson(it.personId, it.name) }
         // 3. Ce qui manque à l'hôte.
         Proto.writeJson(out, Proto.T_BUNDLE, SyncBundle.serializer(), GroupRepository.diff(data, reply.summary))
-        // 4. Photos : les miennes d'abord, puis celles de l'hôte.
+        // 4. Photos par petits morceaux : les miennes d'abord, puis celles de l'hôte.
         val photos = GroupRepository.photosToSend(data, reply.summary)
-        sendPhotos(out, photos.take(PHOTOS_PER_ROUND))
-        receivePhotos(context, inp)
+        val sent = sendPhotoChunks(out, photos, reply.summary.photoPartial)
+        val received = receivePhotoChunks(context, inp)
 
         val now = System.currentTimeMillis()
         _state.update {
             it.copy(
                 status = GroupState.Status.CONNECTE, isHost = false, lastSyncAt = now, message = null,
                 peers = reply.roster.filter { p -> p.personId != myId }.sortedBy { p -> p.name },
-                photosPending = maxOf(0, photos.size - PHOTOS_PER_ROUND),
+                photosPending = photos.size,
             )
         }
+        return sent > 0 || received > 0
     }
 
     // ------------------------------------------------------------------------------- Photos
 
-    /** Envoie quelques photos (en-tête + fichier JPEG), puis la fin de liste. */
-    private fun sendPhotos(out: DataOutputStream, photos: List<Photo>) {
+    /**
+     * Envoie des morceaux de photos dans la limite du budget du tour, en reprenant chaque
+     * photo là où l'autre en est (`partial`), puis la fin de liste.
+     * @return nombre de morceaux envoyés.
+     */
+    private fun sendPhotoChunks(out: DataOutputStream, photos: List<Photo>, partial: Map<String, Long>): Int {
+        var budget = Proto.PHOTO_BUDGET
+        var count = 0
         for (p in photos) {
+            if (budget <= 0) break
             val f = File(p.path)
-            if (!f.exists() || f.length() > Proto.MAX_FRAME) continue
-            val bytes = try {
-                f.readBytes()
+            val total = f.length()
+            if (!f.exists() || total <= 0 || total > Proto.MAX_FRAME) continue
+            var offset = (partial[p.id] ?: 0L).coerceIn(0L, total)
+            if (offset >= total) offset = 0L
+            try {
+                RandomAccessFile(f, "r").use { raf ->
+                    while (offset < total && budget > 0) {
+                        val size = minOf(Proto.PHOTO_CHUNK.toLong(), total - offset).toInt()
+                        val buf = ByteArray(size)
+                        raf.seek(offset)
+                        raf.readFully(buf)
+                        Proto.writeJson(out, Proto.T_PHOTO, PhotoHeader.serializer(), PhotoHeader(p.toDto(), offset, total))
+                        Proto.write(out, Proto.T_PHOTO_DATA, buf)
+                        offset += size
+                        budget -= size
+                        count++
+                    }
+                }
             } catch (e: IOException) {
-                continue
+                // Fichier illisible : on passe à la photo suivante (l'erreur d'envoi, elle, remonte).
+                if (e is java.io.EOFException || e is java.io.FileNotFoundException) continue else throw e
             }
-            Proto.writeJson(out, Proto.T_PHOTO, PhotoHeader.serializer(), PhotoHeader(p.toDto()))
-            Proto.write(out, Proto.T_PHOTO_DATA, bytes)
         }
         Proto.write(out, Proto.T_END, ByteArray(0))
+        return count
     }
 
-    /** Reçoit les photos jusqu'à la fin de liste et les enregistre. */
-    private suspend fun receivePhotos(context: Context, inp: DataInputStream) {
+    /**
+     * Reçoit des morceaux de photos jusqu'à la fin de liste et les ajoute aux fichiers temporaires.
+     * @return nombre de morceaux reçus.
+     */
+    private suspend fun receivePhotoChunks(context: Context, inp: DataInputStream): Int {
+        var count = 0
         while (true) {
             val frame = Proto.read(inp)
-            if (frame.type == Proto.T_END) return
+            if (frame.type == Proto.T_END) return count
             val header = Proto.decode(frame, Proto.T_PHOTO, PhotoHeader.serializer())
             val data = Proto.read(inp)
-            if (data.type != Proto.T_PHOTO_DATA) throw IOException("Photo attendue")
-            mergeMutex.withLock { GroupRepository.savePhoto(context, header.photo, data.bytes) }
+            if (data.type != Proto.T_PHOTO_DATA) throw IOException("Morceau de photo attendu")
+            mergeMutex.withLock {
+                GroupRepository.savePhotoChunk(context, header.photo, header.offset, header.total, data.bytes)
+            }
+            count++
         }
     }
 }

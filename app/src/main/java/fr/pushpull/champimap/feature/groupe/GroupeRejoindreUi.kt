@@ -32,8 +32,8 @@ import fr.pushpull.champimap.nav.Routes
 import kotlinx.coroutines.launch
 
 /*
- * Écran « Rejoindre » : scan du QR code du créateur, puis connexion au réseau Wi-Fi Direct
- * et création locale de la sortie partagée (même identifiant, même groupe).
+ * Écran « Rejoindre » : scan du QR code du créateur, autorisations et activation du Bluetooth,
+ * puis recherche de l'hôte en Bluetooth (GroupSync) et création locale de la sortie partagée (même identifiant, même groupe).
  * Accepte aussi un QR code de SPOT partagé : il est alors transmis à l'écran d'import.
  */
 
@@ -51,18 +51,16 @@ internal fun GroupeRejoindreContent(nav: NavController) {
     var etat by remember { mutableStateOf<RejoindreEtat>(RejoindreEtat.Scan) }
     val sync by GroupSync.state.collectAsState()
 
-    /** Rejoint la sortie décrite par l'invitation (autorisation Wi-Fi Direct déjà accordée). */
+    /**
+     * Rejoint la sortie décrite par l'invitation (autorisations accordées, Bluetooth allumé) :
+     * création locale de la sortie partagée, puis la synchro cherche l'hôte en Bluetooth.
+     */
     fun rejoindre(invite: GroupInvite) {
         etat = RejoindreEtat.Connexion(invite)
         scope.launch {
             try {
                 GroupRepository.joinSortie(context, invite)
-                val erreur = WifiDirect.connect(context, invite)
-                if (erreur != null) {
-                    etat = RejoindreEtat.Erreur(erreur, invite)
-                } else {
-                    GroupSync.start(context, invite.groupId)
-                }
+                GroupSync.start(context, invite.groupId)
             } catch (e: Exception) {
                 ErrorLogger.log("Groupe", "Connexion au groupe impossible", e)
                 etat = RejoindreEtat.Erreur("La connexion n'a pas fonctionné. Réessaie près du téléphone qui a créé la sortie.", invite)
@@ -70,15 +68,24 @@ internal fun GroupeRejoindreContent(nav: NavController) {
         }
     }
 
-    // Invitation scannée en attente de l'autorisation Wi-Fi Direct.
+    // Invitation scannée, en attente des autorisations puis de l'activation du Bluetooth.
     var enAttente by remember { mutableStateOf<GroupInvite?>(null) }
-    val wifiGate = rememberPermissionGate(wifiDirectPermissions()) { ok ->
+    val activerBluetooth = rememberBluetoothEnabler { ok ->
         val inv = enAttente
         if (ok && inv != null) {
             rejoindre(inv)
         } else if (!ok) {
+            etat = RejoindreEtat.Erreur("Le Bluetooth doit être activé pour rejoindre la sortie (pas besoin d'Internet).", inv)
+        }
+    }
+    val btGate = rememberPermissionGate(bluetoothPermissions()) { ok ->
+        if (ok) {
+            activerBluetooth()
+        } else {
             etat = RejoindreEtat.Erreur(
-                "Sans l'autorisation « appareils à proximité », les téléphones ne peuvent pas se trouver.", inv,
+                "Sans l'autorisation « appareils à proximité », les téléphones ne peuvent pas se trouver. " +
+                    "Elle sert uniquement au Bluetooth, jamais à Internet.",
+                enAttente,
             )
         }
     }
@@ -88,9 +95,12 @@ internal fun GroupeRejoindreContent(nav: NavController) {
         val text = result.contents ?: return@rememberLauncherForActivityResult // scan annulé
         val invite = GroupInvite.parse(text)
         when {
+            invite != null && !BleLink.isSupported() -> {
+                etat = RejoindreEtat.Erreur("Sortie à plusieurs : Android 10 minimum.", null)
+            }
             invite != null -> {
                 enAttente = invite
-                wifiGate.request()
+                btGate.request()
             }
             SpotShare.parseQr(text) != null -> {
                 PendingSpotQr.text = text
@@ -127,18 +137,15 @@ internal fun GroupeRejoindreContent(nav: NavController) {
             Stack(Modifier.fillMaxWidth()) {
                 when (val e = etat) {
                     RejoindreEtat.Scan -> {
-                        BodyText(
-                            "Scanne le QR code affiché sur le téléphone qui a lancé la « Sortie à plusieurs ». " +
-                                "Les téléphones se connectent directement entre eux, sans Internet.",
-                        )
+                        BodyText("Scanne le QR code affiché sur le téléphone qui a lancé la « Sortie à plusieurs ».")
+                        BodyText(PORTEE_TEXTE)
                         ChampiButton("Scanner le QR code", onClick = { cameraGate.request() })
                     }
                     is RejoindreEtat.Connexion -> {
                         CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
                         BodyText("Connexion à la sortie de ${e.invite.name}…", Modifier.fillMaxWidth(), center = true)
-                        ParticipantsCard(sync)
-                        // Sur Android 8-9, l'autre téléphone doit parfois accepter l'invitation.
-                        BodyText("Si une demande de connexion apparaît sur l'autre téléphone, elle doit être acceptée.")
+                        ParticipantsCard(sync, onEnableBluetooth = activerBluetooth)
+                        BodyText(PORTEE_TEXTE)
                         ChampiOutlinedButton("Aller à la sortie sans attendre", onClick = {
                             nav.navigate(Routes.sortie(e.invite.sortieId)) {
                                 popUpTo(Routes.GROUPE_REJOINDRE) { inclusive = true }
@@ -149,7 +156,7 @@ internal fun GroupeRejoindreContent(nav: NavController) {
                     is RejoindreEtat.Erreur -> {
                         MessageCard(e.message, error = true)
                         val inv = e.invite
-                        if (inv != null) ChampiButton("Réessayer", onClick = { enAttente = inv; wifiGate.request() })
+                        if (inv != null) ChampiButton("Réessayer", onClick = { enAttente = inv; btGate.request() })
                         ChampiOutlinedButton("Scanner un autre QR code", onClick = { etat = RejoindreEtat.Scan; cameraGate.request() })
                     }
                 }

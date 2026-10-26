@@ -8,26 +8,26 @@ import java.io.DataOutputStream
 import java.io.IOException
 
 /*
- * Protocole d'échange entre téléphones d'une sortie à plusieurs (sockets TCP sur le réseau
- * Wi-Fi Direct) et contenu du QR code d'invitation.
+ * Protocole d'échange entre téléphones d'une sortie à plusieurs (canal Bluetooth L2CAP,
+ * voir BleLink.kt) et contenu du QR code d'invitation.
  *
  * Trame = 1 octet de type + 4 octets de longueur + contenu (JSON UTF-8, ou octets bruts
- * pour un fichier photo).
+ * pour un morceau de photo).
  *
- * Déroulé d'une connexion (le « client » est le téléphone qui n'héberge pas le réseau) :
- *   client → HELLO            hôte → HELLO          (même groupe ? sinon fermeture)
- *   puis, toutes les 30–60 s (et tout de suite à la reconnexion), un « tour » :
- *   client → SUMMARY          (ce que j'ai)
+ * Déroulé d'une connexion (l'« invité » se connecte à l'« hôte », créateur de la sortie) :
+ *   invité → HELLO            hôte → HELLO          (même groupe ? sinon fermeture)
+ *   puis un « tour » toutes les 30–60 s (toutes les quelques secondes tant que des photos
+ *   sont en route), et tout de suite à la (re)connexion :
+ *   invité → SUMMARY          (ce que j'ai, photos à moitié reçues comprises)
  *   hôte   → REPLY            (ce que j'ai + ce qui te manque + liste des participants)
- *   client → BUNDLE           (ce qui manque à l'hôte)
- *   client → PHOTO/PHOTO_DATA… END   (photos manquantes chez l'hôte, quelques-unes par tour)
- *   hôte   → PHOTO/PHOTO_DATA… END   (photos manquantes chez le client)
+ *   invité → BUNDLE           (ce qui manque à l'hôte)
+ *   invité → PHOTO/PHOTO_DATA… END   (quelques morceaux de photos pour l'hôte)
+ *   hôte   → PHOTO/PHOTO_DATA… END   (quelques morceaux de photos pour l'invité)
+ * Les DONNÉES passent toujours en premier ; les photos n'utilisent qu'un petit budget
+ * d'octets par tour et reprennent là où elles s'étaient arrêtées (débit Bluetooth faible).
  * L'hôte fusionne tout ce qu'il reçoit : au tour suivant, il le retransmet aux autres (relais).
  */
 internal object Proto {
-    /** Port TCP utilisé sur le réseau Wi-Fi Direct (192.168.49.x). */
-    const val PORT = 47_811
-
     /** Version du protocole (pour refuser poliment une version incompatible plus tard). */
     const val VERSION = 1
 
@@ -38,6 +38,10 @@ internal object Proto {
     const val T_PHOTO = 5
     const val T_PHOTO_DATA = 6
     const val T_END = 7
+
+    /** Taille d'un morceau de photo, et budget de photos par tour et par sens. */
+    const val PHOTO_CHUNK = 16 * 1024
+    const val PHOTO_BUDGET = 96 * 1024
 
     /** Taille maximale d'une trame (protège contre une trame corrompue ou malveillante). */
     const val MAX_FRAME = 40 * 1024 * 1024
@@ -93,38 +97,39 @@ internal data class RoundReply(
     val roster: List<PeerInfo> = emptyList(),
 )
 
-/** En-tête d'une photo envoyée (suivi d'une trame PHOTO_DATA avec le fichier JPEG). */
+/**
+ * En-tête d'un morceau de photo (suivi d'une trame PHOTO_DATA avec les octets du morceau).
+ * @param offset position du morceau dans le fichier, @param total taille du fichier complet.
+ */
 @Serializable
-internal data class PhotoHeader(val photo: PhotoDto)
+internal data class PhotoHeader(val photo: PhotoDto, val offset: Long = 0L, val total: Long = 0L)
 
 /**
- * Contenu du QR code « Sortie à plusieurs » : de quoi rejoindre le réseau Wi-Fi Direct
- * du créateur et la sortie partagée.
- * @param ssid nom du réseau Wi-Fi Direct (« DIRECT-xy… »), @param pass sa phrase de passe,
- * @param addr adresse de l'appareil hôte (repli pour Android < 10), peut être vide.
+ * Contenu du QR code « Sortie à plusieurs » : de quoi retrouver l'hôte en Bluetooth et
+ * rejoindre la sortie partagée.
+ * @param hash hachage court du groupe (8 caractères hexa), le même que dans l'annonce BLE.
+ * @param personId / @param name identifiant et prénom de l'hôte.
  */
 @Serializable
 data class GroupInvite(
-    val v: Int = 1,
-    val ssid: String,
-    val pass: String,
-    val addr: String? = null,
+    val v: Int = 2,
     val groupId: String,
     val sortieId: String,
     val personId: String,
     val name: String,
+    val hash: String = "",
 ) {
     /** Texte à mettre dans le QR code. */
     fun encode(): String = PREFIX + Proto.json.encodeToString(GroupInvite.serializer(), this)
 
     companion object {
-        const val PREFIX = "CHAMPIMAP-G1:"
+        const val PREFIX = "CHAMPIMAP-G2:"
 
-        /** Lit un QR code d'invitation ; null si ce n'en est pas un. */
+        /** Lit un QR code d'invitation ; null si ce n'en est pas un (ou une ancienne version). */
         fun parse(text: String?): GroupInvite? {
             if (text == null || !text.startsWith(PREFIX)) return null
             return runCatching { Proto.json.decodeFromString(GroupInvite.serializer(), text.removePrefix(PREFIX)) }.getOrNull()
-                ?.takeIf { it.ssid.isNotBlank() && it.groupId.isNotBlank() && it.sortieId.isNotBlank() }
+                ?.takeIf { it.groupId.isNotBlank() && it.sortieId.isNotBlank() }
         }
     }
 }
