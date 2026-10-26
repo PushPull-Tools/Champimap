@@ -35,11 +35,18 @@ jobs:
       - name: Clé de signature
         env:
           KS_B64: ${{ secrets.CHAMPIMAP_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.CHAMPIMAP_KEYSTORE_PASSWORD }}
+          KS_ALIAS: ${{ secrets.CHAMPIMAP_KEY_ALIAS }}
         run: |
           if [ -n "$KS_B64" ]; then
             echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/champimap.jks"
-            echo "CHAMPIMAP_KEYSTORE=$RUNNER_TEMP/champimap.jks" >> "$GITHUB_ENV"
-            echo "Clé de release : OK"
+            # Vérifie que le mot de passe ouvre bien la clé avant de l'utiliser.
+            if keytool -list -keystore "$RUNNER_TEMP/champimap.jks" -storepass "$KS_PASS" -alias "$KS_ALIAS" >/dev/null 2>&1; then
+              echo "CHAMPIMAP_KEYSTORE=$RUNNER_TEMP/champimap.jks" >> "$GITHUB_ENV"
+              echo "Clé de release : OK"
+            else
+              echo "::warning::Clé de release illisible (mot de passe ou alias incorrect) : APK signée avec une clé de test."
+            fi
           else
             echo "::warning::Secrets de signature absents : APK signée avec une clé de test."
           fi
