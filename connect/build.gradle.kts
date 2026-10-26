@@ -37,7 +37,8 @@ android {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             val ks = System.getenv("CHAMPIMAP_KEYSTORE")
-            if (ks != null && file(ks).exists()) signingConfig = signingConfigs.getByName("release")
+            // Sans clé (secrets absents) : signature de test, pour que l'APK reste installable.
+            signingConfig = if (ks != null && file(ks).exists()) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
         }
     }
 

@@ -1,0 +1,103 @@
+# Compilation de Champimap et de Champimap Connect, puis publication de l'APK.
+# - À chaque envoi sur main : APK publiée dans la release « dernier-build ».
+# - À chaque étiquette vX.Y.Z : release officielle.
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Gradle 8.11.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      # La clé de signature vient des secrets du dépôt ; sans eux, signature de test.
+      - name: Clé de signature
+        env:
+          KS_B64: ${{ secrets.CHAMPIMAP_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/champimap.jks"
+            echo "CHAMPIMAP_KEYSTORE=$RUNNER_TEMP/champimap.jks" >> "$GITHUB_ENV"
+            echo "Clé de release : OK"
+          else
+            echo "::warning::Secrets de signature absents : APK signée avec une clé de test."
+          fi
+
+      - name: Compiler Champimap Connect
+        env:
+          CHAMPIMAP_KEYSTORE_PASSWORD: ${{ secrets.CHAMPIMAP_KEYSTORE_PASSWORD }}
+          CHAMPIMAP_KEY_PASSWORD: ${{ secrets.CHAMPIMAP_KEY_PASSWORD }}
+          CHAMPIMAP_KEY_ALIAS: ${{ secrets.CHAMPIMAP_KEY_ALIAS }}
+        run: gradle :connect:assembleRelease --stacktrace
+
+      # Le module Connect est livré DANS l'appli principale (installé à la demande).
+      - name: Intégrer Connect dans l'appli
+        run: |
+          mkdir -p app/src/main/assets/connect
+          cp connect/build/outputs/apk/release/*.apk app/src/main/assets/connect/champimap-connect.apk
+
+      - name: Compiler Champimap
+        env:
+          CHAMPIMAP_KEYSTORE_PASSWORD: ${{ secrets.CHAMPIMAP_KEYSTORE_PASSWORD }}
+          CHAMPIMAP_KEY_PASSWORD: ${{ secrets.CHAMPIMAP_KEY_PASSWORD }}
+          CHAMPIMAP_KEY_ALIAS: ${{ secrets.CHAMPIMAP_KEY_ALIAS }}
+        run: gradle :app:assembleRelease --stacktrace
+
+      # Preuve « hors ligne » : la compilation échoue si l'APK principale demande Internet.
+      - name: Vérifier l'absence de permission Internet
+        run: |
+          AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | sort | tail -1)
+          APK=$(ls app/build/outputs/apk/release/*.apk | head -1)
+          "$AAPT" dump permissions "$APK" | tee permissions.txt
+          if grep -q "android.permission.INTERNET" permissions.txt; then
+            echo "::error::L'APK principale demande la permission INTERNET !"
+            exit 1
+          fi
+          echo "OK : aucune permission Internet."
+
+      - name: Renommer l'APK
+        run: |
+          mkdir -p out
+          cp app/build/outputs/apk/release/*.apk out/Champimap.apk
+          sha256sum out/Champimap.apk | tee out/Champimap.apk.sha256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Champimap
+          path: out/
+
+      - name: Publier « dernier-build »
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dernier-build
+          name: Dernier build
+          prerelease: true
+          files: out/*
+
+      - name: Publier la release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/*
