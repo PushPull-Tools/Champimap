@@ -166,9 +166,15 @@ fun LockGate(content: @Composable () -> Unit) {
 
     val locked = s == null || (s.lockEnabled && !unlocked)
 
-    // Demande automatique dès que l'écran verrouillé apparaît.
+    // Verrou désactivé : la session compte comme ouverte (activer l'option ne bloque pas l'écran en cours).
+    // Verrou actif et fermé : demande automatique dès que l'écran verrouillé apparaît.
     LaunchedEffect(locked, s?.lockEnabled) {
-        if (s != null && s.lockEnabled && !unlocked) prompt()
+        when {
+            s == null -> Unit
+            !s.lockEnabled -> { LockState.unlocked = true; unlocked = true }
+            !unlocked -> prompt()
+            else -> Unit
+        }
     }
 
     Box(Modifier.fillMaxSize()) {

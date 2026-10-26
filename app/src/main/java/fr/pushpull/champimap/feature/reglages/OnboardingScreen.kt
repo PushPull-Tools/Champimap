@@ -73,7 +73,7 @@ fun OnboardingScreen(nav: NavController) {
     var showLaterDialog by rememberSaveable { mutableStateOf(false) }
 
     // Retour système : revient à l'étape précédente plutôt que de quitter.
-    BackHandler(enabled = step > 1) { step-- }
+    BackHandler(enabled = step > 1) { step -= 1 }
 
     /** Termine le premier lancement puis va à l'Accueil (qui ouvrira Connect si demandé). */
     fun finish(openConnect: Boolean) {
@@ -88,7 +88,7 @@ fun OnboardingScreen(nav: NavController) {
         }
     }
 
-    val back: (() -> Unit)? = if (step > 1) ({ step-- }) else null
+    val back: (() -> Unit)? = if (step > 1) ({ step -= 1 }) else null
     ChampiScreen(onBack = back) {
         Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
             if (back == null) VSpace(16.dp)

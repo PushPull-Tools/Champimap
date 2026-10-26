@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import android.Manifest
 import android.content.pm.PackageManager
+import fr.pushpull.champimap.core.AppGraph
 import fr.pushpull.champimap.core.ErrorLogger
 import fr.pushpull.champimap.core.db.Spot
 import fr.pushpull.champimap.core.newId
@@ -75,8 +76,9 @@ fun VoiceMemo(spot: Spot, saver: AutoSaver, onInfo: (String) -> Unit) {
         recorder = null
         recordingFile = null
         if (keep && ok && f != null && f.length() > 0) {
-            val old = spot.voiceMemoPath
             saver.now {
+                // Lecture fraîche : cette fonction peut être appelée depuis un ancien rappel.
+                val old = AppGraph.db.spotDao().get(spot.id)?.voiceMemoPath
                 SpotRepository.updateSpot(spot.id) { it.copy(voiceMemoPath = f.absolutePath) }
                 if (old != null && old != f.absolutePath) File(old).delete()
             }

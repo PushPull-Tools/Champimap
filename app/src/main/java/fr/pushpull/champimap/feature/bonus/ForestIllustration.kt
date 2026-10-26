@@ -198,18 +198,16 @@ private fun DrawScope.drawGround() {
     oval(Color(0xFF6E9A3E), 326f, 191f, 9f, 2.5f)
 
     // Bruyère (touffes violettes)
-    floatArrayOf(102f, 184f, 196f, 192f, 286f, 188f, 368f, 194f).let { p ->
-        for (k in p.indices step 2) drawHeather(p[k], p[k + 1])
-    }
+    val bruyere = floatArrayOf(102f, 184f, 196f, 192f, 286f, 188f, 368f, 194f)
+    for (k in bruyere.indices step 2) drawHeather(bruyere[k], bruyere[k + 1])
 
     // Feuilles mortes éparses
     val teintes = listOf(Color(0xFFD08A2E), Color(0xFFB0522A), Color(0xFFE0B040))
-    floatArrayOf(
+    val feuilles = floatArrayOf(
         120f, 200f, 150f, 196f, 176f, 204f, 222f, 200f, 250f, 205f,
         274f, 199f, 300f, 204f, 350f, 204f, 96f, 205f, 8f, 204f,
-    ).let { p ->
-        for (k in p.indices step 2) oval(teintes[(k / 2) % teintes.size], p[k], p[k + 1], 3.2f, 1.6f)
-    }
+    )
+    for (k in feuilles.indices step 2) oval(teintes[(k / 2) % teintes.size], feuilles[k], feuilles[k + 1], 3.2f, 1.6f)
 
     // Châtaignes et bogue ouverte sous le châtaignier
     drawChestnut(146f, 192f)

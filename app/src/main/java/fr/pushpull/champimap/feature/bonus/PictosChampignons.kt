@@ -134,7 +134,7 @@ internal fun DrawScope.drawCoulemelle() {
     drawPath(chapeau, Color(0xFFE8D7B8))
     // Écailles brunes
     val ecaille = Color(0xFF9B7650)
-    floatArrayOf(32f, 34f, 68f, 34f, 22f, 39f, 78f, 39f, 42f, 31f, 58f, 31f, 50f, 36f, 36f, 39f, 64f, 39f)
-        .let { pts -> for (k in pts.indices step 2) oval(ecaille, pts[k], pts[k + 1], 2.6f, 1.6f) }
+    val pts = floatArrayOf(32f, 34f, 68f, 34f, 22f, 39f, 78f, 39f, 42f, 31f, 58f, 31f, 50f, 36f, 36f, 39f, 64f, 39f)
+    for (k in pts.indices step 2) oval(ecaille, pts[k], pts[k + 1], 2.6f, 1.6f)
     disc(Color(0xFF7A5434), 50f, 28f, 6f) // mamelon
 }

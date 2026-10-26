@@ -3,8 +3,13 @@ package fr.pushpull.champimap.feature.bonus
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
@@ -22,6 +27,9 @@ import kotlin.math.abs
  * Le même geste, une fois en Psyché, revient au thème Auto.
  * Le détecteur OBSERVE seulement les appuis (passe Initial, rien n'est consommé) :
  * les listes, boutons et cartes en dessous fonctionnent normalement.
+ * « Sur-défilement » : si une liste a réellement défilé pendant le geste, ce n'est
+ * qu'un défilement normal → rien ne se passe. Seul un tirage qui « bute » (liste
+ * déjà en bas, ou écran sans défilement) déclenche la bascule.
  */
 
 /** Le geste doit commencer dans cette part basse de l'écran (15 %). */
@@ -33,13 +41,28 @@ private const val MIN_TRAVEL = 0.35f
 /** Durée maximale du geste : il doit être franc, pas un lent défilement. */
 private const val MAX_DURATION_MS = 900L
 
+/**
+ * Observe les défilements imbriqués des écrans : note si un contenu a vraiment
+ * défilé vers le bas (doigt qui monte) pendant le geste en cours.
+ */
+private class ScrollWatcher : NestedScrollConnection {
+    var contentScrolled = false
+
+    override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+        if (consumed.y != 0f) contentScrolled = true
+        return Offset.Zero // on ne consomme rien
+    }
+}
+
 /** Enveloppe l'appli et bascule le thème Psyché sur un fort tirage vers le haut depuis le bas. */
 @Composable
 fun PartyUnlockDetector(content: @Composable () -> Unit) {
     val haptic = LocalHapticFeedback.current
+    val watcher = remember { ScrollWatcher() }
     Box(
         Modifier
             .fillMaxSize()
+            .nestedScroll(watcher)
             .pointerInput(Unit) {
                 awaitPointerEventScope {
                     // État du geste en cours (un seul doigt suivi).
@@ -60,6 +83,7 @@ fun PartyUnlockDetector(content: @Composable () -> Unit) {
                                 startX = change.position.x
                                 startY = change.position.y
                                 startTime = change.uptimeMillis
+                                watcher.contentScrolled = false
                             }
                             // Doigt levé (ou plusieurs doigts) : fin du suivi.
                             !change.pressed || event.changes.size > 1 -> tracking = false
@@ -68,7 +92,8 @@ fun PartyUnlockDetector(content: @Composable () -> Unit) {
                                 val dy = startY - change.position.y
                                 val dx = abs(change.position.x - startX)
                                 val elapsed = change.uptimeMillis - startTime
-                                if (elapsed > MAX_DURATION_MS) {
+                                if (elapsed > MAX_DURATION_MS || watcher.contentScrolled) {
+                                    // Trop lent, ou une liste a défilé : geste ordinaire.
                                     tracking = false
                                 } else if (dy > height * MIN_TRAVEL && dx < dy) {
                                     fired = true

@@ -4,16 +4,15 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -130,7 +129,13 @@ private fun ProfilSection(s: AppSettings) {
         singleLine = true,
         shape = RoundedCornerShape(14.dp),
         isError = name.isBlank(),
-        supportingText = { if (saved) Text("✓ Enregistré") else if (name.isBlank()) Text("Le prénom ne peut pas être vide") },
+        supportingText = {
+            when {
+                name.isBlank() -> Text("Le prénom ne peut pas être vide")
+                saved -> Text("✓ Enregistré")
+                else -> Unit
+            }
+        },
     )
     LinkRow(
         "Départements",
@@ -166,6 +171,7 @@ private fun DepartementsDialog(initial: Set<String>, onClose: () -> Unit) {
 }
 
 /** Affichage : thème, émojis, « champignong », lien intoxication. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AffichageSection(s: AppSettings) {
     val scope = AppGraph.appScope
