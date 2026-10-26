@@ -18,7 +18,7 @@ import java.net.URL
 class HttpException(val code: Int, message: String) : IOException(message)
 
 object Http {
-    private const val USER_AGENT = "ChampimapConnect/0.1 (appli de cueillette hors ligne ; github.com/PushPull-Tools)"
+    private const val USER_AGENT = "Champimap-Connect/0.1 (github.com/PushPull-Tools)"
     private const val CONNECT_TIMEOUT_MS = 20_000
     private const val READ_TIMEOUT_MS = 90_000
     private const val ATTEMPTS = 3
@@ -119,7 +119,7 @@ object Http {
         out.toByteArray()
     }
 
-    /** Nouvelles tentatives (1 s, 3 s) sur les erreurs passagères ; les 4xx (hors 429) échouent tout de suite. */
+    /** Nouvelles tentatives (2 s, 6 s) sur les erreurs passagères ; les 4xx (hors 429) échouent tout de suite. */
     private fun <T> retry(block: () -> T): T {
         var last: IOException? = null
         for (attempt in 1..ATTEMPTS) {
@@ -131,7 +131,7 @@ object Http {
             } catch (e: IOException) {
                 last = e
             }
-            if (attempt < ATTEMPTS) Thread.sleep(if (attempt == 1) 1_000L else 3_000L)
+            if (attempt < ATTEMPTS) Thread.sleep(if (attempt == 1) 2_000L else 6_000L)
         }
         throw last ?: IOException("Erreur réseau")
     }

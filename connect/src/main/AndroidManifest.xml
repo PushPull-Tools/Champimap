@@ -3,6 +3,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Service de premier plan : la synchro continue quand l'écran Connect est fermé. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <!-- Permission partagée avec Champimap (même signature) pour échanger les fichiers. -->
     <permission
@@ -16,14 +19,33 @@
         android:allowBackup="false"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
+        <!-- Seule porte d'entrée : réservée aux applis signées avec la même clé (Champimap). -->
         <activity
             android:name=".ConnectActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:permission="fr.pushpull.champimap.permission.CONNECT">
             <intent-filter>
                 <action android:name="fr.pushpull.champimap.connect.SYNC" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <!-- Garde le processus en vie pendant la synchro (notification « Synchronisation… »). -->
+        <service
+            android:name=".sync.SyncService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <!-- Fichiers renvoyés à Champimap : lecture accordée URI par URI, jamais exporté. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="fr.pushpull.champimap.connect.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/connect_file_paths" />
+        </provider>
     </application>
 </manifest>

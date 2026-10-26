@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dossiers exposés par le FileProvider de Connect : uniquement cacheDir/sync/ (résultats de synchro).
+     URI produits : content://fr.pushpull.champimap.connect.files/sync/<fichier> -->
+<paths>
+    <cache-path name="sync" path="sync/" />
+</paths>

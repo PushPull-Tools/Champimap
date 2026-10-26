@@ -28,6 +28,36 @@ import kotlinx.serialization.json.JsonPrimitive
  *
  * Noms des fichiers renvoyés :
  *   map_<code>.pmtiles · contour_<code>.geojson · hospitals_<code>.json · weather.json · antipoison.json
+ *
+ * ---------------------------------------------------------------- Ajouts (module connect, compatibles)
+ * Types des extras de demande : tableaux de texte (String[], putExtra(nom, arrayOf(...))) ;
+ *   ArrayList<String> (putStringArrayListExtra) est accepté aussi. Booléens : putExtra(nom, true).
+ * EXTRA_MAP_MAX_ZOOM (Int, facultatif) : zoom maximal des cartes extraites, 10 à 15, défaut 14.
+ *
+ * Résultat d'activité :
+ *   - RESULT_OK : au moins un fichier prêt (des erreurs partielles peuvent figurer dans snapshot.errors) ;
+ *     en mode arrière-plan (ou si l'utilisateur fait « Retour »), RESULT_OK est renvoyé tout de suite avec
+ *     un instantané `running = true` : la suite arrive par ACTION_PROGRESS et state.json ;
+ *   - RESULT_CANCELED : annulé ou aucun fichier obtenu (raisons dans snapshot.errors) ;
+ *   - dans tous les cas l'extra EXTRA_SNAPSHOT (texte JSON de SyncSnapshot) est présent.
+ *
+ * Formats des fichiers JSON (UTF-8, dates locales Europe/Paris, generatedAt en millisecondes) :
+ *   weather.json :
+ *     { "generatedAt": 0, "timezone": "Europe/Paris", "source": "Open-Meteo",
+ *       "zones": [ { "zoneId": "45.75_1.25", "lat": 45.875, "lon": 1.375, "from": "AAAA-MM-JJ", "to": "AAAA-MM-JJ",
+ *                    "days": [ { "date": "AAAA-MM-JJ", "precipitationMm": 3.2, "tempMinC": 4.1, "tempMaxC": 13.8 } ] } ],
+ *       "errors": [ { "zoneId": "…", "message": "…" } ] }
+ *     (valeurs numériques possiblement null ; dates futures ignorées ; plusieurs périodes d'une même zone fusionnées)
+ *   hospitals_<code>.json :
+ *     { "generatedAt": 0, "departement": "87", "source": "OpenStreetMap (Overpass)",
+ *       "hospitals": [ { "id": "way/123", "name": "CHU Dupuytren", "lat": 45.81, "lon": 1.23,
+ *                        "phone": "05 55 05 55 55", "departement": "87" } ] }
+ *     (phone et name possiblement null ; emprise rectangulaire : des hôpitaux voisins peuvent y figurer)
+ *   antipoison.json :
+ *     { "generatedAt": 0, "verified": false,
+ *       "centers": [ { "id": "angers", "name": "Centre antipoison d'Angers", "city": "Angers",
+ *                      "phone": "02 41 48 21 21", "regions": ["Bretagne", …], "departements": ["22", …] } ] }
+ *   contour_<code>.geojson : GeoJSON du département (dépôt france-geojson, tel quel).
  */
 object SyncProtocol {
     const val MAIN_PACKAGE = "fr.pushpull.champimap"
@@ -44,6 +74,9 @@ object SyncProtocol {
     const val EXTRA_WEATHER_ZONES = "weatherZones"
     const val EXTRA_POISON_CENTERS = "poisonCenters"
     const val EXTRA_BACKGROUND = "background"
+    /** Ajout : zoom maximal des cartes (Int, 10..15, défaut MAP_MAX_ZOOM_DEFAULT). */
+    const val EXTRA_MAP_MAX_ZOOM = "mapMaxZoom"
+    const val MAP_MAX_ZOOM_DEFAULT = 14
 
     // Réponse (résultat d'activité et diffusion)
     const val EXTRA_SNAPSHOT = "snapshot"
