@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Logo Champimap : épingle blanche au cœur orange girolle, sur fond vert mousse. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#00000000" android:strokeColor="#FFFFFF" android:strokeWidth="4.5"
+        android:strokeLineJoin="round" android:strokeLineCap="round"
+        android:pathData="M54,80C54,80 39,66 39,52A15,15 0,0 1,69 52C69,66 54,80 54,80Z" />
+    <path android:fillColor="#F0A24B" android:pathData="M54,52m-5.5,0a5.5,5.5 0,1 1,11 0a5.5,5.5 0,1 1,-11 0" />
+</vector>

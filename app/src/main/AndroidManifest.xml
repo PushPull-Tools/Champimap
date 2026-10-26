@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Manifeste de Champimap.
+  RÈGLE ABSOLUE : aucune permission réseau. Les bibliothèques qui en déclarent une
+  (MapLibre notamment) voient leur permission RETIRÉE ici avec tools:node="remove".
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Permissions réseau explicitement retirées (preuve du « hors ligne »). -->
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
+
+    <!-- Position : spots, trace de sortie, retour à la voiture. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Caméra : scanner les QR codes (partage, sortie à plusieurs). -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Micro : mémo vocal sur un spot. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Wi-Fi Direct : sortie à plusieurs, sans Internet. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission
+        android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="33" />
+
+    <!-- Installer le module Champimap Connect livré dans l'appli (ne donne aucun accès réseau). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <!-- Verrouillage par empreinte ou code. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- Permission partagée avec Champimap Connect : seules les applis signées avec la même clé peuvent échanger. -->
+    <permission
+        android:name="fr.pushpull.champimap.permission.CONNECT"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="fr.pushpull.champimap.permission.CONNECT" />
+
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.wifi.direct" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+
+    <queries>
+        <package android:name="fr.pushpull.champimap.connect" />
+        <!-- Ouvrir le clavier d'appel et une appli GPS pour les urgences. -->
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="geo" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+    </queries>
+
+    <application
+        android:name=".ChampimapApp"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Champimap"
+        tools:targetApi="35">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/Theme.Champimap">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Ouvrir un fichier de spot partagé (.champi) reçu par Quick Share, Bluetooth… -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="application/octet-stream" />
+                <data android:pathPattern=".*\\.champi" />
+            </intent-filter>
+        </activity>
+
+        <!-- Suivi GPS pendant une sortie (service de premier plan, notification avec actions). -->
+        <service
+            android:name=".feature.sortie.SortieTrackingService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
+        <!-- Partage de fichiers (export, photos partagées, APK du module Connect). -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <!-- Le scanner de QR code de zxing est forcé en portrait. -->
+        <activity
+            android:name="com.journeyapps.barcodescanner.CaptureActivity"
+            android:screenOrientation="portrait"
+            tools:replace="screenOrientation" />
+    </application>
+</manifest>

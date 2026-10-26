@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Champimap Connect : module séparé, seul à avoir Internet. Pas d'icône dans le lanceur. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Permission partagée avec Champimap (même signature) pour échanger les fichiers. -->
+    <permission
+        android:name="fr.pushpull.champimap.permission.CONNECT"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="fr.pushpull.champimap.permission.CONNECT" />
+
+    <application
+        android:label="Champimap Connect"
+        android:icon="@android:drawable/stat_sys_download"
+        android:allowBackup="false"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+
+        <activity
+            android:name=".ConnectActivity"
+            android:exported="true"
+            android:permission="fr.pushpull.champimap.permission.CONNECT">
+            <intent-filter>
+                <action android:name="fr.pushpull.champimap.connect.SYNC" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
