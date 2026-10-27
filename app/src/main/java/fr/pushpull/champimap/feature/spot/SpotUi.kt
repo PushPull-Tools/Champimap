@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import fr.pushpull.champimap.core.ui.theme.LocalChampiStyle
 import androidx.compose.ui.unit.dp
 import fr.pushpull.champimap.core.AppGraph
 import fr.pushpull.champimap.core.db.Edibility
@@ -121,21 +122,30 @@ fun edibilityLabel(e: Edibility): String = when (e) {
     Edibility.INCONNU -> "Inconnu"
 }
 
-/** Couleurs (fond, texte) de la pastille de comestibilité, identiques dans tous les thèmes. */
-private fun edibilityColors(e: Edibility): Pair<Color, Color> = when (e) {
-    Edibility.COMESTIBLE -> Color(0xFFDDEFE2) to Color(0xFF1E5A33)
-    Edibility.A_EVITER -> Color(0xFFFCEBD6) to Color(0xFF7A3E06)
-    Edibility.TOXIQUE -> Color(0xFFFADCD9) to Color(0xFF8C1D18)
-    Edibility.MORTEL -> Color(0xFF8C1D18) to Color.White
-    Edibility.PSYCHOTROPE -> Color(0xFFEBDDFB) to Color(0xFF4F2A86)
-    Edibility.INCONNU -> Color(0xFFE6E6E6) to Color(0xFF444444)
-}
-
-/** Pastille Comestible / À éviter / Toxique / Mortel / Psychotrope. */
+/**
+ * Couleurs (fond, texte) de la pastille de comestibilité.
+ * Clair : couleurs de la maquette. Sombre : paires container / onContainer du thème
+ * (ou équivalents foncés) pour rester lisibles sur les cartes sombres.
+ */
 @Composable
-fun EdibilityChip(e: Edibility) {
-    val (bg, fg) = edibilityColors(e)
-    ChampiChip(edibilityLabel(e), background = bg, textColor = fg)
+private fun edibilityColors(e: Edibility): Pair<Color, Color> {
+    val scheme = MaterialTheme.colorScheme
+    if (!LocalChampiStyle.current.dark) return when (e) {
+        Edibility.COMESTIBLE -> Color(0xFFDDEFE2) to Color(0xFF1E5A33)
+        Edibility.A_EVITER -> scheme.secondaryContainer to scheme.onSecondaryContainer // orange clair + brun
+        Edibility.TOXIQUE -> Color(0xFFFADCD9) to Color(0xFF8C1D18)
+        Edibility.MORTEL -> Color(0xFF8C1D18) to Color.White
+        Edibility.PSYCHOTROPE -> Color(0xFFEBDDFB) to Color(0xFF4F2A86)
+        Edibility.INCONNU -> Color(0xFFE6E6E6) to Color(0xFF444444)
+    }
+    return when (e) {
+        Edibility.COMESTIBLE -> scheme.primaryContainer to scheme.onPrimaryContainer
+        Edibility.A_EVITER -> scheme.secondaryContainer to scheme.onSecondaryContainer
+        Edibility.TOXIQUE -> Color(0xFF5C1A16) to Color(0xFFFADCD9)
+        Edibility.MORTEL -> Color(0xFFB3261E) to Color.White // reste le plus alarmant
+        Edibility.PSYCHOTROPE -> Color(0xFF3A2560) to Color(0xFFEBDDFB)
+        Edibility.INCONNU -> scheme.surfaceVariant to scheme.onSurfaceVariant
+    }
 }
 
 /** Couleur d'une espèce (épingles, pastilles), repli sur le brun par défaut. */

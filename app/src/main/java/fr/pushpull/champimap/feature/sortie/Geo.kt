@@ -38,25 +38,11 @@ object Geo {
     }
 
     /**
-     * Longueur d'une trace en mètres. Les points trop imprécis (> 30 m) sont ignorés
-     * et les petits sauts (< 2 m, bruit du GPS à l'arrêt) ne sont pas comptés.
+     * Longueur d'une trace en mètres, calculée uniquement sur les points filtrés (voir TrackFilter :
+     * points imprécis > 25 m, bruit à l'arrêt et sauts impossibles écartés). Nettoie aussi les
+     * anciennes traces enregistrées avant le filtre.
      */
-    fun trackLengthM(points: List<TrackPoint>): Double {
-        var total = 0.0
-        var prev: TrackPoint? = null
-        for (p in points) {
-            if (p.accuracyM > 30f) continue
-            val last = prev
-            if (last != null) {
-                val d = distanceM(last.lat, last.lon, p.lat, p.lon)
-                if (d >= 2.0) {
-                    total += d
-                    prev = p
-                }
-            } else prev = p
-        }
-        return total
-    }
+    fun trackLengthM(points: List<TrackPoint>): Double = TrackFilter.lengthM(points)
 
     /** « 850 m » ou « 1,2 km ». */
     fun formatDistance(m: Double): String = when {

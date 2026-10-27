@@ -1,6 +1,7 @@
 package fr.pushpull.champimap.core.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
@@ -146,7 +147,7 @@ fun ChampimapTheme(settings: AppSettings, content: @Composable () -> Unit) {
         easterUnlocked = settings.easterUnlocked,
     )
     CompositionLocalProvider(LocalChampiStyle provides style) {
-        MaterialTheme(colorScheme = scheme, typography = ChampiTypography, content = content)
+        MaterialTheme(colorScheme = scheme, typography = ChampiTypography) { ThemedContent(scheme.onBackground, content) }
     }
 }
 
@@ -154,8 +155,20 @@ fun ChampimapTheme(settings: AppSettings, content: @Composable () -> Unit) {
 @Composable
 fun SafetyTheme(content: @Composable () -> Unit) {
     val current = LocalChampiStyle.current
-    val dark = isSystemInDarkTheme()
+    // Suit le choix clair / sombre de l'appli (réglages), pas seulement celui du téléphone.
+    val dark = current.dark
     CompositionLocalProvider(LocalChampiStyle provides current.copy(psyche = false, emojis = false, champignong = false)) {
-        MaterialTheme(colorScheme = if (dark) DarkScheme else LightScheme, typography = ChampiTypography, content = content)
+        val scheme = if (dark) DarkScheme else LightScheme
+        MaterialTheme(colorScheme = scheme, typography = ChampiTypography) { ThemedContent(scheme.onBackground, content) }
     }
+}
+
+/**
+ * Couleur par défaut des textes et icônes posés directement sur le fond d'écran.
+ * MaterialTheme seul ne la fournit pas : sans elle, tout Text/Icon sans `color` explicite
+ * reste NOIR, illisible en thème sombre. Les Surface/cartes la remplacent par leur `onSurface`.
+ */
+@Composable
+private fun ThemedContent(color: Color, content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalContentColor provides color, content = content)
 }

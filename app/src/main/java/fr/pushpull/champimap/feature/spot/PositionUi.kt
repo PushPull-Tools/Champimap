@@ -44,7 +44,6 @@ import fr.pushpull.champimap.core.ui.ChampiChip
 import fr.pushpull.champimap.core.ui.ChampiOutlinedButton
 import fr.pushpull.champimap.core.ui.ChampiScreen
 import fr.pushpull.champimap.core.ui.ConfirmDialog
-import fr.pushpull.champimap.core.ui.theme.ChampiColors
 import fr.pushpull.champimap.feature.bonus.champiText
 import kotlinx.coroutines.launch
 import org.maplibre.android.camera.CameraPosition
@@ -162,7 +161,7 @@ fun AdjustPositionScreen(spot: Spot, onCancel: () -> Unit, onConfirm: (Double, D
             Icon(
                 Icons.Filled.Place,
                 contentDescription = "Nouvelle position",
-                tint = ChampiColors.Girolle,
+                tint = MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.align(Alignment.Center).size(48.dp).offset(y = (-24).dp),
             )
             Box(Modifier.align(Alignment.TopCenter).padding(12.dp)) {

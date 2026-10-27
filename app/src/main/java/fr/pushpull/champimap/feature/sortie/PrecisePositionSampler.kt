@@ -15,7 +15,7 @@ import kotlin.math.sqrt
  *
  * Principe : on reste immobile 30 à 60 s ; chaque position GPS reçue (1 par seconde) est pondérée
  * par l'inverse du carré de sa précision (une position à ±4 m compte 9 fois plus qu'une à ±12 m).
- * Les valeurs aberrantes (sauts du GPS) sont rejetées, puis la moyenne est recalculée.
+ * Les valeurs aberrantes (à plus de 2 écarts-types, sauts du GPS) sont rejetées, puis la moyenne est recalculée.
  * La précision estimée baisse au fil du temps : c'est la jauge « ±12 m → ±3 m ».
  * La validation est toujours MANUELLE (l'appelant décide quand garder le résultat).
  *
@@ -82,15 +82,12 @@ class PrecisePositionSampler(context: Context) {
             val usable = fixes.filter { it.accuracyM in 0.5f..MAX_ACCEPTED_ACCURACY_M }
             if (usable.isEmpty()) return null
 
-            // 1) Première moyenne pondérée, sur tout.
-            val first = weightedMean(usable)
-
-            // 2) Rejet des aberrants : trop loin de la moyenne par rapport à la dispersion médiane.
-            val dists = usable.map { Geo.distanceM(first.first, first.second, it.lat, it.lon) }
-            val median = dists.sorted()[dists.size / 2]
-            val threshold = max(3.0 * median, 4.0)
-            val kept = usable.filterIndexed { i, _ -> dists[i] <= threshold }.ifEmpty { usable }
-            val (lat, lon) = weightedMean(kept)
+            // 1–2) Moyenne pondérée 1/précision², points à plus de 2 écarts-types écartés
+            //      AVANT la moyenne finale (voir PositionMath.robustWeightedMean).
+            val robust = PositionMath.robustWeightedMean(usable) ?: return null
+            val kept = robust.kept
+            val lat = robust.lat
+            val lon = robust.lon
 
             // 3) Précision estimée : dispersion + précision moyenne, réduites par le nombre de mesures
             //    réellement indépendantes (≈ une toutes les 5 s), avec 1 m d'erreur résiduelle minimum.
@@ -116,20 +113,6 @@ class PrecisePositionSampler(context: Context) {
                 durationMs = (spanS * 1000).toLong(),
             )
             return pos to (fixes.size - kept.size)
-        }
-
-        /** Moyenne pondérée par 1/précision² (latitude, longitude). */
-        private fun weightedMean(list: List<GpsFix>): Pair<Double, Double> {
-            var sw = 0.0
-            var sLat = 0.0
-            var sLon = 0.0
-            for (f in list) {
-                val w = 1.0 / (f.accuracyM * f.accuracyM)
-                sw += w
-                sLat += w * f.lat
-                sLon += w * f.lon
-            }
-            return (sLat / sw) to (sLon / sw)
         }
     }
 

@@ -25,9 +25,22 @@ object SortieTracker {
     internal val runningSortie = MutableStateFlow<String?>(null)
     val running: StateFlow<String?> = runningSortie.asStateFlow()
 
-    /** Dernière position reçue par le service (ou par un écran qui écoute le GPS). */
+    /**
+     * Dernière position À AFFICHER (point bleu, flèche, distances) : lissée et figée à l'arrêt
+     * (voir PositionSmoother). La précision reste celle du GPS. Les calculs précis (trace,
+     * mesure d'un spot) utilisent les positions brutes, pas celle-ci.
+     */
     internal val lastFixFlow = MutableStateFlow<GpsFix?>(null)
     val lastFix: StateFlow<GpsFix?> = lastFixFlow.asStateFlow()
+
+    /** Le téléphone est immobile d'après les capteurs (alimenté par le service de suivi). */
+    internal val stillFlow = MutableStateFlow(false)
+    val still: StateFlow<Boolean> = stillFlow.asStateFlow()
+
+    /** Lissage de la position affichée, partagé par toutes les sources de positions. */
+    private val smoother = PositionSmoother()
+    /** Heure de la dernière position brute reçue (une même position arrive parfois par plusieurs écouteurs). */
+    private var lastRawTime = 0L
 
     /** GPS mis en pause car on ne bouge plus (économie de batterie). */
     internal val gpsPausedFlow = MutableStateFlow(false)
@@ -51,9 +64,20 @@ object SortieTracker {
     internal val wakeRequests = MutableStateFlow(0L)
     fun wakeGps() { wakeRequests.value = System.currentTimeMillis() }
 
-    /** Enregistre une position obtenue hors du service (écran « Je suis perdu », échantillonneur). */
+    /**
+     * Reçoit une position BRUTE (service, écran « Je suis perdu », échantillonneur) et publie
+     * la position lissée. Les positions plus anciennes ou déjà reçues sont ignorées.
+     */
+    @Synchronized
     fun publishFix(fix: GpsFix) {
-        val prev = lastFixFlow.value
-        if (prev == null || fix.time >= prev.time) lastFixFlow.value = fix
+        if (fix.time <= lastRawTime) return
+        lastRawTime = fix.time
+        lastFixFlow.value = smoother.update(fix, stillFlow.value)
+    }
+
+    /** Nouvelle sortie suivie : le lissage repart de zéro. */
+    @Synchronized
+    internal fun resetSmoothing() {
+        smoother.reset()
     }
 }

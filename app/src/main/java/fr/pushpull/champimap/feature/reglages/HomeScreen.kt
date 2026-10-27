@@ -57,7 +57,6 @@ import fr.pushpull.champimap.core.ui.ChampiCard
 import fr.pushpull.champimap.core.ui.ChampiScreen
 import fr.pushpull.champimap.core.ui.SectionTitle
 import fr.pushpull.champimap.core.ui.VSpace
-import fr.pushpull.champimap.core.ui.theme.ChampiColors
 import fr.pushpull.champimap.core.ui.theme.SafetyTheme
 import fr.pushpull.champimap.core.util.AstroCalc
 import fr.pushpull.champimap.feature.bonus.Picto
@@ -242,7 +241,7 @@ private fun BigButton(text: String, icon: ImageVector, onClick: () -> Unit) {
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary, contentColor = ChampiColors.Encre),
+        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary, contentColor = MaterialTheme.colorScheme.onSecondary),
     ) {
         Icon(icon, contentDescription = null)
         Spacer(Modifier.width(8.dp))

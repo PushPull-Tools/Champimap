@@ -30,7 +30,6 @@ import fr.pushpull.champimap.core.db.Spot
 import fr.pushpull.champimap.core.db.SpotStatus
 import fr.pushpull.champimap.core.ui.ChampiCard
 import fr.pushpull.champimap.core.ui.SectionTitle
-import fr.pushpull.champimap.core.ui.theme.ChampiColors
 import fr.pushpull.champimap.feature.bonus.champiText
 
 /*
@@ -120,7 +119,7 @@ fun SpotDetailsCard(spot: Spot, saver: AutoSaver, onInfo: (String) -> Unit) {
                     Icon(
                         if (on) Icons.Filled.Star else Icons.Filled.StarBorder,
                         contentDescription = "$n étoile" + if (n > 1) "s" else "",
-                        tint = if (on) ChampiColors.Girolle else MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = if (on) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }

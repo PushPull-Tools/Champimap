@@ -54,9 +54,11 @@ import kotlinx.coroutines.flow.flowOf
 import java.io.File
 
 /*
- * Récolte du jour (fiche spot) : cadenas, liste des espèces récoltées avec photo miniature,
- * nom, poids (+50 / +100 / saisie libre), pastilles stade / qualité / état.
- * Verrouillée = rien n'est modifiable ni supprimable.
+ * Récolte du jour (fiche spot) : un seul cadenas pour la récolte du spot dans la sortie,
+ * liste des espèces récoltées avec photo miniature, nom, poids (+50 / +100 / saisie libre),
+ * pastilles stade / qualité / état.
+ * Verrouillée = rien n'est modifiable ni supprimable (espèces, poids, pastilles, photos) ;
+ * la règle est aussi appliquée dans SpotRepository.
  */
 
 /** Pastilles : mot-clé enregistré → libellé affiché. */
@@ -101,16 +103,16 @@ fun RecolteCard(
 
     ChampiCard(Modifier.fillMaxWidth()) {
         val r = recolte
+        // En-tête : « Récolte du 26 octobre » + total + UN cadenas pour toute la récolte du spot
+        // (toutes ses espèces, poids, pastilles et photos).
         Row(verticalAlignment = Alignment.CenterVertically) {
             val title = when {
                 r == null -> "Récolte du jour"
                 SpotRepository.isToday(r.time) -> "Récolte du jour"
-                else -> "Récolte du ${formatDate(r.time)}"
+                else -> "Récolte du ${formatRecolteDate(r.time)}"
             }
-            Text(champiText(title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            Text(champiText(title), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
             if (r != null) {
-                val total = items.sumOf { it.weightG ?: 0 }
-                if (total > 0) Text(formatWeight(total), style = MaterialTheme.typography.titleMedium)
                 IconButton(onClick = { saver.now { SpotRepository.updateRecolte(r.id) { it.copy(locked = !it.locked) } } }) {
                     Icon(
                         if (r.locked) Icons.Filled.Lock else Icons.Filled.LockOpen,
@@ -118,6 +120,11 @@ fun RecolteCard(
                         tint = if (r.locked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+            Spacer(Modifier.weight(1f))
+            if (r != null) {
+                val total = items.sumOf { it.weightG ?: 0 }
+                if (total > 0) Text(formatWeight(total), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
             }
         }
         if (r == null || items.isEmpty()) {
@@ -129,7 +136,11 @@ fun RecolteCard(
             return@ChampiCard
         }
         if (r.locked) {
-            Text(champiText("Récolte verrouillée : rien ne peut être modifié ni supprimé."), style = MaterialTheme.typography.bodySmall)
+            Text(
+                champiText("Récolte verrouillée : rien ne peut être modifié ni supprimé."),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         items.forEachIndexed { i, item ->
             if (i > 0) HorizontalDivider(Modifier.padding(vertical = 8.dp))
@@ -147,6 +158,14 @@ fun RecolteCard(
             )
         }
     }
+}
+
+/** Date du titre : « 26 octobre », avec l'année si ce n'est pas l'année en cours (« 26 octobre 2025 »). */
+private fun formatRecolteDate(time: Long): String {
+    val thisYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+    val year = java.util.Calendar.getInstance().apply { timeInMillis = time }.get(java.util.Calendar.YEAR)
+    val pattern = if (year == thisYear) "d MMMM" else "d MMMM yyyy"
+    return java.text.SimpleDateFormat(pattern, java.util.Locale.FRENCH).format(java.util.Date(time))
 }
 
 /** « 1 250 g » → « 1,25 kg » au-delà d'un kilo. */
@@ -194,7 +213,7 @@ private fun RecolteItemRow(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     SpeciesDot(species, 10)
                     Spacer(Modifier.width(6.dp))
-                    Text(champiText(species?.nameFr ?: "Espèce inconnue"), style = MaterialTheme.typography.titleMedium)
+                    Text(champiText(species?.nameFr ?: "Espèce inconnue"), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                 }
                 species?.let { Text(it.nameLatin, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }

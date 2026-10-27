@@ -31,14 +31,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import fr.pushpull.champimap.core.db.SpotMarker
 import fr.pushpull.champimap.core.ui.BUTTON_HEIGHT
 import fr.pushpull.champimap.core.ui.ChampiButton
-import fr.pushpull.champimap.core.ui.theme.ChampiColors
 import fr.pushpull.champimap.core.ui.theme.SafetyTheme
 import fr.pushpull.champimap.feature.bonus.champiText
 import kotlinx.coroutines.delay
@@ -66,6 +64,7 @@ internal fun SortieTopBar(startedAt: Long, now: Long, spotCount: Int, distanceM:
             Text(
                 champiText("Sortie en cours · " + Geo.formatDuration(now - startedAt)),
                 style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
                 champiText("$spotCount spot${if (spotCount > 1) "s" else ""} · ${Geo.formatDistance(distanceM)} parcourus"),
@@ -188,7 +187,7 @@ internal fun SortieBottomPanel(
             IconButton(
                 onClick = onRecenter,
                 modifier = Modifier.size(52.dp),
-                colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.surface),
+                colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.surface, contentColor = MaterialTheme.colorScheme.onSurface),
             ) { Icon(Icons.Filled.MyLocation, contentDescription = "Recentrer sur ma position") }
             Spacer(Modifier.size(8.dp))
         }
@@ -209,7 +208,7 @@ internal fun SortieBottomPanel(
                         departIsCar -> "Vers la voiture"
                         else -> "Vers le départ"
                     }
-                    Text(champiText(label), style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                    Text(champiText(label), style = MaterialTheme.typography.titleMedium, maxLines = 1, color = MaterialTheme.colorScheme.onSurface)
                     Text(
                         champiText(
                             (distance?.let { Geo.formatDistance(it) } ?: "—") +
@@ -227,10 +226,10 @@ internal fun SortieBottomPanel(
 
             if (approach && target != null) {
                 // Mode approche : guidage fin + confirmation d'arrivée (la photo se prend sur la fiche du spot).
-                ChampiButton("Je suis au spot", onClick = { onArrived(target) }, color = ChampiColors.Mousse)
+                ChampiButton("Je suis au spot", onClick = { onArrived(target) }, color = MaterialTheme.colorScheme.primary)
             }
 
-            ChampiButton("Marquer un spot", onClick = onMark, color = ChampiColors.Girolle)
+            ChampiButton("Marquer un spot", onClick = onMark, color = MaterialTheme.colorScheme.secondary)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedButton(
                     onClick = onExisting,
@@ -244,7 +243,8 @@ internal fun SortieBottomPanel(
                             onClick = onLost,
                             modifier = Modifier.fillMaxWidth().heightIn(min = BUTTON_HEIGHT),
                             shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF9DEDC), contentColor = Color(0xFF8C1D18)),
+                            // Rouge pâle en clair, rouge foncé en sombre (paire errorContainer du thème).
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer),
                         ) { Text("Je suis perdu", fontWeight = FontWeight.Bold) }
                     }
                 }

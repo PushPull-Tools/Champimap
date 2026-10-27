@@ -7,6 +7,21 @@ import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -26,7 +41,6 @@ import fr.pushpull.champimap.core.AppGraph
 import fr.pushpull.champimap.core.ErrorLogger
 import fr.pushpull.champimap.core.db.Spot
 import fr.pushpull.champimap.core.newId
-import fr.pushpull.champimap.core.ui.ChampiOutlinedButton
 import fr.pushpull.champimap.core.ui.ConfirmDialog
 import fr.pushpull.champimap.feature.bonus.champiText
 import kotlinx.coroutines.delay
@@ -150,33 +164,39 @@ fun VoiceMemo(spot: Spot, saver: AutoSaver, onInfo: (String) -> Unit) {
         }
     }
 
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    // Boutons icône + texte court sur une seule ligne (« Réenregistrer » se coupait en deux).
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         if (recorder != null) {
-            ChampiOutlinedButton(
-                "Arrêter (${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')})",
+            MemoButton(
+                "Arrêter ${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}",
+                Icons.Filled.Stop,
                 onClick = { stopRecording(true) },
-                modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                modifier = Modifier.weight(1f),
             )
         } else {
-            ChampiOutlinedButton(
-                if (memo == null) "Enregistrer" else "Réenregistrer",
+            MemoButton(
+                if (memo == null) "Enregistrer" else "Refaire",
+                Icons.Filled.Mic,
                 onClick = {
                     val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
                     if (granted) startRecording() else askMic()
                 },
-                modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                modifier = Modifier.weight(1f),
             )
             if (memo != null) {
-                ChampiOutlinedButton(
+                MemoButton(
                     if (player != null) "Stop" else "Écouter",
+                    if (player != null) Icons.Filled.Stop else Icons.Filled.PlayArrow,
                     onClick = { togglePlay(memo) },
-                    modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                    modifier = Modifier.weight(1f),
                 )
-                ChampiOutlinedButton("Supprimer", onClick = { askDelete = true }, modifier = Modifier.weight(1f).heightIn(min = 56.dp))
+                MemoButton("Effacer", Icons.Filled.Delete, onClick = { askDelete = true }, modifier = Modifier.weight(1f))
             }
         }
     }
-    if (memo == null && recorder == null) Text(champiText("Aucun mémo pour l'instant."))
+    if (memo == null && recorder == null) {
+        Text(champiText("Aucun mémo pour l'instant."), color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
 
     if (askDelete && memo != null) {
         ConfirmDialog(
@@ -191,5 +211,28 @@ fun VoiceMemo(spot: Spot, saver: AutoSaver, onInfo: (String) -> Unit) {
             },
             onDismiss = { askDelete = false },
         )
+    }
+}
+
+/** Bouton du mémo : icône au-dessus d'un libellé court, jamais coupé (une seule ligne). */
+@Composable
+private fun MemoButton(text: String, icon: ImageVector, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier.heightIn(min = 64.dp),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary),
+        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Text(
+                champiText(text),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }

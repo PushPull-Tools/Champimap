@@ -42,7 +42,6 @@ import com.journeyapps.barcodescanner.ScanOptions
 import fr.pushpull.champimap.core.ui.ChampiButton
 import fr.pushpull.champimap.core.ui.ChampiCard
 import fr.pushpull.champimap.core.ui.ChampiOutlinedButton
-import fr.pushpull.champimap.core.ui.theme.ChampiColors
 import fr.pushpull.champimap.feature.bonus.champiText
 
 /*
@@ -187,7 +186,7 @@ fun MessageCard(text: String, error: Boolean = false) {
         Text(
             champiText(text),
             style = MaterialTheme.typography.bodyMedium,
-            color = if (error) ChampiColors.Urgence else MaterialTheme.colorScheme.onSurface,
+            color = if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
         )
     }
 }

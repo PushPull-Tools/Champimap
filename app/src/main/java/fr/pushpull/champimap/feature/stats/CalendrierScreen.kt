@@ -167,19 +167,29 @@ private fun MonthGrid(
     }
 }
 
-/** Une case jour : fond vert si sortie, contour si aujourd'hui, orange si choisie, point si « bien donné ». */
+/**
+ * Une case jour : fond vert si sortie, simple contour vert (primary) si aujourd'hui,
+ * fond vert pâle si choisie, point orange si « bien donné » les années d'avant.
+ * L'orange est réservé à ce point (légende), pour ne pas être confondu avec aujourd'hui.
+ */
 @Composable
 private fun DayCell(d: LocalDate, isToday: Boolean, isSelected: Boolean, sortie: Boolean, pastGood: Boolean, onSelect: (LocalDate) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val bg = when {
-        isSelected -> scheme.secondary
         sortie -> scheme.primary
+        isSelected -> scheme.primaryContainer
         else -> Color.Transparent
     }
     val fg = when {
-        isSelected -> scheme.onSecondary
         sortie -> scheme.onPrimary
+        isSelected -> scheme.onPrimaryContainer
         else -> scheme.onSurface
+    }
+    // Contour : vert pour aujourd'hui ; couleur du texte quand la case est déjà verte (sortie).
+    val borderColor: Color? = when {
+        sortie && (isToday || isSelected) -> scheme.onSurface
+        isToday -> scheme.primary
+        else -> null
     }
     Box(
         Modifier
@@ -187,7 +197,7 @@ private fun DayCell(d: LocalDate, isToday: Boolean, isSelected: Boolean, sortie:
             .aspectRatio(1f)
             .clip(CircleShape)
             .background(bg)
-            .then(if (isToday && !isSelected) Modifier.border(2.dp, scheme.primary, CircleShape) else Modifier)
+            .then(if (borderColor != null) Modifier.border(2.dp, borderColor, CircleShape) else Modifier)
             .clickable { onSelect(d) },
         contentAlignment = Alignment.Center,
     ) {
@@ -195,7 +205,7 @@ private fun DayCell(d: LocalDate, isToday: Boolean, isSelected: Boolean, sortie:
         if (pastGood) {
             Box(
                 Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp).size(5.dp).clip(CircleShape)
-                    .background(if (isSelected) scheme.onSecondary else scheme.secondary),
+                    .background(scheme.secondary),
             )
         }
     }

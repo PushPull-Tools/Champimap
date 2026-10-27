@@ -43,7 +43,6 @@ import fr.pushpull.champimap.core.ui.ChampiOutlinedButton
 import fr.pushpull.champimap.core.ui.ChampiScreen
 import fr.pushpull.champimap.core.ui.SectionTitle
 import fr.pushpull.champimap.core.ui.VSpace
-import fr.pushpull.champimap.core.ui.theme.ChampiColors
 import fr.pushpull.champimap.feature.bonus.champiText
 import fr.pushpull.champimap.nav.Routes
 import kotlinx.coroutines.flow.flowOf
@@ -273,9 +272,9 @@ fun FicheEspeceScreen(nav: NavController, speciesId: String) {
 private fun WarningCard(s: Species, sosies: List<Species>, onOpen: (String) -> Unit) {
     ChampiCard(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Warning, contentDescription = null, tint = ChampiColors.Urgence)
+            Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
             Spacer(Modifier.width(8.dp))
-            Text(champiText("Attention"), style = MaterialTheme.typography.titleMedium, color = ChampiColors.Urgence)
+            Text(champiText("Attention"), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
         }
         when (s.edibility) {
             Edibility.MORTEL -> Text(champiText("Espèce mortelle : ne jamais consommer, même en petite quantité."))

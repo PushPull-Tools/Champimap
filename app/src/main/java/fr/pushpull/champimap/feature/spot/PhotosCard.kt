@@ -137,8 +137,19 @@ fun PhotosCard(spotId: String, onInfo: (String) -> Unit) {
                 val ids = selected.toList()
                 askDelete = false
                 selected = emptySet()
-                AppGraph.appScope.launch { SpotRepository.trashPhotos(ids) }
-                onInfo(if (n > 1) "$n photos mises à la corbeille." else "Photo mise à la corbeille.")
+                AppGraph.appScope.launch {
+                    // Les photos d'une récolte verrouillée (cadenas) ne sont pas supprimées.
+                    val done = SpotRepository.trashPhotos(ids)
+                    val skipped = n - done
+                    onInfo(
+                        when {
+                            done == 0 -> "Récolte verrouillée : ouvre le cadenas pour supprimer ces photos."
+                            skipped > 0 -> "$done photo(s) à la corbeille, $skipped protégée(s) par le cadenas."
+                            done > 1 -> "$done photos mises à la corbeille."
+                            else -> "Photo mise à la corbeille."
+                        }
+                    )
+                }
             },
             onDismiss = { askDelete = false },
         )

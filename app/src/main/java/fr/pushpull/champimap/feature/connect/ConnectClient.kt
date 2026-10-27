@@ -50,7 +50,11 @@ import java.time.temporal.ChronoUnit
 /** État de l'installation du module. */
 sealed interface InstallState {
     data object Idle : InstallState
-    /** L'utilisateur doit autoriser Champimap à installer des applis (écran Android ouvert). */
+    /**
+     * L'utilisateur doit autoriser Champimap à installer des applis.
+     * Le réglage Android n'est JAMAIS ouvert tout seul : l'écran affiche une explication
+     * et un bouton « Ouvrir le réglage Android ».
+     */
     data object NeedsPermission : InstallState
     data object Installing : InstallState
     data object Installed : InstallState
@@ -106,9 +110,9 @@ object ConnectClient {
     private val _lastSync = MutableStateFlow(0L)
     val lastSync: StateFlow<Long> = _lastSync.asStateFlow()
 
-    /** Installation à relancer au retour de l'écran « Sources inconnues ». */
-    @Volatile private var pendingInstall = false
     @Volatile private var receiversRegistered = false
+    /** Session PackageInstaller en cours (-1 = aucune) : seule celle-ci peut afficher la confirmation. */
+    @Volatile private var currentSessionId = -1
 
     /** Fichiers déjà importés (« syncId|nom|taille ») : un fichier n'est jamais importé deux fois. */
     private val imported = mutableSetOf<String>()
@@ -133,27 +137,29 @@ object ConnectClient {
     fun hasEmbeddedApk(context: Context): Boolean =
         runCatching { context.assets.open(ASSET_APK).use { true } }.getOrDefault(false)
 
+    /** Vrai si Champimap a l'autorisation Android « Installer des applis inconnues ». */
+    fun canInstallPackages(context: Context): Boolean =
+        context.applicationContext.packageManager.canRequestPackageInstalls()
+
+    /** Intent du réglage Android « Installer des applis inconnues », directement sur Champimap. */
+    fun unknownSourcesIntent(context: Context): Intent =
+        Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
+
     /**
-     * À appeler au retour au premier plan (ON_RESUME) : met à jour l'état d'installation,
-     * relance l'installation si l'utilisateur vient d'accorder l'autorisation, et rattrape
-     * une synchro terminée pendant que l'appli était fermée.
+     * À appeler au retour au premier plan (ON_RESUME) : met à jour l'état d'installation
+     * et rattrape une synchro terminée pendant que l'appli était fermée.
+     * Ne lance JAMAIS d'installation : c'est l'écran qui l'enchaîne, et seulement si
+     * l'utilisateur l'a demandée (bouton « Installer le module »).
      */
     fun onResume(context: Context) {
         val app = context.applicationContext
         loadLastSync(app)
         if (isInstalled(app)) {
-            if (_install.value !is InstallState.Installing) _install.value = InstallState.Installed
-            pendingInstall = false
+            // Module présent = installation réussie (même si la diffusion de succès s'est perdue).
+            _install.value = InstallState.Installed
+            currentSessionId = -1
         } else if (_install.value is InstallState.Installed) {
             _install.value = InstallState.Idle // désinstallé entre-temps
-        }
-        if (pendingInstall && app.packageManager.canRequestPackageInstalls()) {
-            pendingInstall = false
-            AppGraph.appScope.launch { install(app) }
-        } else if (pendingInstall && _install.value is InstallState.NeedsPermission) {
-            // Revenu sans accorder l'autorisation : on laisse l'utilisateur réessayer.
-            pendingInstall = false
-            _install.value = InstallState.Failed("Autorisation non accordée : Champimap ne peut pas poser le module.")
         }
         ensureListening(app)
         if (isInstalled(app)) AppGraph.appScope.launch { catchUp(app) }
@@ -164,9 +170,10 @@ object ConnectClient {
     // -----------------------------------------------------------------------------------------
 
     /**
-     * Installe Champimap Connect depuis l'APK embarquée.
-     * Si Champimap n'a pas le droit d'installer des applis, ouvre l'écran Android correspondant :
-     * l'installation reprend toute seule au retour (voir `onResume`).
+     * Installe Champimap Connect depuis l'APK embarquée. À appeler UNIQUEMENT sur action de
+     * l'utilisateur (bouton « Installer le module » / « Réessayer »).
+     * Si Champimap n'a pas le droit d'installer des applis : état NeedsPermission, sans rien
+     * ouvrir (l'écran propose le bouton « Ouvrir le réglage Android »).
      */
     suspend fun install(context: Context) {
         val app = context.applicationContext
@@ -177,17 +184,12 @@ object ConnectClient {
             )
             return
         }
-        if (!app.packageManager.canRequestPackageInstalls()) {
-            pendingInstall = true
+        if (!canInstallPackages(app)) {
             _install.value = InstallState.NeedsPermission
-            val settings = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${app.packageName}"))
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            runCatching { app.startActivity(settings) }.onFailure {
-                pendingInstall = false
-                _install.value = InstallState.Failed("Impossible d'ouvrir le réglage « Installer des applis inconnues ».")
-            }
             return
         }
+        // Une ancienne tentative restée en suspens est abandonnée avant d'en créer une nouvelle.
+        abandonCurrentSession(app)
         _install.value = InstallState.Installing
         ensureListening(app)
         try {
@@ -197,6 +199,7 @@ object ConnectClient {
                 val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
                 params.setAppPackageName(ConnectProtocol.CONNECT_PACKAGE)
                 val sessionId = installer.createSession(params)
+                currentSessionId = sessionId
                 installer.openSession(sessionId).use { session ->
                     // Écriture de l'APK dans la session d'installation.
                     apk.inputStream().use { input ->
@@ -218,8 +221,27 @@ object ConnectClient {
             }
         } catch (e: Exception) {
             ErrorLogger.log("Connect", "Installation du module impossible", e)
+            currentSessionId = -1
             _install.value = InstallState.Failed("L'installation du module a échoué. Réessaie dans un instant.")
         }
+    }
+
+    /**
+     * « Plus tard » : abandonne la tentative en cours et revient à l'état de départ
+     * (ou « installé » si le module est déjà là).
+     */
+    fun cancelInstall(context: Context) {
+        val app = context.applicationContext
+        abandonCurrentSession(app)
+        _install.value = if (isInstalled(app)) InstallState.Installed else InstallState.Idle
+    }
+
+    /** Abandonne la session PackageInstaller en cours, s'il y en a une (erreurs ignorées : session déjà finie). */
+    private fun abandonCurrentSession(context: Context) {
+        val id = currentSessionId
+        currentSessionId = -1
+        if (id < 0) return
+        runCatching { context.packageManager.packageInstaller.abandonSession(id) }
     }
 
     /** Copie l'APK des assets dans filesDir/connect/ (dossier partagé par le FileProvider « connect_apk »). */
@@ -233,6 +255,9 @@ object ConnectClient {
     /** Statut renvoyé par PackageInstaller. */
     private val installReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
+            // Statut d'une ancienne session (abandonnée par « Réessayer » ou « Plus tard ») : ignoré.
+            val sessionId = intent.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -1)
+            if (sessionId != -1 && sessionId != currentSessionId) return
             when (intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)) {
                 PackageInstaller.STATUS_PENDING_USER_ACTION -> {
                     // Android demande la confirmation de l'utilisateur : on affiche sa fenêtre.
@@ -244,7 +269,10 @@ object ConnectClient {
                         }
                     }
                 }
-                PackageInstaller.STATUS_SUCCESS -> _install.value = InstallState.Installed
+                PackageInstaller.STATUS_SUCCESS -> {
+                    currentSessionId = -1
+                    _install.value = InstallState.Installed
+                }
                 PackageInstaller.STATUS_FAILURE_ABORTED -> _install.value = InstallState.Failed("Installation annulée.")
                 PackageInstaller.STATUS_FAILURE_STORAGE -> _install.value = InstallState.Failed("Pas assez de place pour installer le module.")
                 PackageInstaller.STATUS_FAILURE_CONFLICT,

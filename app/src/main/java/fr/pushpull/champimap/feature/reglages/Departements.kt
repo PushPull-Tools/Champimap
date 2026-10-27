@@ -12,8 +12,8 @@ import kotlin.math.roundToInt
 
 /** Un département : code INSEE, nom, centre approximatif (lat, lon), superficie en km². */
 data class Departement(val code: String, val nom: String, val lat: Double, val lon: Double, val km2: Int) {
-    /** Taille estimée des cartes hors ligne (Mo) : ~1 Mo pour 400 km², bornée. */
-    val tailleMo: Int get() = (km2 / 400.0).roundToInt().coerceIn(2, 120)
+    /** Taille estimée des cartes hors ligne (Mo), zoom 15 (chemins et lieux-dits) : ~2,5 Mo pour 400 km², bornée. */
+    val tailleMo: Int get() = (km2 / 160.0).roundToInt().coerceIn(4, 300)
     /** Libellé affiché, ex. « 87 · Haute-Vienne ». */
     val libelle: String get() = "$code · $nom"
 }

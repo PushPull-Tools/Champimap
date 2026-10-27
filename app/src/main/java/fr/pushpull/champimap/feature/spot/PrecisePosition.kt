@@ -25,8 +25,9 @@ import kotlin.math.sqrt
  *     sans Google Play Services) une fois par seconde pendant `durationMs`.
  *  2. Chaque point reçoit un poids 1 / précision² : un point à ±3 m pèse 16 fois plus
  *     qu'un point à ±12 m.
- *  3. Rejet des aberrants : après une première moyenne, on écarte les points trop loin
- *     (au-delà de 2,5 × max(leur précision, distance médiane)), puis on refait la moyenne.
+ *  3. Rejet des aberrants AVANT la moyenne finale : on écarte les points à plus de
+ *     2 écarts-types du centre (écart-type estimé d'abord par la médiane, insensible aux
+ *     sauts, puis recalculé sur les points sains), puis on refait la moyenne.
  *  4. Précision annoncée = racine de (dispersion pondérée² + 1/Σpoids), bornée entre 1 m
  *     et la meilleure précision brute reçue (prudent : les erreurs GPS sont corrélées).
  *
@@ -103,15 +104,40 @@ suspend fun measurePrecisePosition(
     computeFix(samples)
 }
 
-/** Moyenne pondérée (1/précision²) avec rejet des points aberrants. */
+/** Rejet des points au-delà de ce nombre d'écarts-types du centre. */
+private const val OUTLIER_SIGMAS = 2.0
+
+/** Rayon minimal de rejet (mètres) : un nuage très serré ne perd pas la moitié de ses points. */
+private const val OUTLIER_MIN_RADIUS_M = 2.0
+
+/** Écart-type radial ≈ 1,2 × distance médiane (loi de Rayleigh) : estimation insensible aux sauts. */
+private const val SIGMA_FROM_MEDIAN = 1.2
+
+/** Moyenne pondérée (1/précision²) avec rejet des points aberrants (> 2 écarts-types). */
 internal fun computeFix(raw: List<Location>): PreciseFix? {
     if (raw.isEmpty()) return null
     val first = weightedMean(raw) ?: return null
 
-    // Distances à la première moyenne, puis seuil de rejet basé sur la médiane.
-    val dists = raw.map { distanceM(it.latitude, it.longitude, first.first, first.second) }
-    val median = dists.sorted()[dists.size / 2]
-    val kept = raw.filterIndexed { i, loc -> dists[i] <= 2.5f * max(loc.accuracy, median) }.ifEmpty { raw }
+    // 1) Premier tri : écart-type estimé par la médiane des distances au centre provisoire.
+    val d0 = raw.map { distanceM(it.latitude, it.longitude, first.first, first.second).toDouble() }
+    val sigma0 = SIGMA_FROM_MEDIAN * d0.sorted()[d0.size / 2]
+    val limit0 = max(OUTLIER_MIN_RADIUS_M, OUTLIER_SIGMAS * sigma0)
+    val kept1 = if (raw.size < 3) raw else raw.filterIndexed { i, _ -> d0[i] <= limit0 }.ifEmpty { raw }
+
+    // 2) Second tri : écart-type pondéré recalculé sur les points sains, appliqué à tous les points.
+    val center = weightedMean(kept1) ?: return null
+    var w1 = 0.0
+    var wd1 = 0.0
+    kept1.forEach { loc ->
+        val w = 1.0 / (loc.accuracy.toDouble() * loc.accuracy)
+        val d = distanceM(loc.latitude, loc.longitude, center.first, center.second).toDouble()
+        w1 += w
+        wd1 += w * d * d
+    }
+    val limit1 = max(OUTLIER_MIN_RADIUS_M, OUTLIER_SIGMAS * sqrt(wd1 / w1))
+    val kept = if (raw.size < 3) raw else raw.filter {
+        distanceM(it.latitude, it.longitude, center.first, center.second) <= limit1
+    }.ifEmpty { kept1 }
 
     val (lat, lon) = weightedMean(kept) ?: return null
     var sumW = 0.0

@@ -32,7 +32,12 @@ import kotlinx.serialization.json.JsonPrimitive
  * ---------------------------------------------------------------- Ajouts (module connect, compatibles)
  * Types des extras de demande : tableaux de texte (String[], putExtra(nom, arrayOf(...))) ;
  *   ArrayList<String> (putStringArrayListExtra) est accepté aussi. Booléens : putExtra(nom, true).
- * EXTRA_MAP_MAX_ZOOM (Int, facultatif) : zoom maximal des cartes extraites, 10 à 15, défaut 14.
+ * EXTRA_MAP_MAX_ZOOM (Int, facultatif) : zoom maximal des cartes extraites, 10 à 15, défaut 15.
+ *   Le zoom 15 est le niveau le plus détaillé des builds Protomaps : sentiers (highway=path/footway/
+ *   bridleway, dès z13), lieux-dits et fermes isolées (dès z13–14), noms des petites routes et chemins,
+ *   sommets et repères. Taille estimée : environ 2 à 2,5 fois celle d'une extraction limitée à z14
+ *   (le niveau 15 compte 4 fois plus de tuiles que le 14), soit en ordre de grandeur 2 à 3 Mo
+ *   par 400 km² de campagne (≈ 30 à 40 Mo pour la Haute-Vienne), davantage en zone urbaine dense.
  *
  * Résultat d'activité :
  *   - RESULT_OK : au moins un fichier prêt (des erreurs partielles peuvent figurer dans snapshot.errors) ;
@@ -70,7 +75,8 @@ object SyncProtocol {
     const val EXTRA_BACKGROUND = "background"
     /** Ajout : zoom maximal des cartes (Int, 10..15, défaut MAP_MAX_ZOOM_DEFAULT). */
     const val EXTRA_MAP_MAX_ZOOM = "mapMaxZoom"
-    const val MAP_MAX_ZOOM_DEFAULT = 14
+    /** 15 = niveau maximal Protomaps, nécessaire pour avoir tous les chemins et lieux-dits (voir plus haut). */
+    const val MAP_MAX_ZOOM_DEFAULT = 15
 
     // Réponse (résultat d'activité et diffusion)
     const val EXTRA_SNAPSHOT = "snapshot"

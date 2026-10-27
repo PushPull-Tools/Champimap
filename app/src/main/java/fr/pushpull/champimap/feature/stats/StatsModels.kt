@@ -82,6 +82,12 @@ object StatsFormat {
     /** « 24 octobre ». */
     fun dayMonth(d: LocalDate): String = d.format(DateTimeFormatter.ofPattern("d MMMM", LOCALE_FR))
 
+    /** Jour seul à la française : « 1er », « 2 », « 26 ». */
+    fun dayFr(d: LocalDate): String = if (d.dayOfMonth == 1) "1er" else d.dayOfMonth.toString()
+
+    /** Jour et mois à la française : « 1er novembre », « 26 octobre ». */
+    fun dayMonthFr(d: LocalDate): String = "${dayFr(d)} ${d.format(DateTimeFormatter.ofPattern("MMMM", LOCALE_FR))}"
+
     /** Première lettre en majuscule (« octobre 2026 » → « Octobre 2026 »). */
     fun capitalize(s: String): String = s.replaceFirstChar { if (it.isLowerCase()) it.titlecase(LOCALE_FR) else it.toString() }
 }
@@ -106,7 +112,7 @@ object StatsTime {
         StatsPeriod.SAISON -> seasonStart(today).plusYears(offset.toLong()).let { DateRange(it, it.plusYears(1)) }
     }
 
-    /** Libellé lisible de la période (« Aujourd'hui », « Semaine du 19 au 25 octobre », « Saison 2026-2027 »…). */
+    /** Libellé lisible de la période (« Aujourd'hui », « Semaine du 19 au 25 octobre », « Semaine du 26 octobre au 1er novembre », « Saison 2026-2027 »…). */
     fun label(period: StatsPeriod, range: DateRange, offset: Int): String = when (period) {
         StatsPeriod.JOUR -> when (offset) {
             0 -> "Aujourd'hui"
@@ -115,7 +121,10 @@ object StatsTime {
         }
         StatsPeriod.SEMAINE -> {
             val last = range.endExclusive.minusDays(1)
-            "Semaine du ${range.start.dayOfMonth} au ${StatsFormat.dayMonth(last)}"
+            val start = range.start
+            // Mois répété quand la semaine change de mois (« du 26 octobre au 1er novembre »).
+            val from = if (start.month == last.month) StatsFormat.dayFr(start) else StatsFormat.dayMonthFr(start)
+            "Semaine du $from au ${StatsFormat.dayMonthFr(last)}"
         }
         StatsPeriod.MOIS -> StatsFormat.capitalize(range.start.format(DateTimeFormatter.ofPattern("MMMM yyyy", LOCALE_FR)))
         StatsPeriod.SAISON -> "Saison ${range.start.year}-${range.start.year + 1}"

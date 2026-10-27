@@ -23,11 +23,15 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -44,6 +48,31 @@ import kotlinx.coroutines.launch
 /*
  * Briques d'interface partagées par les écrans Connect (premier lancement et réglages).
  */
+
+/**
+ * Couleur de texte par défaut lisible sur le fond de l'écran, dans tous les thèmes.
+ * Sans cela, un Text posé directement sur le fond (hors carte) est noir, donc illisible en sombre.
+ * Dans une ChampiCard (Surface), Material repasse automatiquement en onSurface.
+ */
+@Composable
+fun ConnectContentColor(content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground, content = content)
+}
+
+/** Exécute [action] à chaque retour de l'écran au premier plan (ON_RESUME). */
+@Composable
+fun OnResumeEffect(action: () -> Unit) {
+    val owner = LocalLifecycleOwner.current
+    // Toujours la dernière version de l'action (elle lit des états de l'écran).
+    val currentAction by rememberUpdatedState(action)
+    DisposableEffect(owner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) currentAction()
+        }
+        owner.lifecycle.addObserver(observer)
+        onDispose { owner.lifecycle.removeObserver(observer) }
+    }
+}
 
 /** Rafraîchit l'état de Connect à chaque retour au premier plan (installation, synchro finie…). */
 @Composable
@@ -117,7 +146,12 @@ fun NumberedStep(n: Int, text: String) {
     Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.Top) {
         NumberBadge(n)
         Spacer(Modifier.width(12.dp))
-        Text(champiText(text), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(top = 3.dp))
+        Text(
+            champiText(text),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f).padding(top = 3.dp),
+        )
     }
 }
 
@@ -167,7 +201,7 @@ fun SyncProgressBlock(ui: SyncUi) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Pourcentage global.
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("$percent %", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Text("$percent %", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.width(12.dp))
             Text(
                 champiText(
@@ -197,8 +231,8 @@ fun SyncProgressBlock(ui: SyncUi) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     StatusIcon(if (ui.phase == SyncPhase.DONE && d.status != ItemStatus.ERROR) ItemStatus.DONE else d.status)
                     Spacer(Modifier.width(8.dp))
-                    Text("${d.code} · ${d.name}", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                    Text("${d.percent} %", style = MaterialTheme.typography.labelMedium)
+                    Text("${d.code} · ${d.name}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                    Text("${d.percent} %", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
                 }
                 LinearProgressIndicator(
                     progress = { d.percent / 100f },
@@ -218,8 +252,8 @@ fun SyncProgressBlock(ui: SyncUi) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 StatusIcon(groupStatus(ofKind, ui.phase))
                 Spacer(Modifier.width(8.dp))
-                Text(champiText(label), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                if (ofKind.isNotEmpty()) Text("$done/${ofKind.size}", style = MaterialTheme.typography.labelMedium)
+                Text(champiText(label), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                if (ofKind.isNotEmpty()) Text("$done/${ofKind.size}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
             }
             // Détail des éléments en cours ou en erreur.
             ofKind.filter { it.status == ItemStatus.RUNNING || it.status == ItemStatus.ERROR }.forEach { item ->

@@ -102,19 +102,43 @@ object SpotRepository {
     suspend fun addItem(recolteId: String, speciesId: String): RecolteItem? = mutex.withLock {
         val r = db.recolteDao().get(recolteId) ?: return@withLock null
         if (r.locked) return@withLock null
-        val item = RecolteItem(id = newId(), recolteId = recolteId, speciesId = speciesId, authorId = meId())
-        db.recolteDao().upsertItem(item)
+        // Espèce déjà présente dans cette récolte : on y rattache la photo au lieu de créer un doublon.
+        val existing = db.recolteDao().itemsList(recolteId).firstOrNull { it.speciesId == speciesId }
+        val item = existing ?: RecolteItem(id = newId(), recolteId = recolteId, speciesId = speciesId, authorId = meId())
+            .also { db.recolteDao().upsertItem(it) }
         db.photoDao().reassign(from = recolteId, to = item.id)
         db.recolteDao().upsert(r.copy(updatedAt = now()))
         item
     }
 
+    /** Vrai si la récolte est verrouillée (cadenas fermé) : rien ne doit y être modifié. */
+    private suspend fun recolteLocked(recolteId: String): Boolean =
+        db.recolteDao().get(recolteId)?.locked == true
+
+    /** Vrai si l'espèce récoltée appartient à une récolte verrouillée. */
+    private suspend fun itemLocked(itemId: String): Boolean {
+        val i = db.recolteDao().item(itemId) ?: return false
+        return recolteLocked(i.recolteId)
+    }
+
+    /** Vrai si la photo appartient à une récolte verrouillée (photo d'espèce ou photo « en attente »). */
+    private suspend fun photoLocked(photoId: String): Boolean {
+        val p = db.backupDao().photo(photoId) ?: return false
+        return p.ownerType == PhotoOwner.RECOLTE_ITEM && (itemLocked(p.ownerId) || recolteLocked(p.ownerId))
+    }
+
+    /** Modifie une espèce récoltée (ignoré si la récolte est verrouillée). */
     suspend fun updateItem(itemId: String, change: (RecolteItem) -> RecolteItem) = mutex.withLock {
         val i = db.recolteDao().item(itemId) ?: return@withLock
+        if (recolteLocked(i.recolteId)) return@withLock
         db.recolteDao().upsertItem(change(i).copy(updatedAt = now()))
     }
 
-    suspend fun trashItem(itemId: String) = db.recolteDao().trashItem(itemId, now())
+    /** Met une espèce récoltée à la corbeille (ignoré si la récolte est verrouillée). */
+    suspend fun trashItem(itemId: String) {
+        if (itemLocked(itemId)) return
+        db.recolteDao().trashItem(itemId, now())
+    }
     suspend fun restoreItem(itemId: String) = db.recolteDao().restoreItem(itemId, now())
 
     /** Vrai si la date donnée est aujourd'hui (titre « Récolte du jour »). */
@@ -216,15 +240,22 @@ object SpotRepository {
     /** Nouveau fichier vide pour l'appareil photo. */
     fun newPhotoFile(context: Context): File = File(photosDir(context), "${newId()}.jpg")
 
-    /** Enregistre une photo prise (fichier déjà écrit) pour un spot, une récolte ou une espèce récoltée. */
-    suspend fun addPhoto(ownerType: PhotoOwner, ownerId: String, file: File): Photo {
+    /**
+     * Enregistre une photo prise (fichier déjà écrit) pour un spot, une récolte ou une espèce récoltée.
+     * Renvoie null (photo non enregistrée) si elle vise une récolte verrouillée.
+     */
+    suspend fun addPhoto(ownerType: PhotoOwner, ownerId: String, file: File): Photo? {
+        if (ownerType == PhotoOwner.RECOLTE_ITEM && (itemLocked(ownerId) || recolteLocked(ownerId))) return null
         val p = Photo(id = newId(), ownerType = ownerType, ownerId = ownerId, path = file.absolutePath, authorId = meId())
         db.photoDao().upsert(p)
         return p
     }
 
     /** Met des photos à la corbeille (le fichier reste 30 jours, purge par le module réglages). */
-    suspend fun trashPhotos(ids: List<String>) {
-        if (ids.isNotEmpty()) db.photoDao().trash(ids, now())
+    /** Les photos d'une récolte verrouillée sont ignorées. Renvoie le nombre de photos réellement supprimées. */
+    suspend fun trashPhotos(ids: List<String>): Int {
+        val allowed = ids.filterNot { photoLocked(it) }
+        if (allowed.isNotEmpty()) db.photoDao().trash(allowed, now())
+        return allowed.size
     }
 }

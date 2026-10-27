@@ -54,7 +54,6 @@ import fr.pushpull.champimap.core.ui.ChampiButton
 import fr.pushpull.champimap.core.ui.ChampiOutlinedButton
 import fr.pushpull.champimap.core.ui.ChampiScreen
 import fr.pushpull.champimap.core.ui.VSpace
-import fr.pushpull.champimap.core.ui.theme.ChampiColors
 import fr.pushpull.champimap.feature.bonus.ForestIllustration
 import fr.pushpull.champimap.feature.bonus.champiText
 import fr.pushpull.champimap.nav.Routes
@@ -201,7 +200,7 @@ fun SpotScreen(nav: NavController, spotId: String, sortieId: String?) {
                 Row(horizontalArrangement = ROW_GAP) {
                     Box(Modifier.weight(1f)) {
                         var menu by remember { mutableStateOf(false) }
-                        ChampiButton("Trouvé !", onClick = { menu = true }, color = ChampiColors.Girolle)
+                        ChampiButton("Trouvé !", onClick = { menu = true }, color = MaterialTheme.colorScheme.secondary)
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                             DropdownMenuItem(
                                 text = { Text(champiText("Photo")) },
@@ -298,8 +297,9 @@ fun SpotScreen(nav: NavController, spotId: String, sortieId: String?) {
     }
 }
 
-/** Nom par défaut d'un spot : « Spot N (lat ; lon) ». Utilisable par les autres modules. */
-fun defaultSpotName(n: Int, lat: Double, lon: Double): String = "Spot $n (${formatCoords(lat, lon)})"
+/** Nom par défaut d'un spot : « Spot N », sans coordonnées. Utilisable par les autres modules. */
+@Suppress("UNUSED_PARAMETER") // lat/lon gardés pour ne pas casser les appels existants
+fun defaultSpotName(n: Int, lat: Double, lon: Double): String = "Spot $n" // sans coordonnées (elles peuvent être masquées)
 
 /** Photo du spot (la plus récente) ou illustration de forêt, avec le bouton « Photo du spot ». */
 @Composable

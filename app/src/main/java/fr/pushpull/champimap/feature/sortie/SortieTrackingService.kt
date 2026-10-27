@@ -32,7 +32,11 @@ import java.time.ZonedDateTime
  * - GPS natif (LocationManager, toutes constellations), un point toutes les 5 s en marche,
  *   toutes les 30 s en mode économie (batterie < 20 %).
  * - GPS en pause quand on ne bouge plus (MotionDetector) ; reprise au premier mouvement.
- * - Trace enregistrée dans la base ; position de départ complétée au premier bon point.
+ * - Trace enregistrée dans la base, FILTRÉE (TrackFilter) : pas de points de bruit à l'arrêt,
+ *   sauts impossibles écartés ; la distance parcourue ne compte que ces points.
+ * - Immobilité détectée par les capteurs (StillnessDetector) : rien n'est ajouté à la trace et la
+ *   position affichée est figée, sans couper le GPS (la pause « batterie » reste après 2 min).
+ * - Position de départ complétée au premier bon point.
  * - Notification « Sortie en cours » avec « Marquer un spot » et « Terminer » (second appui).
  * - Alertes : nuit en forêt dans 45 min, batterie faible.
  */
@@ -68,6 +72,7 @@ class SortieTrackingService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var notifier: SortieNotifications
     private lateinit var motion: MotionDetector
+    private lateinit var stillness: StillnessDetector
 
     private var sortieId: String? = null
     /** Sortie en cours de chargement (évite de la charger deux fois). */
@@ -86,7 +91,8 @@ class SortieTrackingService : Service() {
     /** Point d'ancrage pour détecter l'immobilité. */
     private var anchor: GpsFix? = null
     private var anchorSince = 0L
-    private var lastSaved: GpsFix? = null
+    /** Filtre des points de la trace (bruit, sauts impossibles, immobilité). */
+    private val trackFilter = TrackFilter()
     private var distanceM = 0.0
 
     /** Observations liées à la sortie suivie (annulées si le service reprend une autre sortie). */
@@ -101,6 +107,7 @@ class SortieTrackingService : Service() {
         super.onCreate()
         notifier = SortieNotifications(this)
         motion = MotionDetector(this) { onMotion() }
+        stillness = StillnessDetector(this) { SortieTracker.stillFlow.value = it }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -155,9 +162,11 @@ class SortieTrackingService : Service() {
         startLat = sortie.startLat
         startLon = sortie.startLon
         endRequested = false
-        val track = dao.trackOnce(sortie.id)
-        distanceM = Geo.trackLengthM(track)
-        lastSaved = track.lastOrNull()?.let { GpsFix(it.lat, it.lon, it.accuracyM, it.time) }
+        // Reprise : distance et dernier point retenu recalculés sur MA trace filtrée.
+        val myTrack = dao.trackOnce(sortie.id).filter { it.authorId == sortie.authorId }
+        distanceM = TrackFilter.lengthM(myTrack)
+        trackFilter.reset(TrackFilter.filter(myTrack).lastOrNull()?.let { GpsFix(it.lat, it.lon, it.accuracyM, it.time) })
+        SortieTracker.resetSmoothing()
         SortieTracker.runningSortie.value = sortie.id
         refreshBattery()
         startGps()
@@ -188,6 +197,7 @@ class SortieTrackingService : Service() {
         listener = LocationUtils.start(this, interval) { onFix(it) }
         currentInterval = interval
         paused = false
+        stillness.start()
         SortieTracker.gpsPausedFlow.value = false
         anchor = null
     }
@@ -202,6 +212,7 @@ class SortieTrackingService : Service() {
     private fun pauseGps() {
         if (paused) return
         stopGps()
+        stillness.stop()
         paused = true
         SortieTracker.gpsPausedFlow.value = true
         motion.start()
@@ -241,15 +252,15 @@ class SortieTrackingService : Service() {
             scope.launch(Dispatchers.IO) { AppGraph.db.sortieDao().setStartIfMissing(id, fix.lat, fix.lon, System.currentTimeMillis()) }
         }
 
-        // Distance (on ignore les petits sauts de bruit à l'arrêt).
-        val prev = lastSaved
-        val step = prev?.let { Geo.distanceM(it.lat, it.lon, fix.lat, fix.lon) } ?: 0.0
-        if (prev == null || step >= 2.0 || fix.time - prev.time >= 60_000) {
-            if (prev != null && fix.accuracyM <= 30f && step >= 2.0) distanceM += step
-            lastSaved = fix
-            val point = TrackPoint(id = newId(), sortieId = id, authorId = authorId, time = fix.time, lat = fix.lat, lon = fix.lon, accuracyM = fix.accuracyM)
+        // Trace filtrée : immobile (capteurs, sauf vitesse GPS franche) → aucun point ajouté.
+        val still = stillness.still && (fix.speedMs ?: 0f) < STILL_OVERRIDE_SPEED_MS
+        trackFilter.offer(fix, still)?.let { step ->
+            distanceM += step.distanceM
+            val points = step.points.map {
+                TrackPoint(id = newId(), sortieId = id, authorId = authorId, time = it.time, lat = it.lat, lon = it.lon, accuracyM = it.accuracyM)
+            }
             scope.launch(Dispatchers.IO) {
-                runCatching { AppGraph.db.sortieDao().upsertPoints(listOf(point)) }
+                runCatching { AppGraph.db.sortieDao().upsertPoints(points) }
                     .onFailure { ErrorLogger.log("Sortie", "Point de trace non enregistré", it) }
             }
         }
@@ -372,9 +383,11 @@ class SortieTrackingService : Service() {
         watchJobs.clear()
         stopGps()
         motion.stop()
+        stillness.stop()
         handler.removeCallbacksAndMessages(null)
         SortieTracker.runningSortie.value = null
         SortieTracker.gpsPausedFlow.value = false
+        SortieTracker.stillFlow.value = false
         sortieId = null
         runCatching { ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE) }
         stopSelf()
@@ -383,6 +396,8 @@ class SortieTrackingService : Service() {
     override fun onDestroy() {
         stopGps()
         motion.stop()
+        stillness.stop()
+        SortieTracker.stillFlow.value = false
         handler.removeCallbacksAndMessages(null)
         SortieTracker.runningSortie.value = null
         scope.cancel()

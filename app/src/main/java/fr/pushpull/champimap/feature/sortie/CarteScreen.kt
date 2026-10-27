@@ -98,7 +98,7 @@ fun CarteScreen(nav: NavController) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f).panelBackground().padding(horizontal = 16.dp, vertical = 10.dp)) {
-                    Text(champiText("Carte"), style = MaterialTheme.typography.titleLarge)
+                    Text(champiText("Carte"), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
                     val n = spots?.size ?: 0
                     Text(
                         champiText(
@@ -144,7 +144,8 @@ private fun MapIconButton(onClick: () -> Unit, content: @Composable () -> Unit) 
     IconButton(
         onClick = onClick,
         modifier = Modifier.size(52.dp),
-        colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.surface),
+        // Icône en couleur « sur surface » (sinon noire en thème sombre).
+        colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.surface, contentColor = MaterialTheme.colorScheme.onSurface),
         content = content,
     )
 }
@@ -168,9 +169,9 @@ private fun Legend(spots: List<SpotMarker>, onClose: () -> Unit, modifier: Modif
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(champiText("Couleur = dernière récolte"), style = MaterialTheme.typography.titleMedium)
+        Text(champiText("Couleur = dernière récolte"), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
         if (entries.isEmpty() && empty == 0) {
-            Text(champiText("Aucun spot pour l'instant."), style = MaterialTheme.typography.bodySmall)
+            Text(champiText("Aucun spot pour l'instant."), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         entries.forEach { (name, hex, count) -> LegendRow(hex, "$name ($count)") }
         if (empty > 0) LegendRow(MapIcons.EMPTY_COLOR, "Sans récolte ($empty)")
@@ -188,6 +189,6 @@ private fun LegendRow(hex: String, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(16.dp).background(colorFromHex(hex), CircleShape))
         Spacer(Modifier.width(10.dp))
-        Text(champiText(label), style = MaterialTheme.typography.bodyMedium)
+        Text(champiText(label), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
     }
 }

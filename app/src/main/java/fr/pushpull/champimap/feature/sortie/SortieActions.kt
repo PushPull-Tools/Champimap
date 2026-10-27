@@ -86,7 +86,7 @@ object SortieActions {
         val n = AppGraph.db.sortieDao().spotTotal() + 1
         val spot = Spot(
             id = newId(),
-            name = "Spot $n (${Geo.formatCoords(lat, lon)})",
+            name = "Spot $n", // sans coordonnées : elles peuvent être masquées à l'écran
             lat = lat,
             lon = lon,
             accuracyM = accuracyM,

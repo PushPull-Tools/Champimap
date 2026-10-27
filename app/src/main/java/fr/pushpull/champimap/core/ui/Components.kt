@@ -28,12 +28,14 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -76,12 +78,20 @@ fun ChampiScreen(
                         IconButton(
                             onClick = onBack,
                             modifier = Modifier.size(44.dp),
-                            colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.surface),
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                contentColor = MaterialTheme.colorScheme.onSurface,
+                            ),
                         ) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour") }
                         Spacer(Modifier.width(12.dp))
                     }
                     if (title != null) {
-                        Text(champiText(title), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                        Text(
+                            champiText(title),
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            modifier = Modifier.weight(1f),
+                        )
                     } else Spacer(Modifier.weight(1f))
                     actions()
                 }
@@ -120,7 +130,10 @@ fun ChampiOutlinedButton(text: String, onClick: () -> Unit, modifier: Modifier =
 fun ChampiCard(modifier: Modifier = Modifier, padding: PaddingValues = PaddingValues(16.dp), content: @Composable ColumnScope.() -> Unit) {
     val psyche = LocalChampiStyle.current.psyche
     if (psyche) {
-        Column(modifier.psycheCard().padding(padding), content = content)
+        // Fond pastel : texte et icônes en couleur « sur surface » du thème psyché (sinon blancs).
+        CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+            Column(modifier.psycheCard().padding(padding), content = content)
+        }
     } else {
         Surface(modifier = modifier, shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.padding(padding), content = content)

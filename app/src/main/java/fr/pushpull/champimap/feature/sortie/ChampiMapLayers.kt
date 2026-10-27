@@ -133,7 +133,8 @@ class ChampiMapLayers(private val context: Context, private val map: MapLibreMap
     /** Trace GPS de la sortie (points imprécis ignorés). */
     fun setTrack(points: List<TrackPoint>) {
         val style = map.style ?: return
-        val pts = points.filter { it.accuracyM <= 40f }.map { Point.fromLngLat(it.lon, it.lat) }
+        // Trace filtrée (bruit à l'arrêt, sauts impossibles) : nettoie aussi les anciennes traces.
+        val pts = TrackFilter.filter(points).map { Point.fromLngLat(it.lon, it.lat) }
         val src = style.getSourceAs<GeoJsonSource>(SRC_TRACK) ?: return
         if (pts.size < 2) src.setGeoJson(FeatureCollection.fromFeatures(emptyList<Feature>()))
         else src.setGeoJson(Feature.fromGeometry(LineString.fromLngLats(pts)))
