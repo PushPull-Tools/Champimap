@@ -32,6 +32,8 @@
 - ✅ Nouveau département coché : proposer « Synchroniser maintenant » (ou indiquer le chemin) ; la synchro n'ajoute que les nouveautés, la synchro complète reste dans Paramètres.
 - ✅ Pictos débloqués (arbres, animaux) sélectionnables en haut, comme ceux des champignons (contenu en plus).
 
+- ✅ Picto par sortie : abandonné (la date reste affichée).
+
 ## Idées (après la base)
 - Début d'aventure au lancement d'une sortie : cercle qui se ferme + UNE mélodie de démarrage originale (style Zelda, flûte/pipeau doux), phrase de départ affichée à ce moment ; son coupable.
 - Sortie à plusieurs : retrouver le téléphone d'un membre (dernière position connue) et le faire sonner fort.

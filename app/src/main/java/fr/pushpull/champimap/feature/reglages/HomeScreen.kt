@@ -353,7 +353,7 @@ private fun LastSorties(
                 val date = Instant.ofEpochMilli(so.startedAt).atZone(ZoneId.systemDefault())
                 ChampiCard(Modifier.fillMaxWidth().clickable { onOpen(so.id) }, padding = PaddingValues(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        DateBadge(date.dayOfMonth, date.format(MONTH_FMT), if (easter) so.pictoKey else null)
+                        DateBadge(date.dayOfMonth, date.format(MONTH_FMT), null) // picto par sortie abandonné : toujours la date
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(

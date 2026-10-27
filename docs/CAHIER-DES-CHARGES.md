@@ -96,7 +96,7 @@ Indicateur « Étape x sur 4 » + barre de progression en 4 segments.
   Croix pour masquer jusqu'à la prochaine sortie. Jour de battue saisi → bandeau « Battue prévue aujourd'hui… ».
 - « Cette saison » : 3 tuiles (kg récoltés, sorties, spots).
 - « Dernières sorties » + lien « Calendrier » : à gauche une **pastille de date** (jour + mois).
-  Si l'easter egg est débloqué et qu'un picto est choisi pour la sortie, le picto remplace la date.
+  (Picto par sortie : abandonné, la date reste affichée. Le champ `pictoKey` de la base est conservé mais inutilisé.)
 
 ### Démarrer (module sortie)
 Panneau « Comment tu démarres ? » : « Je suis garé » (on enregistre la voiture ici puis les déplacements) ou
@@ -234,7 +234,7 @@ Panneau « Comment tu démarres ? » : « Je suis garé » (on enregistre la voi
   trompette, coulemelle), « C'est lui ! » → `avatarKey`, `easterUnlocked = true`.
   Débloque aussi 8 arbres (chêne, châtaignier, hêtre, bouleau, pin, douglas, charme, frêne) et 8 animaux
   (écureuil, hérisson, rouge-gorge, chevreuil, renard, sanglier, chouette, lapin) : pictos Compose
-  (`Picto(key, modifier)`) choisis par sortie à la place de la date et pour les repères de carte.
+  (`Picto(key, modifier)`) sélectionnables dans l'écran secret et pour les repères de carte (pas de picto par sortie).
 - `ForestIllustration(modifier)` : forêt dense du Limousin (lisière, hêtre cuivré, châtaigniers, bouleaux,
   chênes, granite moussu, fougères, bruyère, feuilles, châtaignes, petits champignons, écureuil, rouge-gorge,
   hérisson, chevreuil au loin), style plat.
