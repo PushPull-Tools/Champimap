@@ -64,6 +64,10 @@ object CarnetTextes {
     const val SECRETS_DECOUVERTS = "découverts"
     /** Bloc du carnet. */
     const val ORIGINE_XP = "D'où vient ton XP"
+    /** Bouton « i » du carnet et titre de sa fenêtre (barème de l'XP). */
+    const val INFO_XP_TITRE = "Ce qui rapporte de l'XP"
+    /** Note en bas de la fenêtre du barème. */
+    const val INFO_XP_SUCCES = "Les succès ne rapportent pas d'XP : ils se collectionnent. Ton niveau ne dépend que de l'XP."
     /** Fenêtre d'un succès. */
     const val OBTENU_LE = "Obtenu le"
     /** Fenêtre d'un succès. */

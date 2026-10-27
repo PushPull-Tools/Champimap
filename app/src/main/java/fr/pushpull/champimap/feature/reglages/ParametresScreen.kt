@@ -44,6 +44,8 @@ import fr.pushpull.champimap.core.ui.ChampiScreen
 import fr.pushpull.champimap.core.ui.VSpace
 import fr.pushpull.champimap.feature.bonus.champiText
 import fr.pushpull.champimap.feature.carnet.CarnetTextes
+import fr.pushpull.champimap.feature.connect.ConnectClient
+import fr.pushpull.champimap.feature.connect.rememberConnectSync
 import fr.pushpull.champimap.nav.Routes
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -81,7 +83,7 @@ fun ParametresScreen(nav: NavController) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             CollapsibleSection("Profil", Sections.PROFIL in s.collapsedSections, { toggle(Sections.PROFIL) }) {
-                ProfilSection(s)
+                ProfilSection(s, onOpenConnect = { nav.navigate(Routes.CONNECT) })
                 // Carnet : lien vers « Mon carnet » (niveau, titre, succès).
                 LinkRow(CarnetTextes.LIEN_PARAMETRES_TITRE, CarnetTextes.LIEN_PARAMETRES_EXPLICATION) { nav.navigate(Routes.CARNET) }
             }
@@ -109,11 +111,19 @@ fun ParametresScreen(nav: NavController) {
     }
 }
 
-/** Profil : prénom (enregistré après la frappe) et départements. */
+/**
+ * Profil : prénom (enregistré après la frappe) et départements.
+ * @param onOpenConnect ouvre l'écran Champimap Connect (module pas encore installé).
+ */
 @Composable
-private fun ProfilSection(s: AppSettings) {
+private fun ProfilSection(s: AppSettings, onOpenConnect: () -> Unit) {
+    val context = LocalContext.current
     var name by remember { mutableStateOf(s.firstName) }
     var editDeps by remember { mutableStateOf(false) }
+    // Départements nouvellement cochés dont la carte manque → fenêtre « Nouvelle carte à télécharger ».
+    var newMaps by remember { mutableStateOf(emptyList<String>()) }
+    // Synchro normale : Connect ne télécharge que les nouveautés (cartes existantes conservées).
+    val syncNow = rememberConnectSync()
     var saved by remember { mutableStateOf(false) }
 
     // Enregistrement automatique ~300 ms après la dernière frappe (prénom non vide uniquement).
@@ -154,12 +164,32 @@ private fun ProfilSection(s: AppSettings) {
             " · cartes ≈ ${Departements.tailleTotaleMo(s.departements)} Mo",
     ) { editDeps = true }
 
-    if (editDeps) DepartementsDialog(s.departements.toSet()) { editDeps = false }
+    if (editDeps) {
+        DepartementsDialog(
+            initial = s.departements.toSet(),
+            onValidated = { added -> newMaps = added.filter { !ConnectClient.hasMap(context, it) } },
+            onClose = { editDeps = false },
+        )
+    }
+    if (newMaps.isNotEmpty()) {
+        NouvelleCarteDialog(
+            codes = newMaps,
+            onSyncNow = {
+                newMaps = emptyList()
+                // Module absent : on ouvre l'écran Connect, qui propose de l'installer.
+                if (ConnectClient.isInstalled(context)) syncNow() else onOpenConnect()
+            },
+            onLater = { newMaps = emptyList() },
+        )
+    }
 }
 
-/** Fenêtre plein écran de choix des départements (au moins un). */
+/**
+ * Fenêtre plein écran de choix des départements (au moins un).
+ * @param onValidated départements ajoutés par rapport à [initial] (appelé à la validation).
+ */
 @Composable
-private fun DepartementsDialog(initial: Set<String>, onClose: () -> Unit) {
+private fun DepartementsDialog(initial: Set<String>, onValidated: (List<String>) -> Unit, onClose: () -> Unit) {
     var sel by remember { mutableStateOf(initial) }
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         ChampiCard(Modifier.fillMaxWidth().fillMaxHeight(0.92f).padding(12.dp)) {
@@ -174,6 +204,7 @@ private fun DepartementsDialog(initial: Set<String>, onClose: () -> Unit) {
             VSpace(8.dp)
             ChampiButton("Valider", enabled = sel.isNotEmpty(), onClick = {
                 AppGraph.appScope.launch { AppGraph.settings.setDepartements(sel.sorted()) }
+                onValidated((sel - initial).sorted())
                 onClose()
             })
         }

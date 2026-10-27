@@ -14,7 +14,7 @@ En cas de problème, Paramètres → Données → **Journal** montre les erreurs
 ## 2. Accueil
 - [ ] « Bonjour <prénom> », coucher du soleil, lune.
 - [ ] Niveau, titre et barre d'XP sous le prénom.
-- [ ] Message de départ différent à chaque ouverture.
+- [ ] Lancer une sortie : cercle qui se ferme, phrase de départ (différente à chaque sortie), toucher pour passer.
 - [ ] Bandeau chasse (septembre → février) ; lien « Consulte les arrêtés locaux » ouvre le navigateur.
 
 ## 3. Sortie (à faire dehors)

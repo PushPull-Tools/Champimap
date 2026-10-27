@@ -50,6 +50,8 @@ fun CarnetScreen(nav: NavController) {
     val settings by remember { AppGraph.settings.flow }.collectAsState(initial = null)
     val tone = settings?.messageTone ?: MessageTone.NORMAL
     var opened by remember { mutableStateOf<BadgeDef?>(null) }
+    // Fenêtre « Ce qui rapporte de l'XP » (bouton « i » de la barre).
+    var showXpInfo by remember { mutableStateOf(false) }
 
     // Les succès « Nouveau » de cette visite : figés au premier état reçu, marqués jusqu'à la sortie de l'écran.
     val st = state
@@ -64,7 +66,11 @@ fun CarnetScreen(nav: NavController) {
         }
     }
 
-    ChampiScreen(title = CarnetTextes.ECRAN_TITRE, onBack = { nav.popBackStack() }) {
+    ChampiScreen(
+        title = CarnetTextes.ECRAN_TITRE,
+        onBack = { nav.popBackStack() },
+        actions = { CarnetXpInfoButton { showXpInfo = true } },
+    ) {
         if (st == null) return@ChampiScreen
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
@@ -81,6 +87,7 @@ fun CarnetScreen(nav: NavController) {
     }
 
     opened?.let { def -> BadgeDialog(def, st?.unlocked?.get(def.id), tone) { opened = null } }
+    if (showXpInfo) CarnetXpInfoDialog { showXpInfo = false }
 }
 
 /** Carte du niveau : grand numéro, titre, barre, XP totale et prochain titre. */

@@ -94,6 +94,9 @@ object ConnectClient {
     fun antipoisonFile(context: Context): File = File(context.filesDir, ConnectProtocol.FILE_ANTIPOISON)
     /** Dossier des cartes lues par la carte hors ligne. */
     fun mapsDir(context: Context): File = File(context.filesDir, "maps")
+    /** Vrai si la carte hors ligne du département [code] est déjà présente (fichier non vide). */
+    fun hasMap(context: Context, code: String): Boolean =
+        File(mapsDir(context.applicationContext), "$code.pmtiles").let { it.isFile && it.length() > 127 }
     /** Dossier des contours de départements. */
     fun contoursDir(context: Context): File = File(context.filesDir, "contours")
 
@@ -323,20 +326,28 @@ object ConnectClient {
 
     /**
      * Construit l'Intent explicite vers Connect.
-     * @param refreshMaps true = retélécharger aussi les cartes déjà présentes.
+     * Synchro normale : seulement ce qui manque — carte, contour et urgences des départements qui n'en ont
+     * pas encore (nouveau département coché), jours de météo absents. Les cartes déjà présentes ne sont
+     * jamais retéléchargées.
+     * @param refreshMaps true = « Actualiser les cartes » : tout est retéléchargé (cartes, contours, urgences).
      * @param background true = Connect rend la main tout de suite (avancement par diffusion).
      */
     suspend fun buildSyncIntent(context: Context, refreshMaps: Boolean = false, background: Boolean = false): Intent {
         val app = context.applicationContext
         val departements = AppGraph.settings.flow.first().departements
             .filter { ConnectProtocol.DEPT_REGEX.matches(it) }
+        // Cartes : seulement les départements sans carte valide (sauf actualisation complète).
         val mapDepartements = departements.filter { code ->
-            refreshMaps || !File(mapsDir(app), "$code.pmtiles").let { it.isFile && it.length() > 127 }
+            refreshMaps || !hasMap(app, code)
+        }
+        // Contours + urgences : seulement les départements sans contour (= jamais synchronisés).
+        val dataDepartements = departements.filter { code ->
+            refreshMaps || !File(contoursDir(app), "$code.geojson").let { it.isFile && it.length() > 0 }
         }
         val zones = weatherZones()
         return Intent(ConnectProtocol.ACTION_SYNC)
             .setPackage(ConnectProtocol.CONNECT_PACKAGE)
-            .putStringArrayListExtra(ConnectProtocol.EXTRA_DEPARTEMENTS, ArrayList(departements))
+            .putStringArrayListExtra(ConnectProtocol.EXTRA_DEPARTEMENTS, ArrayList(dataDepartements))
             .putStringArrayListExtra(ConnectProtocol.EXTRA_MAP_DEPARTEMENTS, ArrayList(mapDepartements))
             .putStringArrayListExtra(ConnectProtocol.EXTRA_WEATHER_ZONES, ArrayList(zones))
             .putExtra(ConnectProtocol.EXTRA_POISON_CENTERS, true)

@@ -84,8 +84,9 @@ Indicateur « Étape x sur 4 » + barre de progression en 4 segments.
 ### Accueil (module reglages)
 - « Bonjour <prénom> » + **bouton invisible** à côté (easter egg → route AVATAR) + avatar choisi s'il existe.
 - Ligne : date, « coucher du soleil 17 h 46 », phase de lune.
-- Carte verte : message de départ aléatoire **centré** (pioche sans répétition, jamais le même deux fois de suite,
-  messages fournis par le module bonus), bouton « Démarrer une sortie » (icône boussole) → route DEPART,
+- Carte verte : titre simple centré « Prêt pour l'aventure ? » (la phrase de départ aléatoire s'affiche au
+  lancement de la sortie : écran « début d'aventure », cercle façon iris + phrase ~2 s, toucher pour passer ;
+  pioche sans répétition du module bonus), bouton « Démarrer une sortie » (icône boussole) → route DEPART,
   sous-texte centré « Lance la sortie à côté de ta voiture : sa position est enregistrée au départ. »
   Si une sortie est en cours : bouton « Reprendre la sortie ».
 - Bandeau chasse (seulement de début septembre à fin février), centré, 4 lignes :

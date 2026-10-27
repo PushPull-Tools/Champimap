@@ -90,7 +90,7 @@ fun ConnectResumeEffect() {
 
 /**
  * Renvoie une fonction qui lance la synchro dans Champimap Connect et traite son résultat.
- * @param refreshMaps true = retélécharger aussi les cartes déjà présentes.
+ * @param refreshMaps true = « Actualiser les cartes » (tout retélécharger) ; false = seulement ce qui manque.
  */
 @Composable
 fun rememberConnectSync(refreshMaps: Boolean = false): () -> Unit {

@@ -99,8 +99,8 @@ fun HiddenRainsOverlay(content: @Composable () -> Unit) {
                                         tracking = false
                                         val quick = change.uptimeMillis - startTime <= TAP_MAX_MS
                                         // Même évènement relu après les enfants : un élément cliquable l'a-t-il pris ?
-                                        val final = awaitPointerEvent(PointerEventPass.Final)
-                                        val takenByChild = final.changes.firstOrNull { it.id == change.id }?.isConsumed ?: false
+                                        val afterChildren = awaitPointerEvent(PointerEventPass.Final)
+                                        val takenByChild = afterChildren.changes.firstOrNull { it.id == change.id }?.isConsumed ?: false
                                         if (!cancelled && quick && !takenByChild) {
                                             val kind = counter.onTap(change.uptimeMillis)
                                             if (kind != null) {

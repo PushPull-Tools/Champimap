@@ -194,8 +194,11 @@ Au-delà du niveau 50 : « Esprit de la forêt » + une étoile ★ tous les 10 
 | « Prochain titre : Œil de lynx (niveau 24) » | Prochain titre |
 | Après le niveau 50 | Tous les titres sont à toi. Prochaine étoile au niveau |
 | « 23 / 80 succès » | succès |
-| « Secrets · 2 découvert(s) » | découvert(s) |
+| « Secrets · 1 découvert » (0 ou 1) | découvert |
+| « Secrets · 2 découverts » (2 et plus) | découverts |
 | Bloc du carnet | D'où vient ton XP |
+| Bouton « i » du carnet (titre de la fenêtre du barème, montants lus dans CarnetXp) | Ce qui rapporte de l'XP |
+| Note en bas de la fenêtre du barème | Les succès ne rapportent pas d'XP : ils se collectionnent. Ton niveau ne dépend que de l'XP. |
 | Fenêtre d'un succès | Obtenu le |
 | Fenêtre d'un succès | Pas encore obtenu. |
 | Pastille sur un succès récent | Nouveau |

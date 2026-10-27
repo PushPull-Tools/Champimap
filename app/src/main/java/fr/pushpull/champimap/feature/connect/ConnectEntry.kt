@@ -229,7 +229,16 @@ fun ConnectScreen(nav: NavController) {
                 if (installed) {
                     ChampiButton(if (running) "Synchro en cours…" else "Lancer la synchro", onClick = startSync, enabled = !running)
                     VSpace(8.dp)
-                    ChampiOutlinedButton("Retélécharger toutes les cartes", onClick = refreshAll, enabled = !running)
+                    ChampiOutlinedButton("Actualiser les cartes", onClick = refreshAll, enabled = !running)
+                    VSpace(4.dp)
+                    Text(
+                        champiText(
+                            "« Lancer la synchro » ne télécharge que ce qui manque (nouveaux départements, météo). " +
+                                "« Actualiser les cartes » retélécharge tout, cartes comprises.",
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 } else {
                     // Même parcours qu'au premier lancement : rien ne démarre sans « Installer le module »,
                     // « Plus tard » abandonne la tentative et laisse l'utilisateur sur cet écran.

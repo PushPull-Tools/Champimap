@@ -13,8 +13,11 @@ import kotlinx.serialization.json.JsonPrimitive
  * (fr.pushpull.champimap.feature.connect.ConnectProtocol) : toute modification doit être faite des deux côtés.
  *
  * 1. Champimap lance ConnectActivity (Intent explicite, action SYNC) avec :
- *    - EXTRA_DEPARTEMENTS : codes des départements cochés (contours + urgences) ;
+ *    - EXTRA_DEPARTEMENTS : codes dont le contour et les urgences doivent être (re)téléchargés ;
  *    - EXTRA_MAP_DEPARTEMENTS : codes dont la carte doit être (re)téléchargée ;
+ *      C'est l'appli qui choisit : synchro normale = seulement les départements sans données (nouveau
+ *      département coché) ; « Actualiser les cartes » = tous les départements cochés. Connect télécharge
+ *      exactement ce qui est demandé : aucun drapeau supplémentaire n'est nécessaire (rétrocompatible).
  *    - EXTRA_WEATHER_ZONES : « zoneId|AAAA-MM-JJ|AAAA-MM-JJ » (carrés de 0,25°, JAMAIS une position de spot) ;
  *    - EXTRA_POISON_CENTERS : true pour recevoir la liste à jour des centres antipoison ;
  *    - EXTRA_BACKGROUND : true = démarrer et rendre la main tout de suite (avancement par diffusion).

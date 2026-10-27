@@ -17,6 +17,10 @@ import kotlinx.serialization.json.longOrNull
  * Les constantes sont recopiées À L'IDENTIQUE (aucune dépendance au module connect) :
  * toute modification doit être faite des deux côtés.
  *
+ * Demande : EXTRA_DEPARTEMENTS = départements dont le contour et les urgences sont à (re)télécharger,
+ * EXTRA_MAP_DEPARTEMENTS = départements dont la carte est à (re)télécharger. L'appli n'y met que ce qui
+ * manque (synchro normale) ou tout (« Actualiser les cartes ») : voir ConnectClient.buildSyncIntent.
+ *
  * Fichiers renvoyés par Connect :
  *   map_<code>.pmtiles · contour_<code>.geojson · hospitals_<code>.json · weather.json · antipoison.json
  */

@@ -1,5 +1,6 @@
 package fr.pushpull.champimap.feature.spot
 
+import fr.pushpull.champimap.core.util.pluriel
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -60,7 +61,7 @@ fun PhotosCard(spotId: String, onInfo: (String) -> Unit) {
 
     ChampiCard(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            SectionTitle(if (selecting) "${selected.size} sélectionnée(s)" else "Photos (${photos.size})", Modifier.weight(1f))
+            SectionTitle(if (selecting) pluriel(selected.size, "sélectionnée") else "Photos (${photos.size})", Modifier.weight(1f))
             if (selecting) {
                 TextButton(onClick = { selected = emptySet() }) { Text("Annuler") }
                 TextButton(onClick = { askDelete = true }) { Text("Supprimer", color = MaterialTheme.colorScheme.error) }
@@ -144,7 +145,7 @@ fun PhotosCard(spotId: String, onInfo: (String) -> Unit) {
                     onInfo(
                         when {
                             done == 0 -> "Récolte verrouillée : ouvre le cadenas pour supprimer ces photos."
-                            skipped > 0 -> "$done photo(s) à la corbeille, $skipped protégée(s) par le cadenas."
+                            skipped > 0 -> "${pluriel(done, "photo")} à la corbeille, ${pluriel(skipped, "protégée")} par le cadenas."
                             done > 1 -> "$done photos mises à la corbeille."
                             else -> "Photo mise à la corbeille."
                         }
