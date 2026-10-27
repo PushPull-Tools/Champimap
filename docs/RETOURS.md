@@ -11,33 +11,33 @@
 - ✅ Photo pour une espèce déjà présente : rattachée, plus de doublon.
 - ✅ Mémo vocal (boutons courts), libellé de semaine, sélecteur de date Material3, jour courant du calendrier, nom de spot sans coordonnées.
 
-## Lot 2 (écran Spot et recherche)
-- ⏳ Pas de message d'erreur « IA » : photo → choix d'espèce avec une info stable.
-- ⏳ Recherche d'espèces : index A–Z à droite, sections Récentes / De saison, filtres Comestible / Mortel…, recherche plus fluide (index en mémoire, recherche hors du fil principal).
-- ⏳ Barre de recherche : même style partout.
-- ⏳ « Trouvé ! » : pas d'aspect « sélectionné », choix Photo / Liste en feuille du bas (pas de menu déroulant).
-- ⏳ Champignons récoltés repliables (résumé replié, édition dépliée).
-- ⏳ Infos du spot en haut, en lecture compacte, crayon « Modifier ».
-- ⏳ Essences d'arbres en pastilles multiples + « Autre » libre.
-- ⏳ Affichage épuré partout, contenu dans des sections dépliables ; reprise page par page.
+## Lot 2 (écran Spot et recherche) — compile, à tester
+- ✅ Pas de message d'erreur « IA » : photo → choix d'espèce avec une info stable.
+- ✅ Recherche d'espèces : index A–Z à droite, sections Récentes / De saison, filtres Comestible / Mortel…, recherche plus fluide (index en mémoire, recherche hors du fil principal).
+- ✅ Barre de recherche : même style partout.
+- ✅ « Trouvé ! » : pas d'aspect « sélectionné », choix Photo / Liste en feuille du bas (pas de menu déroulant).
+- ✅ Champignons récoltés repliables (résumé replié, édition dépliée).
+- ✅ Infos du spot en haut, en lecture compacte, crayon « Modifier ».
+- ✅ Essences d'arbres en pastilles multiples + « Autre » libre.
+- ✅ Affichage épuré partout, contenu dans des sections dépliables ; reprise page par page.
 
-## Lot 3 (divers)
-- ⏳ Accord « sortie / sorties », « spot / spots » partout.
-- ⏳ Phrase de départ affichée au lancement de la sortie, plus sur l'accueil.
-- ⏳ Mode party : l'étirement n'a aucun effet visible (fond et contours doivent bouger).
-- ⏳ Pluies cachées : aucune animation en tapotant.
-- ⏳ Carnet : info-bulle « ce qui rapporte quoi » (XP).
-- ⏳ Carnet : phrase sarcastique du succès « champignong » à remplacer.
-- ⏳ Connect : « Actualiser les cartes » au lieu de « Retélécharger ».
-- ⏳ Nouveau département coché : proposer « Synchroniser maintenant » (ou indiquer le chemin) ; la synchro n'ajoute que les nouveautés, la synchro complète reste dans Paramètres.
-- ⏳ Pictos débloqués (arbres, animaux) sélectionnables en haut, comme ceux des champignons (contenu en plus).
+## Lot 3 (divers) — compile, à tester
+- ✅ Accord « sortie / sorties », « spot / spots » partout.
+- ✅ Phrase de départ affichée au lancement de la sortie, plus sur l'accueil.
+- ✅ Mode party : l'étirement n'a aucun effet visible (fond et contours doivent bouger).
+- ✅ Pluies cachées : aucune animation en tapotant.
+- ✅ Carnet : info-bulle « ce qui rapporte quoi » (XP).
+- ✅ Carnet : phrase sarcastique du succès « champignong » à remplacer.
+- ✅ Connect : « Actualiser les cartes » au lieu de « Retélécharger ».
+- ✅ Nouveau département coché : proposer « Synchroniser maintenant » (ou indiquer le chemin) ; la synchro n'ajoute que les nouveautés, la synchro complète reste dans Paramètres.
+- ✅ Pictos débloqués (arbres, animaux) sélectionnables en haut, comme ceux des champignons (contenu en plus).
 
 ## Idées (après la base)
 - Début d'aventure au lancement d'une sortie : cercle qui se ferme + UNE mélodie de démarrage originale (style Zelda, flûte/pipeau doux), phrase de départ affichée à ce moment ; son coupable.
 - Sortie à plusieurs : retrouver le téléphone d'un membre (dernière position connue) et le faire sonner fort.
 - Seul : le téléphone sonne fort quand on siffle (détection de sifflement en local).
-- ⏳ Option vendeur : dans Paramètres, marquée « Expérimental — pourra être modifiée ou supprimée à la sortie officielle » ; ventes par sortie/jour (prix au kilo, poids vendu), stats de ventes. Paiement (Play Store, compte dév existant) plus tard.
-- APK : garder arm64-v8a + armeabi-v7a (tous les vrais téléphones), retirer x86/x86_64 (émulateurs seulement). Taille APK non bloquante.
+- ✅ Option vendeur : dans Paramètres, marquée « Expérimental — pourra être modifiée ou supprimée à la sortie officielle » ; ventes par sortie/jour (prix au kilo, poids vendu), stats de ventes. Paiement (Play Store, compte dév existant) plus tard.
+- ✅ APK : garder arm64-v8a + armeabi-v7a (tous les vrais téléphones), retirer x86/x86_64 (émulateurs seulement). Taille APK non bloquante.
 - Photos des espèces et identification par IA (modèle entraîné embarqué) ; entraînement dans un conteneur Docker (PC de jeu avec GPU recommandé, serveur possible mais lent).
 
 ## Couverture France (puis monde)
