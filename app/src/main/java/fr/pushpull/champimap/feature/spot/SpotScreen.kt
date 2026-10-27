@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -18,18 +17,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -49,26 +43,26 @@ import coil.compose.AsyncImage
 import fr.pushpull.champimap.core.AppGraph
 import fr.pushpull.champimap.core.db.PhotoOwner
 import fr.pushpull.champimap.core.db.Recolte
-import fr.pushpull.champimap.core.db.Species
-import fr.pushpull.champimap.core.ui.ChampiButton
-import fr.pushpull.champimap.core.ui.ChampiOutlinedButton
 import fr.pushpull.champimap.core.ui.ChampiScreen
 import fr.pushpull.champimap.core.ui.VSpace
 import fr.pushpull.champimap.feature.bonus.ForestIllustration
 import fr.pushpull.champimap.feature.bonus.champiText
 import fr.pushpull.champimap.nav.Routes
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
 
 /*
- * Fiche spot (module spot) : photo ou illustration, nom et coordonnées, « Trouvé ! »,
- * « Spot vide », « Je suis au pied », « Ajuster la position », récolte du jour,
- * photos, détails du spot et historique des positions.
+ * Fiche spot (module spot), de haut en bas :
+ *  1. photo du spot (ou illustration) ;
+ *  2. carte du spot : nom, coordonnées, et infos en lecture compacte (crayon = modifier) ;
+ *  3. actions : « Trouvé ! » (feuille du bas Photo / Liste), puis Spot vide / Au pied / Ajuster ;
+ *  4. récolte du jour (lignes repliables) ;
+ *  5. photos ;
+ *  6. historique des positions (replié).
  * Tout est enregistré automatiquement (300 ms après la dernière modification).
+ * Messages temporaires : 4 s minimum (« Annuler » : 10 s).
  */
 
 /**
@@ -89,8 +83,7 @@ fun SpotScreen(nav: NavController, spotId: String, sortieId: String?) {
     var info by remember { mutableStateOf<String?>(null) }
     var adjusting by remember { mutableStateOf(false) }
     var auPied by remember { mutableStateOf(false) }
-    var identifying by remember { mutableStateOf(false) }
-    var proposals by remember { mutableStateOf<Pair<String, List<Pair<Species, Float>>>?>(null) }
+    var foundSheet by remember { mutableStateOf(false) }
     val saver = remember { AutoSaver { savedAt = System.currentTimeMillis() } }
     val camera = rememberCamera { info = it }
     val locationPerm = rememberLocationPermission { granted ->
@@ -106,9 +99,10 @@ fun SpotScreen(nav: NavController, spotId: String, sortieId: String?) {
             SpotRepository.updateSpot(spotId) { it.copy(name = defaultSpotName(n, s.lat, s.lon)) }
         }
     }
-    // Les bandeaux disparaissent seuls : 10 s pour « Annuler », 3 s pour une information.
+    // Les bandeaux disparaissent seuls : 10 s pour « Annuler », 4 s pour une information
+    // (jamais moins : un message plus court n'a pas le temps d'être lu).
     LaunchedEffect(undo) { if (undo != null) { delay(10_000); undo = null } }
-    LaunchedEffect(info) { if (info != null) { delay(3_000); info = null } }
+    LaunchedEffect(info) { if (info != null) { delay(INFO_MS); info = null } }
 
     /**
      * Récolte qui reçoit une nouvelle espèce (« Trouvé ! ») :
@@ -136,23 +130,16 @@ fun SpotScreen(nav: NavController, spotId: String, sortieId: String?) {
         nav.navigate(Routes.especesPicker(r.id))
     }
 
-    /** « Trouvé ! → Photo » : photo, identification (provisoire : aucune), puis liste. */
+    /**
+     * « Trouvé ! → Photo » : la photo est rattachée à la récolte (« en attente »), puis le choix
+     * d'espèce s'ouvre directement, avec la photo en vignette et une info fixe en haut
+     * (plus tard : les propositions du modèle d'identification, au même endroit).
+     */
     fun foundByPhoto() = camera { file ->
         scope.launch {
             val r = recolteForFound() ?: run { info = lockedMsg; return@launch }
-            // Photo « en attente » rattachée à la récolte : elle passera sur l'espèce choisie.
             SpotRepository.addPhoto(PhotoOwner.RECOLTE_ITEM, r.id, file)
-            val found = withContext(Dispatchers.Default) {
-                runCatching { CurrentIdentifier.identify(file) }.getOrDefault(emptyList())
-            }
-            if (found.isEmpty()) {
-                identifying = true
-                delay(1_500)
-                identifying = false
-                nav.navigate(Routes.especesPicker(r.id))
-            } else {
-                proposals = r.id to found
-            }
+            nav.navigate(Routes.especesPicker(r.id))
         }
     }
 
@@ -191,55 +178,26 @@ fun SpotScreen(nav: NavController, spotId: String, sortieId: String?) {
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                // 1-2. Photo puis carte du spot (identité + infos en lecture compacte).
                 SpotHero(spotId) {
                     camera { file -> scope.launch { SpotRepository.addPhoto(PhotoOwner.SPOT, spotId, file); savedAt = System.currentTimeMillis() } }
                 }
-                SpotIdentityCard(s, saver)
+                SpotHeaderCard(s, saver, onInfo = { info = it })
 
-                // Actions principales : « Trouvé ! » (menu Photo / Liste) et « Spot vide ».
-                Row(horizontalArrangement = ROW_GAP) {
-                    Box(Modifier.weight(1f)) {
-                        var menu by remember { mutableStateOf(false) }
-                        ChampiButton("Trouvé !", onClick = { menu = true }, color = MaterialTheme.colorScheme.secondary)
-                        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                            DropdownMenuItem(
-                                text = { Text(champiText("Photo")) },
-                                leadingIcon = { Icon(Icons.Filled.PhotoCamera, contentDescription = null) },
-                                onClick = { menu = false; foundByPhoto() },
-                                modifier = Modifier.heightIn(min = 56.dp),
-                            )
-                            DropdownMenuItem(
-                                text = { Text(champiText("Liste")) },
-                                leadingIcon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) },
-                                onClick = { menu = false; foundByList() },
-                                modifier = Modifier.heightIn(min = 56.dp),
-                            )
+                // 3. Actions.
+                SpotActions(
+                    onFound = { foundSheet = true },
+                    onEmpty = {
+                        scope.launch {
+                            val v = SpotRepository.markEmpty(spotId, sortieId)
+                            undo = UndoAction("Visite « spot vide » notée") { SpotRepository.undoVisit(v.id) }
                         }
-                    }
-                    ChampiOutlinedButton(
-                        "Spot vide",
-                        onClick = {
-                            scope.launch {
-                                val v = SpotRepository.markEmpty(spotId, sortieId)
-                                undo = UndoAction("Visite « spot vide » notée") { SpotRepository.undoVisit(v.id) }
-                            }
-                        },
-                        modifier = Modifier.weight(1f).heightIn(min = 56.dp),
-                    )
-                }
-                Row(horizontalArrangement = ROW_GAP) {
-                    ChampiOutlinedButton(
-                        "Je suis au pied",
-                        onClick = { if (hasFineLocation(context)) auPied = true else locationPerm() },
-                        modifier = Modifier.weight(1f).heightIn(min = 56.dp),
-                    )
-                    ChampiOutlinedButton(
-                        "Ajuster la position",
-                        onClick = { adjusting = true },
-                        modifier = Modifier.weight(1f).heightIn(min = 56.dp),
-                    )
-                }
+                    },
+                    onAuPied = { if (hasFineLocation(context)) auPied = true else locationPerm() },
+                    onAdjust = { adjusting = true },
+                )
 
+                // 4-6. Récolte du jour, photos, historique des positions (replié).
                 RecolteCard(
                     recolteId = recolteId,
                     saver = saver,
@@ -251,7 +209,6 @@ fun SpotScreen(nav: NavController, spotId: String, sortieId: String?) {
                     onOpenSpecies = { nav.navigate(Routes.ficheEspece(it)) },
                 )
                 PhotosCard(spotId, onInfo = { info = it })
-                SpotDetailsCard(s, saver, onInfo = { info = it })
                 PositionsCard(s, onReverted = { info = "Position rétablie." ; savedAt = System.currentTimeMillis() })
                 VSpace(96.dp) // place pour les bandeaux du bas
             }
@@ -279,23 +236,17 @@ fun SpotScreen(nav: NavController, spotId: String, sortieId: String?) {
             },
         )
     }
-    if (identifying) {
-        AlertDialog(
-            onDismissRequest = {},
-            title = { Text(champiText("Identification automatique bientôt disponible")) },
-            text = { Text(champiText("Choisis l'espèce dans la liste.")) },
-            confirmButton = {},
-        )
-    }
-    proposals?.let { (rid, list) ->
-        ProposalsDialog(
-            list = list,
-            onPick = { sp -> proposals = null; scope.launch { SpotRepository.addItem(rid, sp.id) } },
-            onList = { proposals = null; nav.navigate(Routes.especesPicker(rid)) },
-            onDismiss = { proposals = null },
+    if (foundSheet) {
+        FoundSheet(
+            onDismiss = { foundSheet = false },
+            onPhoto = { foundByPhoto() },
+            onList = { foundByList() },
         )
     }
 }
+
+/** Durée minimale d'affichage d'un message temporaire (ms). */
+private const val INFO_MS = 4_000L
 
 /** Nom par défaut d'un spot : « Spot N », sans coordonnées. Utilisable par les autres modules. */
 @Suppress("UNUSED_PARAMETER") // lat/lon gardés pour ne pas casser les appels existants
@@ -305,7 +256,7 @@ fun defaultSpotName(n: Int, lat: Double, lon: Double): String = "Spot $n" // san
 @Composable
 private fun SpotHero(spotId: String, onTakePhoto: () -> Unit) {
     val photo by remember(spotId) { AppGraph.db.photoDao().latestOf(spotId) }.collectAsState(initial = null)
-    Box(Modifier.fillMaxWidth().height(210.dp).clip(RoundedCornerShape(18.dp))) {
+    Box(Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(18.dp))) {
         val p = photo
         if (p != null && File(p.path).exists()) {
             AsyncImage(
@@ -332,12 +283,12 @@ private fun SpotHero(spotId: String, onTakePhoto: () -> Unit) {
     }
 }
 
-/** Petit « ✓ Enregistré » discret, visible 2 s après chaque enregistrement. */
+/** Petit « ✓ Enregistré » discret, visible 4 s après chaque enregistrement. */
 @Composable
 private fun SavedIndicator(savedAt: Long) {
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(savedAt) {
-        if (savedAt > 0) { visible = true; delay(2_000); visible = false }
+        if (savedAt > 0) { visible = true; delay(INFO_MS); visible = false }
     }
     if (visible) {
         Text(
@@ -347,36 +298,4 @@ private fun SavedIndicator(savedAt: Long) {
             modifier = Modifier.padding(end = 4.dp),
         )
     }
-}
-
-/** Propositions de l'identification automatique (quand un modèle sera disponible). */
-@Composable
-private fun ProposalsDialog(
-    list: List<Pair<Species, Float>>,
-    onPick: (Species) -> Unit,
-    onList: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(champiText("C'est peut-être…")) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                list.take(5).forEach { (sp, score) ->
-                    TextButton(onClick = { onPick(sp) }, modifier = Modifier.fillMaxWidth()) {
-                        SpeciesDot(sp)
-                        Spacer(Modifier.width(10.dp))
-                        Text(champiText(sp.nameFr), modifier = Modifier.weight(1f))
-                        Text("${(score * 100).toInt()} %")
-                    }
-                }
-                Text(
-                    champiText("Vérifie toujours toi-même : une photo ne suffit pas à identifier un champignon."),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-        },
-        confirmButton = { TextButton(onClick = onList) { Text(champiText("Voir la liste")) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } },
-    )
 }

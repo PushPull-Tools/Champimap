@@ -41,15 +41,19 @@ import kotlinx.coroutines.launch
  * Écran de l'easter egg (route AVATAR, ouverte par le bouton invisible de l'accueil) :
  * « Oh, tu m'as trouvé ! », choix d'un des 6 champignons illustrés comme avatar.
  * « C'est lui ! » enregistre l'avatar, débloque les pictos (arbres et animaux) et revient.
+ * Une fois l'easter egg débloqué, les arbres et les animaux s'ajoutent sous les champignons,
+ * au même endroit et sélectionnables de la même façon (simple contenu en plus).
  */
 
 @Composable
 fun AvatarScreen(nav: NavController) {
     val settings by AppGraph.settings.flow.collectAsState(initial = null)
+    val unlocked = settings?.easterUnlocked == true
+    // Pictos proposés : les champignons, plus les arbres et les animaux une fois débloqués.
+    val choices = if (unlocked) Pictos.MUSHROOMS + Pictos.TREES + Pictos.ANIMALS else Pictos.MUSHROOMS
     // Sélection en cours : l'avatar déjà choisi, sinon aucun.
     var selected by rememberSaveable { mutableStateOf<String?>(null) }
-    val current = selected ?: settings?.avatarKey?.takeIf { it in Pictos.MUSHROOMS }
-    val unlocked = settings?.easterUnlocked == true
+    val current = selected ?: settings?.avatarKey?.takeIf { it in choices }
 
     ChampiScreen(title = "Oh, tu m'as trouvé !", onBack = { nav.popBackStack() }) {
         Column(
@@ -61,14 +65,24 @@ fun AvatarScreen(nav: NavController) {
         ) {
             ChampiCard(Modifier.fillMaxWidth()) {
                 Text(
-                    champiText("Tu as trouvé le coin secret ! Choisis ton champignon : il t'accompagnera sur l'accueil."),
+                    champiText(
+                        if (unlocked) "Choisis ton picto (champignon, arbre ou animal) : il t'accompagnera sur l'accueil."
+                        else "Tu as trouvé le coin secret ! Choisis ton champignon : il t'accompagnera sur l'accueil.",
+                    ),
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
 
-            MushroomGrid(current) { selected = it }
+            PictoGrid(Pictos.MUSHROOMS, current) { selected = it }
+            // Contenu en plus une fois l'easter egg débloqué : mêmes tuiles, même sélection.
+            if (unlocked) {
+                SectionTitle("Arbres")
+                PictoGrid(Pictos.TREES, current) { selected = it }
+                SectionTitle("Animaux")
+                PictoGrid(Pictos.ANIMALS, current) { selected = it }
+            }
 
             ChampiButton(
                 text = "C'est lui !",
@@ -86,29 +100,30 @@ fun AvatarScreen(nav: NavController) {
                 },
             )
 
-            if (unlocked) UnlockedPreview()
             Spacer(Modifier.size(8.dp))
         }
     }
 }
 
-/** Grille 3 × 2 des champignons illustrés ; la tuile choisie est entourée. */
+/** Grille de pictos, 3 par ligne ; la tuile choisie est entourée. */
 @Composable
-private fun MushroomGrid(selected: String?, onSelect: (String) -> Unit) {
+private fun PictoGrid(keys: List<String>, selected: String?, onSelect: (String) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Pictos.MUSHROOMS.chunked(3).forEach { row ->
+        keys.chunked(3).forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 row.forEach { key ->
-                    MushroomTile(key, key == selected, Modifier.weight(1f)) { onSelect(key) }
+                    PictoTile(key, key == selected, Modifier.weight(1f)) { onSelect(key) }
                 }
+                // Cases vides pour garder des colonnes alignées sur la dernière ligne.
+                repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
     }
 }
 
-/** Tuile d'un champignon : grand picto + nom. */
+/** Tuile d'un picto (champignon, arbre ou animal) : grand picto + nom. */
 @Composable
-private fun MushroomTile(key: String, isSelected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+private fun PictoTile(key: String, isSelected: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val shape = RoundedCornerShape(18.dp)
     val colors = MaterialTheme.colorScheme
     Column(
@@ -131,45 +146,5 @@ private fun MushroomTile(key: String, isSelected: Boolean, modifier: Modifier, o
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 6.dp),
         )
-    }
-}
-
-/** Aperçu des pictos débloqués (arbres et animaux), affiché une fois l'easter egg trouvé. */
-@Composable
-private fun UnlockedPreview() {
-    ChampiCard(Modifier.fillMaxWidth()) {
-        Text(
-            champiText("Tu as débloqué les pictos : arbres et animaux pour tes sorties"),
-            style = MaterialTheme.typography.titleMedium,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        SectionTitle("Arbres", Modifier.padding(top = 8.dp))
-        PictoRows(Pictos.TREES)
-        SectionTitle("Animaux", Modifier.padding(top = 8.dp))
-        PictoRows(Pictos.ANIMALS)
-    }
-}
-
-/** Pictos par rangées de 4, avec leur nom dessous. */
-@Composable
-private fun PictoRows(keys: List<String>) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        keys.chunked(4).forEach { row ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                row.forEach { key ->
-                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Picto(key, Modifier.size(44.dp))
-                        Text(
-                            Pictos.label(key),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                        )
-                    }
-                }
-            }
-        }
     }
 }

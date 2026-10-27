@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import fr.pushpull.champimap.core.ui.ChampiSearchField
 import fr.pushpull.champimap.core.AppGraph
 import fr.pushpull.champimap.core.ErrorLogger
 import fr.pushpull.champimap.core.db.Sortie
@@ -391,14 +392,7 @@ private fun SpeciesPicker(
             Text(champiText("Récoltées pendant ces sorties"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             others.forEach { sp -> SpeciesRow(sp) { onSelect(sp.id) } }
         }
-        OutlinedTextField(
-            value = query,
-            onValueChange = { query = it.take(40) },
-            label = { Text(champiText("Chercher une espèce")) },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            shape = RoundedCornerShape(14.dp),
-        )
+        ChampiSearchField(query, { query = it.take(40) }, placeholder = "Chercher une espèce")
         val q = query.trim().lowercase()
         if (q.length >= 2) {
             val results = all.filter {

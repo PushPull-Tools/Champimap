@@ -128,7 +128,7 @@ Les succès non obtenus apparaissent en silhouette avec « ? » ; les **Secrets*
 |---|---|---|---|---|
 | Secrets | **Tu m'as trouvé !** | Découvrir le bouton caché à côté de ton prénom. | Tu as trouvé le bouton secret ! Bien vu. | Tu appuies partout, hein ? Ça a fini par payer. |
 | Secrets | **Mushroom party** | Découvrir le mode party. | Le mode party est à toi ! Que la fête commence. | Tu as trouvé le mode party. On ne posera pas de questions. |
-| Secrets | **Champignong** | Activer l'option « Tu dis le g toi ? ». | Champignong activé ! Chacun son accent, et c'est très bien comme ça. | Champignong. On respecte. On ne comprend pas, mais on respecte. |
+| Secrets | **Champignong** | Activer l'option « Tu dis le g toi ? ». | Champignong activé ! Chacun son accent, et c'est très bien comme ça. | Champignong, comme on dit chez nous. Personne ne t'en voudra. |
 | Secrets | **Coup de vent** | Déclencher la pluie de feuilles cachée. | Une pluie de feuilles rien que pour toi : l'automne en avance ! | 6 appuis dans le vide. Tu t'ennuyais un peu, non ? |
 | Secrets | **Faiseur de pluie** | Déclencher la pluie cachée. | Tu as fait pleuvoir ! Ta danse de la pluie fonctionne enfin. | 12 appuis dans le vide pour faire pleuvoir. Les champignons te remercient, ton écran moins. |
 | Secrets | **Il pleut des champignons** | Déclencher la pluie de champignons cachée. | Une pluie de champignons ! Le rêve de tout cueilleur. | 24 appuis dans le vide. Respect pour l'acharnement, sincèrement. |

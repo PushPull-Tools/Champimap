@@ -883,7 +883,7 @@ object CarnetTextes {
             "Activer l'option « Tu dis le g toi ? ».",
             Ton2(
                 "Champignong activé ! Chacun son accent, et c'est très bien comme ça.",
-                "Champignong. On respecte. On ne comprend pas, mais on respecte.",
+                "Champignong, comme on dit chez nous. Personne ne t'en voudra.",
             ),
         ),
         "pluie_feuilles" to TexteSucces(

@@ -31,7 +31,7 @@ import kotlin.random.Random
  * Pluies cachées : 6 / 12 / 24 appuis « dans le vide » (sur aucun bouton ni champ),
  * à moins d'1 s d'intervalle → pluie de feuilles / de gouttes / de champignons
  * pendant ~4 s, dessinée par-dessus l'appli sans jamais bloquer les appuis.
- * Cette enveloppe intègre aussi le détecteur du mode party (PartyUnlockDetector).
+ * Cette enveloppe intègre aussi le détecteur du mode party (PartyUnlockDetector, avec son étirement).
  */
 
 /** Les trois pluies possibles. */
@@ -52,13 +52,24 @@ private class Particle(
     val color: Color,
 )
 
-/** Superposition qui détecte les appuis répétés dans le vide (6, 12, 24) et lance les pluies cachées. */
+/**
+ * Superposition qui détecte les appuis répétés dans le vide (6, 12, 24) et lance les pluies cachées.
+ *
+ * Détection (corrigée) : les appuis sont OBSERVÉS en passe Initial, c'est-à-dire avant tous les écrans
+ * enfants, et rien n'est jamais consommé (les clics normaux ne sont pas gênés). Seul le relâchement est
+ * ensuite relu en passe Final (même évènement, après les enfants) pour savoir si un bouton, une carte
+ * cliquable ou la carte géographique l'a pris : dans ce cas ce n'était pas un appui « dans le vide ».
+ * Avant, tout était lu en passe Final et un appui dont l'appui initial ou un micro-mouvement avait été
+ * marqué « consommé » par un conteneur (défilement, surface…) était écarté : aucune pluie ne partait.
+ *
+ * Les pluies sont lancées même si Android réduit les animations : c'est un geste volontaire, court (~4 s),
+ * qui n'est rejoué qu'à la demande.
+ */
 @Composable
 fun HiddenRainsOverlay(content: @Composable () -> Unit) {
     var rain by remember { mutableStateOf<RainKind?>(null) }
     var rainId by remember { mutableIntStateOf(0) }
     val counter = remember { TapCounter() }
-    val anim = animationsEnabled()
 
     Box(Modifier.fillMaxSize()) {
         PartyUnlockDetector {
@@ -66,43 +77,45 @@ fun HiddenRainsOverlay(content: @Composable () -> Unit) {
                 Modifier
                     .fillMaxSize()
                     .pointerInput(Unit) {
-                        // Compte les appuis que personne n'a consommés (passe Final = après les enfants).
                         awaitPointerEventScope {
+                            // État de l'appui en cours (un seul doigt suivi).
                             var tracking = false
                             var cancelled = false
                             var start = Offset.Zero
                             var startTime = 0L
                             while (true) {
-                                val event = awaitPointerEvent(PointerEventPass.Final)
+                                val event = awaitPointerEvent(PointerEventPass.Initial)
                                 val change = event.changes.firstOrNull() ?: continue
+                                // Plusieurs doigts : ce n'est pas un appui simple.
                                 if (event.changes.size > 1) cancelled = true
                                 when {
                                     change.changedToDownIgnoreConsumed() -> {
                                         tracking = true
-                                        cancelled = change.isConsumed
+                                        cancelled = event.changes.size > 1
                                         start = change.position
                                         startTime = change.uptimeMillis
                                     }
                                     tracking && change.changedToUpIgnoreConsumed() -> {
                                         tracking = false
                                         val quick = change.uptimeMillis - startTime <= TAP_MAX_MS
-                                        if (!cancelled && !change.isConsumed && quick) {
+                                        // Même évènement relu après les enfants : un élément cliquable l'a-t-il pris ?
+                                        val final = awaitPointerEvent(PointerEventPass.Final)
+                                        val takenByChild = final.changes.firstOrNull { it.id == change.id }?.isConsumed ?: false
+                                        if (!cancelled && quick && !takenByChild) {
                                             val kind = counter.onTap(change.uptimeMillis)
-                                            // Carnet : on mémorise la pluie déclenchée (succès secrets « pluies cachées »).
                                             if (kind != null) {
+                                                // Carnet : on mémorise la pluie déclenchée (succès secrets « pluies cachées »).
                                                 val key = kind.name.lowercase() // "leaves", "rain", "mushrooms"
                                                 AppGraph.appScope.launch { runCatching { AppGraph.settings.addRainSeen(key) } }
-                                            }
-                                            if (kind != null && anim) {
                                                 rain = kind
                                                 rainId++
                                             }
                                         }
                                     }
                                     tracking && change.pressed -> {
-                                        // Un glissement (ou un enfant qui consomme) n'est pas un appui.
+                                        // Un glissement n'est pas un appui (on ne regarde que la distance, pas la consommation).
                                         val moved = (change.position - start).getDistance() > viewConfiguration.touchSlop
-                                        if (moved || change.isConsumed) cancelled = true
+                                        if (moved) cancelled = true
                                     }
                                 }
                             }
