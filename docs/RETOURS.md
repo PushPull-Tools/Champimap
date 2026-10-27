@@ -39,3 +39,7 @@
 - ⏳ Option vendeur : dans Paramètres, marquée « Expérimental — pourra être modifiée ou supprimée à la sortie officielle » ; ventes par sortie/jour (prix au kilo, poids vendu), stats de ventes. Paiement (Play Store, compte dév existant) plus tard.
 - APK : garder arm64-v8a + armeabi-v7a (tous les vrais téléphones), retirer x86/x86_64 (émulateurs seulement). Taille APK non bloquante.
 - Photos des espèces et identification par IA (modèle entraîné embarqué) ; entraînement dans un conteneur Docker (PC de jeu avec GPU recommandé, serveur possible mais lent).
+
+## Couverture France (puis monde)
+- ⏳ IA : entraînée sur le catalogue + toutes les espèces de champignons observées en France sur iNaturalist (≥ 15 observations, ~2 000 à 3 000 espèces). Lieu paramétrable pour d'autres pays plus tard.
+- ⏳ Catalogue de l'appli : importer `especes_ia.json` (noms latins + français) ; espèces sans fiche de comestibilité = « Comestibilité non renseignée — ne pas consommer ». Relecture par un expert des espèces ajoutées.
