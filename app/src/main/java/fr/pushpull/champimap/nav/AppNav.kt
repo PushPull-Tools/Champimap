@@ -18,9 +18,9 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -80,10 +80,16 @@ fun AppNav(startOnboarding: Boolean, importPending: Boolean) {
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
-    val start = when {
-        startOnboarding -> Routes.ONBOARDING
-        importPending -> Routes.IMPORT_PARTAGE
-        else -> Routes.HOME
+    // Écran de départ figé au premier affichage : MainActivity rappelle AppNav à CHAQUE changement
+    // de réglage (fin du premier lancement, message de départ tiré, fichier d'import consommé…).
+    // Sans `remember`, le départ changeait (ONBOARDING/IMPORT → HOME), le graphe était recréé et
+    // toute la pile de navigation était perdue (ex. l'écran Connect ouvert par « Ouvrir les paramètres »).
+    val start = remember {
+        when {
+            startOnboarding -> Routes.ONBOARDING
+            importPending -> Routes.IMPORT_PARTAGE
+            else -> Routes.HOME
+        }
     }
 
     // Les pluies cachées (6, 12, 24 appuis dans le vide) recouvrent tous les écrans.
@@ -163,7 +169,9 @@ fun AppNav(startOnboarding: Boolean, importPending: Boolean) {
                             selected = currentRoute == tab.route,
                             onClick = {
                                 nav.navigate(tab.route) {
-                                    popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                                    // Retour à l'Accueil (toujours en bas de la pile) : le départ du graphe peut être
+                                    // le premier lancement ou l'import, déjà retirés de la pile.
+                                    popUpTo(Routes.HOME) { saveState = true }
                                     launchSingleTop = true
                                     restoreState = true
                                 }
