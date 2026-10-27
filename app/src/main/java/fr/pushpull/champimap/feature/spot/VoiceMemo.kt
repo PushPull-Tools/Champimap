@@ -214,6 +214,44 @@ fun VoiceMemo(spot: Spot, saver: AutoSaver, onInfo: (String) -> Unit) {
     }
 }
 
+/**
+ * Lecteur du mémo en mode lecture (carte du spot) : un seul bouton Lecture / Stop,
+ * sans passer par « Modifier ». Libère le haut-parleur en quittant l'écran.
+ */
+@Composable
+fun MemoPlayButton(file: File, onInfo: (String) -> Unit) {
+    var player by remember { mutableStateOf<MediaPlayer?>(null) }
+
+    fun stop() {
+        player?.runCatching { stop(); release() }
+        player = null
+    }
+
+    DisposableEffect(file) { onDispose { stop() } }
+
+    MemoButton(
+        if (player != null) "Stop" else "Écouter le mémo",
+        if (player != null) Icons.Filled.Stop else Icons.Filled.PlayArrow,
+        onClick = {
+            if (player != null) {
+                stop()
+            } else {
+                try {
+                    val p = MediaPlayer()
+                    p.setDataSource(file.absolutePath)
+                    p.setOnCompletionListener { stop() }
+                    p.prepare()
+                    p.start()
+                    player = p
+                } catch (e: Exception) {
+                    ErrorLogger.log("Spot", "Lecture du mémo vocal impossible", e)
+                    onInfo("Impossible de lire le mémo.")
+                }
+            }
+        },
+    )
+}
+
 /** Bouton du mémo : icône au-dessus d'un libellé court, jamais coupé (une seule ligne). */
 @Composable
 private fun MemoButton(text: String, icon: ImageVector, onClick: () -> Unit, modifier: Modifier = Modifier) {

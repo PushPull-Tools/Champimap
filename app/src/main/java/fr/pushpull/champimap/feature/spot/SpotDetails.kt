@@ -146,7 +146,7 @@ fun SpotHeaderCard(spot: Spot, saver: AutoSaver, onInfo: (String) -> Unit) {
             SpotInfosEditor(spot, saver, onInfo)
             ChampiButton("OK", onClick = { editing = false }, modifier = Modifier.padding(top = 12.dp))
         } else {
-            SpotInfosSummary(spot)
+            SpotInfosSummary(spot, onInfo)
         }
     }
 }
@@ -173,7 +173,7 @@ private fun SpotNameField(spot: Spot, saver: AutoSaver) {
  * et présence d'un mémo vocal. Texte d'aide si rien n'est encore renseigné.
  */
 @Composable
-private fun SpotInfosSummary(spot: Spot) {
+private fun SpotInfosSummary(spot: Spot, onInfo: (String) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val essences = parseEssences(spot.essence)
     val rating = spot.rating ?: 0
@@ -207,16 +207,11 @@ private fun SpotInfosSummary(spot: Spot) {
             modifier = Modifier.padding(top = 4.dp),
         )
     }
-    val hasMemo = spot.voiceMemoPath?.let { File(it).exists() } == true
-    if (hasMemo) {
-        Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = scheme.primary, modifier = Modifier.size(18.dp))
-            Text(
-                champiText(" Mémo vocal (à écouter dans « Modifier »)"),
-                style = MaterialTheme.typography.bodySmall,
-                color = scheme.onSurfaceVariant,
-            )
-        }
+    val memoFile = spot.voiceMemoPath?.let { File(it) }?.takeIf { it.exists() }
+    val hasMemo = memoFile != null
+    // Mémo vocal : lecture / stop directement, sans passer par « Modifier ».
+    if (memoFile != null) {
+        Row(Modifier.padding(top = 8.dp)) { MemoPlayButton(memoFile, onInfo) }
     }
     if (rating == 0 && essences.isEmpty() && spot.repere.isNullOrBlank() && spot.note.isNullOrBlank() && !hasMemo) {
         Text(
