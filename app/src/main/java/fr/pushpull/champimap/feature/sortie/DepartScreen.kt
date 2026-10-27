@@ -1,5 +1,6 @@
 package fr.pushpull.champimap.feature.sortie
 
+import fr.pushpull.champimap.feature.bonus.AdventureIntro
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -73,6 +74,8 @@ fun DepartScreen(nav: NavController) {
                 try {
                     val sortie = SortieActions.createSortie(type, fix ?: LocationUtils.lastKnown(context))
                     SortieActions.startTracking(context, sortie.id)
+                    // « Début d'aventure » (cercle + phrase de départ) à l'ouverture de la nouvelle sortie.
+                    AdventureIntro.request(sortie.id)
                     nav.navigate(Routes.sortie(sortie.id)) { popUpTo(Routes.DEPART) { inclusive = true } }
                     if (withGroup) nav.navigate(Routes.groupeCreer(sortie.id))
                 } catch (e: Exception) {

@@ -1,5 +1,6 @@
 package fr.pushpull.champimap.feature.sortie
 
+import fr.pushpull.champimap.core.util.pluriel
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -67,7 +68,7 @@ internal fun SortieTopBar(startedAt: Long, now: Long, spotCount: Int, distanceM:
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                champiText("$spotCount spot${if (spotCount > 1) "s" else ""} · ${Geo.formatDistance(distanceM)} parcourus"),
+                champiText("${pluriel(spotCount, "spot")} · ${Geo.formatDistance(distanceM)} parcourus"),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

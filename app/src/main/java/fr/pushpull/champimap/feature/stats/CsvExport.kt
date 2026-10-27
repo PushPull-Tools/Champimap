@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.core.content.FileProvider
 import fr.pushpull.champimap.core.AppGraph
+import fr.pushpull.champimap.feature.ventes.VentesCsv
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -51,6 +52,14 @@ object CsvExport {
                 names[r.authorId].orEmpty(),
             )
             sb.append(cols.joinToString(";") { escape(it) }).append("\r\n")
+        }
+
+        // Mode vendeur (expérimental) : bloc « Ventes » après une ligne vide, s'il y a des ventes.
+        val ventes = VentesCsv.rows()
+        if (ventes.isNotEmpty()) {
+            sb.append("\r\n").append(VentesCsv.TITLE).append("\r\n")
+            sb.append(VentesCsv.HEADER.joinToString(";") { escape(it) }).append("\r\n")
+            ventes.forEach { cols -> sb.append(cols.joinToString(";") { escape(it) }).append("\r\n") }
         }
 
         val dir = File(context.cacheDir, "exports").apply { mkdirs() }

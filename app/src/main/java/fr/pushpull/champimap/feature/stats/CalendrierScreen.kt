@@ -1,5 +1,6 @@
 package fr.pushpull.champimap.feature.stats
 
+import fr.pushpull.champimap.core.util.pluriel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -279,7 +280,7 @@ private fun DayDetail(nav: NavController, day: LocalDate, sorties: List<Sortie>,
                     Column(Modifier.weight(1f)) {
                         Text(champiText("Ce spot a bien donné à cette date : ${p.spotName}"), style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         Text(
-                            champiText("Le ${StatsFormat.date(p.lastDate)} · ${p.items} cueillette${if (p.items > 1) "s" else ""}"),
+                            champiText("Le ${StatsFormat.date(p.lastDate)} · ${pluriel(p.items, "cueillette")}"),
                             style = MaterialTheme.typography.bodySmall,
                             color = scheme.onSurfaceVariant,
                         )

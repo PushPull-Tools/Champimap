@@ -1,5 +1,6 @@
 package fr.pushpull.champimap.feature.groupe
 
+import fr.pushpull.champimap.core.util.pluriel
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -191,7 +192,7 @@ internal fun ParticipantsCard(sync: GroupState, onEnableBluetooth: () -> Unit) {
             sync.peers.forEach { p -> Text(champiText("• " + p.name), style = MaterialTheme.typography.bodyLarge) }
         }
         Text(champiText(sync.label()), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-        if (sync.photosPending > 0) BodyText("${sync.photosPending} photo(s) en cours d'envoi, en tâche de fond")
+        if (sync.photosPending > 0) BodyText("${pluriel(sync.photosPending, "photo")} en cours d'envoi, en tâche de fond")
         sync.message?.let { BodyText(it) }
         if (sync.bluetoothOff) ChampiButton("Activer le Bluetooth", onClick = onEnableBluetooth, modifier = Modifier.padding(top = 8.dp))
     }

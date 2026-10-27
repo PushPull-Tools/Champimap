@@ -1,5 +1,6 @@
 package fr.pushpull.champimap.feature.sortie
 
+import fr.pushpull.champimap.feature.bonus.AdventureIntroOverlay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -209,6 +210,9 @@ fun SortieScreen(nav: NavController, sortieId: String) {
             )
         }
     }
+
+    // « Début d'aventure » par-dessus tout l'écran (seulement au lancement d'une nouvelle sortie).
+    AdventureIntroOverlay(sortieId)
 
     // --- Fenêtres --------------------------------------------------------------------------------
     if (showMark) {

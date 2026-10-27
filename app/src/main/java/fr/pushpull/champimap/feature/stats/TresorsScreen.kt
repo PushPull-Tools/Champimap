@@ -1,5 +1,6 @@
 package fr.pushpull.champimap.feature.stats
 
+import fr.pushpull.champimap.core.util.pluriel
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -111,7 +112,7 @@ fun TresorsContent(nav: NavController) {
                             Column(Modifier.weight(1f)) {
                                 Text(champiText(t.name), style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text(
-                                    champiText("${t.visits} récolte${if (t.visits > 1) "s" else ""}"),
+                                    champiText(pluriel(t.visits, "récolte")),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )

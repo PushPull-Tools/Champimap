@@ -6,6 +6,7 @@ import android.net.Uri
 import fr.pushpull.champimap.BuildConfig
 import fr.pushpull.champimap.core.AppGraph
 import fr.pushpull.champimap.core.db.AppDatabase
+import fr.pushpull.champimap.feature.ventes.VentesCsv
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.File
@@ -25,6 +26,8 @@ import java.util.zip.ZipOutputStream
  * Contenu du ZIP : `champimap.db` (base Room, après point de contrôle WAL), `photos/…` et
  * `memos/…` (dossiers privés de l'appli), `champimap-backup.txt` (version). Le ZIP peut être
  * chiffré en entier (BackupCrypto). Les cartes de Connect ne sont pas incluses (retéléchargeables).
+ * La base contient tout, ventes du mode vendeur comprises ; une sauvegarde d'une version plus
+ * ancienne de la base est mise à niveau par Room (migrations) à la réouverture après restauration.
  * À appeler hors du fil principal (Dispatchers.IO).
  */
 object BackupManager {
@@ -168,6 +171,14 @@ object BackupManager {
             rows.forEach { r ->
                 val d = Instant.ofEpochMilli(r.time).atZone(ZoneId.systemDefault()).format(fmt)
                 appendLine(listOf(d, r.species, r.latin, r.weightG, r.spotName, r.stade, r.qualites, r.etats).joinToString(";") { cell(it) })
+            }
+            // Mode vendeur (expérimental) : bloc « Ventes » après une ligne vide, s'il y a des ventes.
+            val ventes = VentesCsv.rows()
+            if (ventes.isNotEmpty()) {
+                appendLine()
+                appendLine(VentesCsv.TITLE)
+                appendLine(VentesCsv.HEADER.joinToString(";") { cell(it) })
+                ventes.forEach { cols -> appendLine(cols.joinToString(";") { cell(it) }) }
             }
         }
         context.contentResolver.openOutputStream(uri, "w")?.use { it.write(text.toByteArray(Charsets.UTF_8)) }

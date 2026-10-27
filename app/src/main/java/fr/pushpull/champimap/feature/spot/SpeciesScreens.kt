@@ -3,96 +3,73 @@ package fr.pushpull.champimap.feature.spot
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import fr.pushpull.champimap.core.AppGraph
 import fr.pushpull.champimap.core.db.Edibility
 import fr.pushpull.champimap.core.db.Species
 import fr.pushpull.champimap.core.ui.ChampiCard
-import fr.pushpull.champimap.core.ui.ChampiOutlinedButton
 import fr.pushpull.champimap.core.ui.ChampiScreen
 import fr.pushpull.champimap.core.ui.SectionTitle
 import fr.pushpull.champimap.core.ui.VSpace
 import fr.pushpull.champimap.feature.bonus.champiText
 import fr.pushpull.champimap.nav.Routes
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 
 /*
  * Écrans « espèces » du module spot :
  *  - EspecesPickerScreen : « Complète ta cueillette » (choisir l'espèce ajoutée à une récolte) ;
- *  - CatalogueScreen : onglet Espèces (toutes les espèces, recherche) ;
- *  - FicheEspeceScreen : fiche d'une espèce (comestibilité, sosies dangereux, saison, habitat).
+ *  - CatalogueScreen : onglet Espèces (toutes les espèces, recherche, filtres, index A–Z) ;
+ *  - FicheEspeceScreen : fiche d'une espèce (photos, comestibilité, sosies dangereux, saison, habitat).
+ * La liste elle-même (recherche rapide, sections, index A–Z) est dans SpeciesBrowser.kt.
  */
 
 /** Rappel de sécurité affiché sur les fiches. */
 private const val RAPPEL_SECURITE = "En cas de doute, fais vérifier par un pharmacien ou une société mycologique."
 
-/** Champ de recherche (nom courant ou latin, fautes tolérées). */
-@Composable
-private fun SearchField(query: String, onChange: (String) -> Unit) {
-    OutlinedTextField(
-        value = query,
-        onValueChange = onChange,
-        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-        placeholder = { Text(champiText("Nom courant ou latin")) },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-    )
-}
-
-/** Ligne d'espèce : disque coloré, noms, pastille de comestibilité. */
-@Composable
-private fun SpeciesRow(s: Species, onClick: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().heightIn(min = 60.dp).clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        SpeciesDot(s, 16)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(champiText(s.nameFr), style = MaterialTheme.typography.titleMedium)
-            Text(s.nameLatin, style = MaterialTheme.typography.bodySmall, fontStyle = FontStyle.Italic, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Spacer(Modifier.width(8.dp))
-        EdibilityChip(s.edibility)
-    }
-}
-
 /**
  * « Complète ta cueillette » : choix d'une espèce pour la récolte `recolteId`.
- * Sections : recherche, « Tes habituels », « Les plus présents dans tes départements »
- * (pour l'instant : espèces marquées `common`), puis « Voir toutes les espèces (A → Z) ».
+ * En haut, la photo prise avec « Trouvé ! → Photo » (photo « en attente » rattachée à la récolte)
+ * avec une info fixe tant qu'il n'y a pas de modèle d'identification (plus tard : ses propositions).
+ * Puis recherche, filtres, « Récentes », « De saison » et toutes les espèces avec l'index A–Z.
  */
 @Composable
 fun EspecesPickerScreen(nav: NavController, recolteId: String) {
@@ -101,18 +78,14 @@ fun EspecesPickerScreen(nav: NavController, recolteId: String) {
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) { SpeciesLoader.ensureLoaded(context) }
 
+    // Lectures uniques (flux Room) : la recherche travaille ensuite en mémoire.
     val all by remember { db.speciesDao().all() }.collectAsState(initial = emptyList())
-    val habitualIds by remember { db.recolteDao().habitualSpeciesIds(8) }.collectAsState(initial = emptyList())
+    val recentIds by remember { db.recolteDao().recentSpeciesIds(6) }.collectAsState(initial = emptyList())
     val recolte by remember(recolteId) { db.recolteDao().flow(recolteId) }.collectAsState(initial = null)
-    var query by remember { mutableStateOf("") }
-    var showAll by remember { mutableStateOf(false) }
+    val pendingPhoto by remember(recolteId) { db.photoDao().latestOf(recolteId) }.collectAsState(initial = null)
     var busy by remember { mutableStateOf(false) }
 
-    val byId = remember(all) { all.associateBy { it.id } }
-    val habituels = habitualIds.mapNotNull { byId[it] }
-    val communs = all.filter { it.common && it.id !in habitualIds }
-
-    /** Ajoute l'espèce à la récolte puis revient à la fiche spot. */
+    /** Ajoute l'espèce à la récolte (la photo en attente passe sur elle) puis revient à la fiche spot. */
     fun pick(s: Species) {
         if (busy) return
         busy = true
@@ -130,73 +103,90 @@ fun EspecesPickerScreen(nav: NavController, recolteId: String) {
             )
             return@ChampiScreen
         }
-        SearchField(query) { query = it }
-        LazyColumn(Modifier.fillMaxSize()) {
-            if (query.isNotBlank()) {
-                val found = searchSpecies(all, query)
-                if (found.isEmpty()) {
-                    item { Text(champiText("Aucune espèce trouvée."), Modifier.padding(16.dp)) }
-                }
-                items(found, key = { "q" + it.id }) { SpeciesRow(it) { pick(it) } }
-            } else {
-                if (all.isEmpty()) {
-                    item { Text(champiText("Liste des espèces en cours de chargement…"), Modifier.padding(16.dp)) }
-                }
-                if (habituels.isNotEmpty()) {
-                    item { SectionTitle("Tes habituels", Modifier.padding(horizontal = 16.dp)) }
-                    items(habituels, key = { "h" + it.id }) { SpeciesRow(it) { pick(it) } }
-                }
-                if (communs.isNotEmpty()) {
-                    item { SectionTitle("Les plus présents dans tes départements", Modifier.padding(horizontal = 16.dp)) }
-                    items(communs, key = { "c" + it.id }) { SpeciesRow(it) { pick(it) } }
-                }
-                if (!showAll) {
-                    item {
-                        ChampiOutlinedButton(
-                            "Voir toutes les espèces (A → Z)",
-                            onClick = { showAll = true },
-                            modifier = Modifier.padding(16.dp),
-                        )
-                    }
-                } else {
-                    item { SectionTitle("Toutes les espèces (A → Z)", Modifier.padding(horizontal = 16.dp)) }
-                    items(all, key = { "a" + it.id }) { SpeciesRow(it) { pick(it) } }
-                }
+        SpeciesBrowser(
+            all = all,
+            recentIds = recentIds,
+            onPick = { pick(it) },
+            header = {
+                pendingPhoto?.let { p -> PendingPhotoHeader(File(p.path), onPick = { pick(it) }) }
+            },
+        )
+    }
+}
+
+/**
+ * Bandeau du haut après « Trouvé ! → Photo » : vignette de la photo et, à côté,
+ * une info FIXE (pas de message éphémère) tant qu'aucun modèle n'est installé,
+ * ou les propositions du modèle quand il existera (même emplacement).
+ */
+@Composable
+private fun PendingPhotoHeader(photo: File, onPick: (Species) -> Unit) {
+    val hasModel = CurrentIdentifier !is NoModelIdentifier
+    // null = analyse en cours (seulement avec un vrai modèle).
+    val proposals by produceState<List<Pair<Species, Float>>?>(initialValue = null, photo, hasModel) {
+        value = if (!hasModel) emptyList() else withContext(Dispatchers.Default) {
+            runCatching { CurrentIdentifier.identify(photo) }.getOrDefault(emptyList())
+        }
+    }
+    ChampiCard(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 10.dp), padding = PaddingValues(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            AsyncImage(
+                model = photo,
+                contentDescription = "Photo prise",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(64.dp).clip(RoundedCornerShape(12.dp)),
+            )
+            Spacer(Modifier.width(12.dp))
+            val list = proposals
+            val message = when {
+                !hasModel -> "Identification automatique bientôt disponible : choisis l'espèce dans la liste."
+                list == null -> "Analyse de la photo…"
+                list.isEmpty() -> "Pas de proposition : choisis l'espèce dans la liste."
+                else -> "C'est peut-être… (vérifie toujours toi-même)"
             }
-            item { VSpace(24.dp) }
+            Text(
+                champiText(message),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        // Propositions du modèle (quand il existera) : appui = choisir l'espèce.
+        proposals?.take(3)?.forEach { (sp, score) ->
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable { onPick(sp) },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                SpeciesDot(sp)
+                Spacer(Modifier.width(10.dp))
+                Text(champiText(sp.nameFr), modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("${(score * 100).toInt()} %", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }
 
-/** Onglet Espèces : catalogue complet avec recherche. */
+/** Onglet Espèces : catalogue complet (recherche, filtres, index A–Z). */
 @Composable
 fun CatalogueScreen(nav: NavController) {
     val context = LocalContext.current
     LaunchedEffect(Unit) { SpeciesLoader.ensureLoaded(context) }
     val all by remember { AppGraph.db.speciesDao().all() }.collectAsState(initial = emptyList())
-    var query by remember { mutableStateOf("") }
-    val shown = remember(all, query) { searchSpecies(all, query) }
 
     ChampiScreen(title = "Espèces") {
-        SearchField(query) { query = it }
-        Text(
-            champiText(RAPPEL_SECURITE),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        SpeciesBrowser(
+            all = all,
+            recentIds = emptyList(),
+            onPick = { s -> nav.navigate(Routes.ficheEspece(s.id)) },
+            header = {
+                Text(
+                    champiText(RAPPEL_SECURITE),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+                )
+            },
         )
-        LazyColumn(Modifier.fillMaxSize()) {
-            if (shown.isEmpty()) {
-                item {
-                    Text(
-                        champiText(if (all.isEmpty()) "Liste des espèces en cours de chargement…" else "Aucune espèce trouvée."),
-                        Modifier.padding(16.dp),
-                    )
-                }
-            }
-            items(shown, key = { it.id }) { s -> SpeciesRow(s) { nav.navigate(Routes.ficheEspece(s.id)) } }
-            item { VSpace(24.dp) }
-        }
     }
 }
 
@@ -221,6 +211,8 @@ fun FicheEspeceScreen(nav: NavController, speciesId: String) {
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            // Photos de la fiche (1 à 3, avec crédit) ; rien si elles ne sont pas encore livrées.
+            FichePhotosCarousel(s.id, Modifier.fillMaxWidth())
             ChampiCard(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     SpeciesDot(s, 20)
@@ -242,18 +234,18 @@ fun FicheEspeceScreen(nav: NavController, speciesId: String) {
                 WarningCard(s, sosies) { nav.navigate(Routes.ficheEspece(it)) }
             }
 
-            ChampiCard(Modifier.fillMaxWidth()) {
-                formatMonths(s.months)?.let {
-                    SectionTitle("Saison")
-                    Text(champiText(it.replaceFirstChar { c -> c.uppercase() }))
-                }
-                s.habitat?.takeIf { it.isNotBlank() }?.let {
-                    SectionTitle("Habitat")
-                    Text(champiText(it))
-                }
-                s.description?.takeIf { it.isNotBlank() }?.let {
-                    SectionTitle("Description")
-                    Text(champiText(it))
+            // Saison toujours visible ; habitat et description repliés (contenu secondaire).
+            val habitat = s.habitat?.takeIf { it.isNotBlank() }
+            val description = s.description?.takeIf { it.isNotBlank() }
+            val saison = formatMonths(s.months)
+            if (saison != null || habitat != null || description != null) {
+                ChampiCard(Modifier.fillMaxWidth(), padding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
+                    saison?.let {
+                        SectionTitle("Saison")
+                        Text(champiText(it.replaceFirstChar { c -> c.uppercase() }), modifier = Modifier.padding(bottom = 4.dp))
+                    }
+                    habitat?.let { Collapsible("Habitat") { Text(champiText(it), Modifier.padding(bottom = 8.dp)) } }
+                    description?.let { Collapsible("Description") { Text(champiText(it), Modifier.padding(bottom = 8.dp)) } }
                 }
             }
 

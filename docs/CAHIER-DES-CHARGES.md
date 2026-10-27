@@ -40,7 +40,8 @@ Maquette validée (référence visuelle) : écrans décrits ci-dessous. Langue d
   SON DAO.
 
 ## Architecture (socle déjà en place)
-- `core/db/` : entités (`Entities.kt`) et un fichier par DAO. Base `AppDatabase` (version 1, pas de migration).
+- `core/db/` : entités (`Entities.kt`) et un fichier par DAO. Base `AppDatabase` (version 2 : `Migration(1,2)` explicite
+  qui crée la table `vente` ; jamais de migration destructive).
 - `core/settings/Settings.kt` : `AppSettings`, `SettingsRepository`, `ThemeMode` (AUTO, CLAIR, SOMBRE, PSYCHE).
 - `core/ui/theme/Theme.kt` : couleurs `ChampiColors`, `ChampimapTheme`, `LocalChampiStyle`, `SafetyTheme`.
 - `core/ui/Components.kt` : composants partagés.
@@ -160,6 +161,9 @@ Panneau « Comment tu démarres ? » : « Je suis garé » (on enregistre la voi
 - « Carte aux trésors » (carte de chaleur des spots productifs) et « Export CSV ».
 - Calendrier des sorties (« ce spot a bien donné à cette date »).
 - Alertes de saison (WorkManager, 1 vérification par jour) : « Ton spot X donnait bien à cette période ».
+
+### Mode vendeur (expérimental, dossier `feature/ventes`)
+- Option des Paramètres (Données, désactivée par défaut, réglage `sellerMode`) : saisie des ventes (date, poids vendu en g, prix au kilo en €, espèce, sorties liées d'une même journée et note facultatives, montant = poids × prix/kg arrondi au centime) depuis la fin de sortie (« Ajouter une vente », poids proposé = poids pesé récolté) et l'écran « Mes ventes » (Stats), section « Ventes » des Stats (chiffre d'affaires, poids vendu, prix moyen au kilo, nombre de ventes, meilleure journée, part vendue / récoltée, répartition par espèce), ventes dans la corbeille, la sauvegarde et l'export CSV ; jamais échangées en sortie à plusieurs.
 
 ### Réglages (module reglages)
 - Sections repliables + / − (état mémorisé, dépliées par défaut) : Profil (prénom, départements),

@@ -1,5 +1,6 @@
 package fr.pushpull.champimap.feature.connect
 
+import fr.pushpull.champimap.core.util.pluriel
 import android.app.Activity
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -451,7 +452,7 @@ object ConnectClient {
                 phase = if (failed) SyncPhase.FAILED else SyncPhase.DONE,
                 message = when {
                     failed -> "La synchro a échoué. Vérifie ta connexion puis relance-la."
-                    snap.errors.isNotEmpty() -> "Synchro terminée, avec ${snap.errors.size} élément(s) à refaire plus tard."
+                    snap.errors.isNotEmpty() -> "Synchro terminée, avec ${pluriel(snap.errors.size, "élément")} à refaire plus tard."
                     else -> "Tout est prêt !"
                 },
             )

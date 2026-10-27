@@ -1,5 +1,6 @@
 package fr.pushpull.champimap.feature.groupe
 
+import fr.pushpull.champimap.core.util.pluriel
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -135,7 +136,7 @@ internal fun PartageSpotContent(nav: NavController, spotId: String) {
                     ChampiCard(Modifier.fillMaxWidth()) {
                         SectionTitle("Par fichier .champi")
                         BodyText(
-                            if (nbPhotos > 0) "Avec $nbPhotos photo(s). Envoi par Quick Share, Bluetooth, messagerie…"
+                            if (nbPhotos > 0) "Avec ${pluriel(nbPhotos, "photo")}. Envoi par Quick Share, Bluetooth, messagerie…"
                             else "Envoi par Quick Share, Bluetooth, messagerie…",
                         )
                         ChoiceButtons(listOf("Chiffré", "Non chiffré"), chiffre) { chiffre = it; resultat = PartageResultat.Rien }

@@ -1,5 +1,7 @@
 package fr.pushpull.champimap.feature.sortie
 
+import fr.pushpull.champimap.core.util.motPluriel
+import fr.pushpull.champimap.core.util.pluriel
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -34,6 +36,7 @@ import fr.pushpull.champimap.core.ui.ChampiScreen
 import fr.pushpull.champimap.core.ui.SectionTitle
 import fr.pushpull.champimap.feature.bonus.champiText
 import fr.pushpull.champimap.feature.carnet.CarnetFinSortie
+import fr.pushpull.champimap.feature.ventes.VenteFinSortieButton
 import fr.pushpull.champimap.nav.Routes
 import java.util.Locale
 
@@ -69,7 +72,7 @@ fun FinSortieScreen(nav: NavController, sortieId: String) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 RecapTile(Geo.formatDuration(duration), "durée", Modifier.weight(1f))
                 RecapTile(Geo.formatDistance(km), "parcourus", Modifier.weight(1f))
-                RecapTile("${spots.size}", if (spots.size > 1) "spots" else "spot", Modifier.weight(1f))
+                RecapTile("${spots.size}", motPluriel(spots.size, "spot"), Modifier.weight(1f))
             }
             if (totalG > 0) {
                 Text(
@@ -93,6 +96,9 @@ fun FinSortieScreen(nav: NavController, sortieId: String) {
                     SpotSummaryRow(s, onOpen = { nav.navigate(Routes.spot(s.id, sortieId)) })
                 }
             }
+
+            // Mode vendeur (expérimental) : vente liée à cette sortie (bouton masqué si le mode est coupé).
+            VenteFinSortieButton(nav, sortieId)
 
             ChampiOutlinedButton("Ajouter une autre sortie", onClick = {
                 nav.navigate(Routes.DEPART) { popUpTo(Routes.HOME) }
@@ -138,7 +144,7 @@ private fun SpotSummaryRow(s: SortieSpotSummary, onOpen: () -> Unit) {
         Column(Modifier.weight(1f)) {
             Text(s.name, style = MaterialTheme.typography.titleMedium, maxLines = 1)
             val detail = when {
-                s.items > 0 -> "${s.items} espèce${if (s.items > 1) "s" else ""}" + if (s.weightG > 0) " · " + formatWeight(s.weightG) else ""
+                s.items > 0 -> pluriel(s.items, "espèce") + if (s.weightG > 0) " · " + formatWeight(s.weightG) else ""
                 s.emptyVisit -> "Spot vide"
                 else -> "Rien de saisi"
             }

@@ -1,5 +1,7 @@
 package fr.pushpull.champimap.feature.groupe
 
+import fr.pushpull.champimap.core.util.motPluriel
+import fr.pushpull.champimap.core.util.pluriel
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.Column
@@ -215,9 +217,9 @@ private fun Apercu(pkg: SharedPackage) {
         SectionTitle("Contenu")
         val lignes = buildList {
             add(if (pkg.shared.withHistory) "Lieu + historique" else "Lieu seul")
-            if (b.recoltes.isNotEmpty()) add("${b.recoltes.size} récolte(s), ${b.items.size} espèce(s) notée(s)")
-            if (b.visits.isNotEmpty()) add("${b.visits.size} visite(s)")
-            if (pkg.photoFiles.isNotEmpty()) add("${pkg.photoFiles.size} photo(s)")
+            if (b.recoltes.isNotEmpty()) add("${pluriel(b.recoltes.size, "récolte")}, ${pluriel(b.items.size, "espèce")} ${motPluriel(b.items.size, "notée")}")
+            if (b.visits.isNotEmpty()) add(pluriel(b.visits.size, "visite"))
+            if (pkg.photoFiles.isNotEmpty()) add(pluriel(pkg.photoFiles.size, "photo"))
         }
         lignes.forEach { Text(champiText("• $it"), style = MaterialTheme.typography.bodyMedium) }
         if (dejaConnu) BodyText("Tu as déjà ce spot : il sera mis à jour (la version la plus récente gagne).", Modifier.padding(top = 6.dp))

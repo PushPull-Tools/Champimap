@@ -1,5 +1,6 @@
 package fr.pushpull.champimap.feature.stats
 
+import fr.pushpull.champimap.core.util.pluriel
 import fr.pushpull.champimap.core.AppGraph
 import fr.pushpull.champimap.core.db.HarvestRow
 import fr.pushpull.champimap.core.db.WeatherDay
@@ -39,7 +40,7 @@ data class SpeciesInsight(
 ) {
     /** « Calculé sur 14 récoltes (2 saisons) · fiabilité moyenne ». */
     val footer: String
-        get() = "Calculé sur $harvestCount récoltes ($seasonCount saison${if (seasonCount > 1) "s" else ""}) · fiabilité ${reliability.label}"
+        get() = "Calculé sur ${pluriel(harvestCount, "récolte")} (${pluriel(seasonCount, "saison")}) · fiabilité ${reliability.label}"
 }
 
 /** Espèce suivie mais pas encore assez documentée. */
@@ -259,7 +260,7 @@ object WeatherCorrelation {
             val lag = median(lagged.map { it.lagDays!!.toDouble() }).roundToInt()
             val mm = (floor(quantile(lagged.map { it.lagRainMm!! }, 0.25) / 5.0) * 5).toInt().coerceAtLeast(10)
             val spread = quantile(lagged.map { it.lagDays!!.toDouble() }, 0.75) - quantile(lagged.map { it.lagDays!!.toDouble() }, 0.25)
-            sentences += "Tes meilleures récoltes de $lower arrivent environ $lag jours après plus de $mm mm de pluie " +
+            sentences += "Tes meilleures récoltes de $lower arrivent environ ${pluriel(lag, "jour")} après plus de $mm mm de pluie " +
                 "en une semaine" + (if (spread <= 4) " (fenêtre assez régulière)." else " (fenêtre variable, de ${fmt0(quantile(lagged.map { it.lagDays!!.toDouble() }, 0.25))} à ${fmt0(quantile(lagged.map { it.lagDays!!.toDouble() }, 0.75))} jours).")
         } else {
             sentences += "Tes meilleures récoltes de $lower ne suivent pas un épisode de pluie net dans le mois d'avant."

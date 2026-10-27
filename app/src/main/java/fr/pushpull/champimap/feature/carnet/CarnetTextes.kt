@@ -58,8 +58,10 @@ object CarnetTextes {
     const val TOUS_TITRES = "Tous les titres sont à toi. Prochaine étoile au niveau"
     /** « 23 / 80 succès ». */
     const val MOT_SUCCES = "succès"
-    /** « Secrets · 2 découvert(s) ». */
-    const val SECRETS_DECOUVERTS = "découvert(s)"
+    /** « Secrets · 1 découvert » (0 ou 1, voir core/util/Pluriel.kt). */
+    const val SECRET_DECOUVERT = "découvert"
+    /** « Secrets · 2 découverts » (2 et plus). */
+    const val SECRETS_DECOUVERTS = "découverts"
     /** Bloc du carnet. */
     const val ORIGINE_XP = "D'où vient ton XP"
     /** Fenêtre d'un succès. */

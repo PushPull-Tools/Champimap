@@ -1,5 +1,7 @@
 package fr.pushpull.champimap.feature.sortie
 
+import fr.pushpull.champimap.core.util.motPluriel
+import fr.pushpull.champimap.core.util.pluriel
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -139,9 +141,9 @@ private fun SamplerBody(st: SamplerState) {
         Text(
             champiText(
                 when {
-                    st.finished -> "Mesure terminée · ${st.kept} positions"
+                    st.finished -> "Mesure terminée · ${pluriel(st.kept, "position")}"
                     st.ready -> "$seconds s · tu peux valider (jusqu'à 60 s pour affiner)"
-                    else -> "$seconds s sur 30 s conseillées · ${st.kept} positions"
+                    else -> "$seconds s sur 30 s conseillées · ${pluriel(st.kept, "position")}"
                 },
             ),
             style = MaterialTheme.typography.bodySmall,
@@ -149,7 +151,7 @@ private fun SamplerBody(st: SamplerState) {
         )
         if (st.rejected > 0) {
             Text(
-                champiText("${st.rejected} position(s) aberrante(s) écartée(s)"),
+                champiText("${pluriel(st.rejected, "position")} ${motPluriel(st.rejected, "aberrante")} ${motPluriel(st.rejected, "écartée")}"),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

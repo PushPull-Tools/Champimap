@@ -1,5 +1,7 @@
 package fr.pushpull.champimap.feature.stats
 
+import fr.pushpull.champimap.core.util.motPluriel
+import fr.pushpull.champimap.core.util.pluriel
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -41,6 +43,7 @@ import fr.pushpull.champimap.core.ui.ChampiOutlinedButton
 import fr.pushpull.champimap.core.ui.ChampiScreen
 import fr.pushpull.champimap.core.ui.SectionTitle
 import fr.pushpull.champimap.feature.bonus.champiText
+import fr.pushpull.champimap.feature.ventes.VentesStatsSection
 import fr.pushpull.champimap.nav.Routes
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -115,7 +118,7 @@ fun StatsScreen(nav: NavController) {
                 )
                 if (summary.unweighed > 0) {
                     Text(
-                        champiText("${summary.unweighed} cueillette${if (summary.unweighed > 1) "s" else ""} sans poids, non comptée${if (summary.unweighed > 1) "s" else ""}"),
+                        champiText("${pluriel(summary.unweighed, "cueillette")} sans poids, non ${motPluriel(summary.unweighed, "comptée")}"),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -136,8 +139,8 @@ fun StatsScreen(nav: NavController) {
 
             // Sorties et spots.
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StatTile(summary.sorties.toString(), if (summary.sorties > 1) "sorties" else "sortie", Modifier.weight(1f))
-                StatTile(summary.spots.toString(), if (summary.spots > 1) "spots" else "spot", Modifier.weight(1f))
+                StatTile(summary.sorties.toString(), motPluriel(summary.sorties, "sortie"), Modifier.weight(1f))
+                StatTile(summary.spots.toString(), motPluriel(summary.spots, "spot"), Modifier.weight(1f))
             }
 
             // Podium par personne.
@@ -149,6 +152,9 @@ fun StatsScreen(nav: NavController) {
                     Podium(summary.podium)
                 }
             }
+
+            // Mode vendeur (expérimental) : section « Ventes », affichée seulement si le mode est actif.
+            VentesStatsSection(nav, range, summary.totalG)
 
             // Météo et récoltes (expérimental).
             SectionTitle("Météo et récoltes")

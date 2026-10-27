@@ -23,6 +23,7 @@ object TrashManager {
             "RECOLTE" -> dao.restoreRecolte(e.id, now)
             "ITEM" -> dao.restoreItem(e.id, now)
             "PHOTO" -> dao.restorePhoto(e.id)
+            "VENTE" -> AppGraph.db.venteDao().restore(e.id, now) // mode vendeur
             else -> Unit
         }
     }
@@ -52,6 +53,7 @@ object TrashManager {
                     dao.photo(e.id)?.let { files += it.path }
                     dao.deletePhoto(e.id)
                 }
+                "VENTE" -> AppGraph.db.venteDao().deleteForever(e.id) // mode vendeur
                 else -> Unit
             }
         }

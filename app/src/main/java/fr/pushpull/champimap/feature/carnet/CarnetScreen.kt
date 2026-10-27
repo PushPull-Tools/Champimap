@@ -1,5 +1,6 @@
 package fr.pushpull.champimap.feature.carnet
 
+import fr.pushpull.champimap.core.util.motPluriel
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -173,7 +174,7 @@ private fun FamilyGrid(fam: BadgeFamily, st: CarnetState, news: Set<String>, onO
 
     Column {
         val header = if (fam == BadgeFamily.SECRETS) {
-            "${textes.nom} · $got ${CarnetTextes.SECRETS_DECOUVERTS}"
+            "${textes.nom} · $got ${motPluriel(got, CarnetTextes.SECRET_DECOUVERT, CarnetTextes.SECRETS_DECOUVERTS)}"
         } else {
             "${textes.nom} · $got / ${defs.size}"
         }

@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
  * Les suppressions en cascade sont orchestrées par le module (transaction Room).
  */
 
-/** Ligne de la corbeille, tous types confondus (SPOT, SORTIE, RECOLTE, ITEM, PHOTO). */
+/** Ligne de la corbeille, tous types confondus (SPOT, SORTIE, RECOLTE, ITEM, PHOTO, VENTE). */
 data class TrashEntry(
     val kind: String,
     val id: String,
@@ -52,6 +52,9 @@ private const val TRASH_SQL = """
         FROM recolte_item ri LEFT JOIN species s ON s.id = ri.speciesId WHERE ri.deletedAt IS NOT NULL
     UNION ALL
     SELECT 'PHOTO' AS kind, id, ownerType AS label, createdAt AS time, deletedAt FROM photo WHERE deletedAt IS NOT NULL
+    UNION ALL
+    SELECT 'VENTE' AS kind, v.id AS id, s.nameFr AS label, v.soldAt AS time, v.deletedAt AS deletedAt
+        FROM vente v LEFT JOIN species s ON s.id = v.speciesId WHERE v.deletedAt IS NOT NULL
     ORDER BY deletedAt DESC
 """
 

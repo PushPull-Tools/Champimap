@@ -50,6 +50,7 @@ private fun kindLabel(kind: String): String = when (kind) {
     "RECOLTE" -> "Récolte"
     "ITEM" -> "Espèce d'une récolte"
     "PHOTO" -> "Photo"
+    "VENTE" -> "Vente"
     else -> "Élément"
 }
 

@@ -1,5 +1,6 @@
 package fr.pushpull.champimap.feature.connect
 
+import fr.pushpull.champimap.core.util.pluriel
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -457,7 +458,7 @@ private fun SortieDetail(s: SortieSummary) {
             )
             Text(
                 buildString {
-                    append(if (line.count > 1) "${line.count} récoltes" else "1 récolte")
+                    append(pluriel(line.count, "récolte"))
                     if (line.weightG > 0) append(" · ${line.weightG} g")
                     when (line.edibility) {
                         Edibility.TOXIQUE -> append(" · toxique")

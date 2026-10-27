@@ -1,5 +1,6 @@
 package fr.pushpull.champimap.feature.reglages
 
+import fr.pushpull.champimap.core.util.motPluriel
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -47,7 +48,7 @@ fun DepartementPicker(selected: Set<String>, onChange: (Set<String>) -> Unit, mo
         Text(
             champiText(
                 if (selected.isEmpty()) "Aucun département coché"
-                else "${selected.size} coché(s) · cartes ≈ ${Departements.tailleTotaleMo(selected)} Mo",
+                else "${selected.size} ${motPluriel(selected.size, "coché")} · cartes ≈ ${Departements.tailleTotaleMo(selected)} Mo",
             ),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

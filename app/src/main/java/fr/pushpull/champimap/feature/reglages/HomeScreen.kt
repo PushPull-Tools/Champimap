@@ -1,5 +1,6 @@
 package fr.pushpull.champimap.feature.reglages
 
+import fr.pushpull.champimap.core.util.motPluriel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -34,7 +35,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,7 +60,6 @@ import fr.pushpull.champimap.core.ui.VSpace
 import fr.pushpull.champimap.core.ui.theme.SafetyTheme
 import fr.pushpull.champimap.core.util.AstroCalc
 import fr.pushpull.champimap.feature.bonus.Picto
-import fr.pushpull.champimap.feature.bonus.StartMessages
 import fr.pushpull.champimap.feature.bonus.champiText
 import fr.pushpull.champimap.feature.carnet.CarnetEngine
 import fr.pushpull.champimap.feature.carnet.CarnetHomeLine
@@ -74,7 +73,7 @@ import java.util.Locale
 
 /*
  * Accueil : salutation (+ bouton invisible de l'easter egg), date / coucher du soleil / lune,
- * carte verte de départ, bandeaux chasse et battue, chiffres de la saison, dernières sorties.
+ * carte verte de départ (titre simple ; la phrase aléatoire est au lancement de la sortie), bandeaux chasse et battue, chiffres de la saison, dernières sorties.
  */
 
 /** Écran d'accueil. Signature appelée par AppNav. */
@@ -99,8 +98,6 @@ fun HomeScreen(nav: NavController) {
     // Carnet : niveau et titre, recalculés à chaque changement des données.
     val carnet by remember { CarnetEngine.stateFlow() }.collectAsState(initial = null)
 
-    // Message de départ (pioche du module bonus), tiré une fois par affichage.
-    var message by rememberSaveable { mutableStateOf("") }
     var huntHiddenAt by remember { mutableLongStateOf(HomeLogic.huntHiddenAt(context)) }
 
     LaunchedEffect(Unit) {
@@ -109,9 +106,6 @@ fun HomeScreen(nav: NavController) {
         // Alertes de saison (WorkManager) : la planification est idempotente côté module stats.
         runCatching { SeasonAlertScheduler.schedule(context) }
             .onFailure { ErrorLogger.log("Accueil", "Planification des alertes de saison impossible", it) }
-        if (message.isEmpty()) {
-            message = runCatching { StartMessages.next() }.getOrDefault("Je te souhaite une bonne cueillette !")
-        }
         battues = runCatching { AppGraph.db.battueDao().on(today.toString()) }.getOrDefault(emptyList())
     }
 
@@ -132,7 +126,6 @@ fun HomeScreen(nav: NavController) {
             carnet?.let { c -> CarnetHomeLine(c.level, onClick = { nav.navigate(Routes.CARNET) }) }
             InfoLine(today, sunset, moon)
             StartCard(
-                message = message,
                 current = current,
                 onStart = { nav.navigate(Routes.DEPART) },
                 onResume = { id -> nav.navigate(Routes.sortie(id)) },
@@ -199,9 +192,12 @@ private fun InfoLine(today: LocalDate, sunset: String?, moon: AstroCalc.MoonPhas
     )
 }
 
-/** Carte verte : message centré, Démarrer / Reprendre la sortie, sous-texte centré. */
+/** Titre simple de la carte verte (la phrase de départ aléatoire s'affiche au lancement de la sortie). */
+private const val START_TITLE = "Prêt pour l'aventure ?"
+
+/** Carte verte : titre centré, Démarrer / Reprendre la sortie, sous-texte centré. */
 @Composable
-private fun StartCard(message: String, current: Sortie?, onStart: () -> Unit, onResume: (String) -> Unit) {
+private fun StartCard(current: Sortie?, onStart: () -> Unit, onResume: (String) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     Column(
         Modifier
@@ -211,7 +207,7 @@ private fun StartCard(message: String, current: Sortie?, onStart: () -> Unit, on
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            champiText(message),
+            champiText(START_TITLE),
             style = MaterialTheme.typography.titleLarge,
             color = scheme.onPrimary,
             textAlign = TextAlign.Center,
@@ -307,8 +303,8 @@ private fun SeasonTiles(weightG: Long, sorties: Int, spots: Int) {
         SectionTitle("Cette saison")
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Tile(HomeLogic.weightLabel(weightG), "récoltés", Modifier.weight(1f))
-            Tile(sorties.toString(), if (sorties > 1) "sorties" else "sortie", Modifier.weight(1f))
-            Tile(spots.toString(), if (spots > 1) "spots" else "spot", Modifier.weight(1f))
+            Tile(sorties.toString(), motPluriel(sorties, "sortie"), Modifier.weight(1f))
+            Tile(spots.toString(), motPluriel(spots, "spot"), Modifier.weight(1f))
         }
     }
 }

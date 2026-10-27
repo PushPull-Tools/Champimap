@@ -72,4 +72,8 @@ interface VenteDao {
            ORDER BY sp.nameFr""",
     )
     suspend fun speciesOfSorties(sortieIds: List<String>): List<Species>
+
+    /** Espèces par identifiant (noms de l'export CSV). */
+    @Query("SELECT * FROM species WHERE id IN (:ids)")
+    suspend fun speciesByIds(ids: List<String>): List<Species>
 }

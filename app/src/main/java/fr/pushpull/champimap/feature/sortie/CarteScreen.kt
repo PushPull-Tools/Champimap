@@ -1,5 +1,6 @@
 package fr.pushpull.champimap.feature.sortie
 
+import fr.pushpull.champimap.core.util.pluriel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -102,7 +103,7 @@ fun CarteScreen(nav: NavController) {
                     val n = spots?.size ?: 0
                     Text(
                         champiText(
-                            (if (n == 0) "Aucun spot pour l'instant" else "$n spot${if (n > 1) "s" else ""}") +
+                            (if (n == 0) "Aucun spot pour l'instant" else pluriel(n, "spot")) +
                                 if (OfflineMapStyle.mapFiles(context).isEmpty()) " · sans fond de carte" else "",
                         ),
                         style = MaterialTheme.typography.bodySmall,
