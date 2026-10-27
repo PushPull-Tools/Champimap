@@ -58,6 +58,8 @@ import fr.pushpull.champimap.feature.spot.SpotScreen
 import fr.pushpull.champimap.feature.stats.CalendrierScreen
 import fr.pushpull.champimap.feature.stats.StatsScreen
 import fr.pushpull.champimap.feature.stats.TresorsScreen
+import fr.pushpull.champimap.feature.ventes.VenteEditScreen
+import fr.pushpull.champimap.feature.ventes.VentesScreen
 
 /** Un onglet du menu du bas. */
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
@@ -131,6 +133,15 @@ fun AppNav(startOnboarding: Boolean, importPending: Boolean) {
 
                     composable(Routes.CALENDRIER) { CalendrierScreen(nav) }
                     composable(Routes.TRESORS) { TresorsScreen(nav) }
+                    // Mode vendeur (expérimental).
+                    composable(Routes.VENTES) { VentesScreen(nav) }
+                    composable(
+                        Routes.VENTE_EDIT,
+                        listOf(
+                            navArgument("venteId") { type = NavType.StringType; nullable = true; defaultValue = null },
+                            navArgument("sortieId") { type = NavType.StringType; nullable = true; defaultValue = null },
+                        ),
+                    ) { VenteEditScreen(nav, it.arguments?.getString("venteId"), it.arguments?.getString("sortieId")) }
 
                     composable(
                         Routes.INTOX,

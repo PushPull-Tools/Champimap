@@ -51,4 +51,17 @@ interface RecolteDao {
     /** Espèces les plus souvent récoltées (« Tes habituels »), de la plus fréquente à la moins fréquente. */
     @Query("SELECT speciesId FROM recolte_item WHERE deletedAt IS NULL GROUP BY speciesId ORDER BY COUNT(*) DESC LIMIT :limit")
     fun habitualSpeciesIds(limit: Int): Flow<List<String>>
+
+    /**
+     * Espèces récoltées le plus récemment (section « Récentes » du choix d'espèce),
+     * de la plus récente à la plus ancienne, sans doublon.
+     */
+    @Query(
+        """
+        SELECT recolte_item.speciesId FROM recolte_item JOIN recolte ON recolte.id = recolte_item.recolteId
+        WHERE recolte_item.deletedAt IS NULL AND recolte.deletedAt IS NULL
+        GROUP BY recolte_item.speciesId ORDER BY MAX(recolte.time) DESC LIMIT :limit
+        """
+    )
+    fun recentSpeciesIds(limit: Int): Flow<List<String>>
 }

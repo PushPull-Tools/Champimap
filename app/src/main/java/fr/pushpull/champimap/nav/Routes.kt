@@ -36,6 +36,16 @@ object Routes {
     const val CALENDRIER = "calendrier"
     const val TRESORS = "tresors"
 
+    // Mode vendeur (expérimental) : liste des ventes et saisie d'une vente.
+    const val VENTES = "ventes"
+    const val VENTE_EDIT = "vente?venteId={venteId}&sortieId={sortieId}"
+    /** Vente existante (`venteId`) ou nouvelle vente, éventuellement liée à une sortie (`sortieId`). */
+    fun venteEdit(venteId: String? = null, sortieId: String? = null): String = buildString {
+        append("vente")
+        val args = listOfNotNull(venteId?.let { "venteId=$it" }, sortieId?.let { "sortieId=$it" })
+        if (args.isNotEmpty()) append("?").append(args.joinToString("&"))
+    }
+
     // Sécurité
     const val INTOX = "intox?sortieId={sortieId}"
     fun intox(sortieId: String? = null) = if (sortieId != null) "intox?sortieId=$sortieId" else "intox"

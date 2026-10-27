@@ -9,14 +9,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -27,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import fr.pushpull.champimap.core.ui.ChampiSearchField
 import fr.pushpull.champimap.feature.bonus.champiText
 
 /*
@@ -47,15 +43,7 @@ fun DepartementPicker(selected: Set<String>, onChange: (Set<String>) -> Unit, mo
         Departements.rechercher(query).sortedByDescending { it.code in selected }
     }
     Column(modifier) {
-        OutlinedTextField(
-            value = query,
-            onValueChange = { query = it },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            shape = RoundedCornerShape(14.dp),
-            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-            placeholder = { Text("Rechercher (nom ou numéro)") },
-        )
+        ChampiSearchField(query, { query = it }, placeholder = "Rechercher (nom ou numéro)")
         Text(
             champiText(
                 if (selected.isEmpty()) "Aucun département coché"

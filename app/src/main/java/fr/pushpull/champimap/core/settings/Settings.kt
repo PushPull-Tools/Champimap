@@ -46,6 +46,8 @@ data class AppSettings(
     val messageTone: MessageTone = MessageTone.NORMAL,
     /** Carnet : pluies cachées déjà vues, parmi "leaves", "rain", "mushrooms" (succès secrets). */
     val rainsSeen: Set<String> = emptySet(),
+    /** Mode vendeur (expérimental) : saisie des ventes et stats de ventes. Désactivé par défaut. */
+    val sellerMode: Boolean = false,
 )
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -73,6 +75,8 @@ class SettingsRepository(private val context: Context) {
         // Carnet : ton des messages et pluies cachées vues (ensemble séparé par des virgules).
         val messageTone = stringPreferencesKey("messageTone")
         val rainsSeen = stringPreferencesKey("rainsSeen")
+        // Mode vendeur (expérimental).
+        val sellerMode = booleanPreferencesKey("sellerMode")
     }
 
     val flow: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -95,6 +99,7 @@ class SettingsRepository(private val context: Context) {
             lastStartMessage = (p[K.lastStartMessage] ?: "-1").toIntOrNull() ?: -1,
             messageTone = runCatching { MessageTone.valueOf(p[K.messageTone] ?: "NORMAL") }.getOrDefault(MessageTone.NORMAL),
             rainsSeen = (p[K.rainsSeen] ?: "").split(',').filter { it.isNotBlank() }.toSet(),
+            sellerMode = p[K.sellerMode] ?: false,
         )
     }
 
@@ -123,4 +128,7 @@ class SettingsRepository(private val context: Context) {
         val seen = (it[K.rainsSeen] ?: "").split(',').filter { k -> k.isNotBlank() }.toSet()
         if (kind !in seen) it[K.rainsSeen] = (seen + kind).sorted().joinToString(",")
     }
+
+    // Mode vendeur (expérimental) : active / coupe la saisie des ventes.
+    suspend fun setSellerMode(v: Boolean) = context.dataStore.edit { it[K.sellerMode] = v }
 }

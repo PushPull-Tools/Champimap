@@ -249,3 +249,23 @@ data class UnlockedBadge(
     val unlockedAt: Long,
     val announced: Boolean = false,
 )
+
+/**
+ * Mode vendeur (expérimental) : une vente de champignons.
+ * `soldAt` = jour de la vente (midi heure locale, en millisecondes) ; `weightG` = poids vendu (g) ;
+ * `pricePerKgCents` = prix au kilo en centimes (12,50 € → 1250). Le montant est calculé, jamais stocké.
+ * `speciesId` facultatif ; `sortieIds` = sorties liées (même journée), séparées par des virgules.
+ * Données privées : jamais échangées en sortie à plusieurs.
+ */
+@Entity(tableName = "vente", indices = [Index("soldAt")])
+data class Vente(
+    @PrimaryKey val id: String,
+    val soldAt: Long,
+    val weightG: Int,
+    val pricePerKgCents: Int,
+    val speciesId: String? = null,
+    val sortieIds: String? = null,
+    val note: String? = null,
+    val updatedAt: Long = System.currentTimeMillis(),
+    val deletedAt: Long? = null,
+)

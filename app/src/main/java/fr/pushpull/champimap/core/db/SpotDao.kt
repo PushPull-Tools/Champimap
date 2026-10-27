@@ -24,6 +24,10 @@ interface SpotDao {
     @Query("SELECT DISTINCT spot.* FROM spot JOIN spot_visit ON spot.id = spot_visit.spotId WHERE spot_visit.sortieId = :sortieId AND spot.deletedAt IS NULL")
     fun spotsOfSortie(sortieId: String): Flow<List<Spot>>
 
+    /** Essences déjà saisies sur les spots (« Hêtre, Châtaignier »…), proposées en pastilles partout. */
+    @Query("SELECT DISTINCT essence FROM spot WHERE essence IS NOT NULL AND essence != '' AND deletedAt IS NULL")
+    fun essences(): Flow<List<String>>
+
     // --- Historique des positions -----------------------------------------------------------
     @Query("SELECT * FROM spot_position WHERE spotId = :spotId ORDER BY time DESC")
     fun positions(spotId: String): Flow<List<SpotPosition>>

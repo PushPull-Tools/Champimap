@@ -6,15 +6,24 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -200,8 +209,10 @@ private fun levenshtein(a: String, b: String): Int {
  * 0 : le nom commence par la recherche ; 1 : un mot commence par elle ; 2 : contenue ;
  * 3+ : début d'un mot proche à quelques fautes près (1 faute par 4 lettres tapées).
  */
-private fun matchScore(name: String, query: String): Int? {
-    val n = normalize(name)
+private fun matchScore(name: String, query: String): Int? = matchScoreNormalized(normalize(name), query)
+
+/** Même calcul, sur un nom DÉJÀ normalisé (index en mémoire : pas de normalisation à chaque frappe). */
+fun matchScoreNormalized(n: String, query: String): Int? {
     if (n.startsWith(query)) return 0
     val words = n.split(' ')
     if (words.any { it.startsWith(query) }) return 1
@@ -281,3 +292,28 @@ fun InfoBanner(text: String, modifier: Modifier = Modifier) {
 
 /** Espacement horizontal standard entre boutons d'une même ligne. */
 val ROW_GAP = Arrangement.spacedBy(10.dp)
+
+/**
+ * Section dépliable (contenu secondaire) : titre + flèche, contenu affiché seulement si ouverte.
+ * L'état est gardé tant que l'écran est affiché.
+ */
+@Composable
+fun Collapsible(title: String, initiallyOpen: Boolean = false, content: @Composable () -> Unit) {
+    var open by remember(title) { mutableStateOf(initiallyOpen) }
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(10.dp)).clickable { open = !open },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            champiText(title),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(
+            if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+            contentDescription = if (open) "Replier" else "Déplier",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    if (open) content()
+}
