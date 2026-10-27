@@ -30,11 +30,12 @@
 - ⏳ Carnet : phrase sarcastique du succès « champignong » à remplacer.
 - ⏳ Connect : « Actualiser les cartes » au lieu de « Retélécharger ».
 - ⏳ Nouveau département coché : proposer « Synchroniser maintenant » (ou indiquer le chemin) ; la synchro n'ajoute que les nouveautés, la synchro complète reste dans Paramètres.
-- ⏳ Pictos débloqués (arbres, animaux) sélectionnables comme ceux des champignons — à confirmer.
+- ⏳ Pictos débloqués (arbres, animaux) sélectionnables en haut, comme ceux des champignons (contenu en plus).
 
 ## Idées (après la base)
-- Début d'aventure au lancement d'une sortie : cercle qui se ferme, ambiance forêt (vent, oiseaux), quelques notes de flûte douces originales ; coupable.
+- Début d'aventure au lancement d'une sortie : cercle qui se ferme + UNE mélodie de démarrage originale (style Zelda, flûte/pipeau doux), phrase de départ affichée à ce moment ; son coupable.
 - Sortie à plusieurs : retrouver le téléphone d'un membre (dernière position connue) et le faire sonner fort.
 - Seul : le téléphone sonne fort quand on siffle (détection de sifflement en local).
-- Option vendeur (payante) : ventes par sortie/jour (prix au kilo, poids vendu), stats de ventes.
-- Photos des espèces et identification par IA (modèle entraîné embarqué).
+- ⏳ Option vendeur : dans Paramètres, marquée « Expérimental — pourra être modifiée ou supprimée à la sortie officielle » ; ventes par sortie/jour (prix au kilo, poids vendu), stats de ventes. Paiement (Play Store, compte dév existant) plus tard.
+- APK : garder arm64-v8a + armeabi-v7a (tous les vrais téléphones), retirer x86/x86_64 (émulateurs seulement). Taille APK non bloquante.
+- Photos des espèces et identification par IA (modèle entraîné embarqué) ; entraînement dans un conteneur Docker (PC de jeu avec GPU recommandé, serveur possible mais lent).
