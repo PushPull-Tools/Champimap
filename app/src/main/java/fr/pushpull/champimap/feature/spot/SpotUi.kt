@@ -148,6 +148,13 @@ private fun edibilityColors(e: Edibility): Pair<Color, Color> {
     }
 }
 
+/** Pastille Comestible / À éviter / Toxique / Mortel / Psychotrope. */
+@Composable
+fun EdibilityChip(e: Edibility) {
+    val (bg, fg) = edibilityColors(e)
+    ChampiChip(edibilityLabel(e), background = bg, textColor = fg)
+}
+
 /** Couleur d'une espèce (épingles, pastilles), repli sur le brun par défaut. */
 fun speciesColor(s: Species?): Color =
     runCatching { Color(android.graphics.Color.parseColor(s?.colorHex ?: "#9A6A42")) }.getOrDefault(Color(0xFF9A6A42))
