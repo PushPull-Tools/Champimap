@@ -12,6 +12,9 @@ android {
     compileSdk = 35
 
     defaultConfig {
+        // Processeurs ARM uniquement (tous les téléphones Android réels) : les variantes x86
+        // ne servent qu'aux émulateurs sur PC. Allège l'APK sans bloquer aucun téléphone.
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
         applicationId = "fr.pushpull.champimap"
         minSdk = 26
         targetSdk = 35
