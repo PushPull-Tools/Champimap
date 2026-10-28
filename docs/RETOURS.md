@@ -72,3 +72,14 @@
 
 ## Sécurité IA et démarrage — compile, à tester
 - ✅ Propositions de l'IA sans verdict de comestibilité : « Ressemble à… », lien « Voir la fiche », TOXIQUE / MORTEL et sosies toujours marqués, « Identification incertaine » sous 60 % (sans pourcentages), rappel fixe en bas ; avertissement « Prudence » plein écran (4 s, « J'ai compris » après 2 s) à chaque lancement à froid.
+
+## Captures d'écran automatiques — fait (CI)
+- ✅ Job CI `captures` (Robolectric 4.14 rendu natif + Roborazzi 1.32), séparé de l'APK (n'en bloque jamais la publication) :
+  chaque écran en PNG 1080 × 2400, thèmes clair / sombre / Psyché, rangés par parcours (`1-premier-lancement`,
+  `2-sortie`, `3-menu`), écrans longs en plusieurs hauteurs.
+- ✅ Branche `captures` : `captures/derniere/index.html` (planche : une section par parcours, 3 colonnes) et
+  `rapport.txt` (écrans manquants) ; aussi `captures/<sha>/` et l'artefact « Captures » du job.
+- ✅ Données factices en base Room en mémoire (spots imaginaires, saison de sorties, récoltes, ventes, météo) ; IA factice.
+- Limites connues : la carte MapLibre (GPU) est remplacée par une zone neutre ; « Sortie à plusieurs » reste sur
+  l'étape « Autoriser le Bluetooth » (le QR code demande le vrai Bluetooth) ; la mesure « Marquer un spot » est
+  montrée en tout début (positions simulées).

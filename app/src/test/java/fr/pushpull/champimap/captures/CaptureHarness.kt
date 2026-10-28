@@ -22,7 +22,10 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
@@ -274,12 +277,13 @@ abstract class CaptureHarness(private val parcours: String) {
         if (nodes.isEmpty()) return false
         val i = nodes.indices.maxBy { nodes[it].boundsInRoot.height * nodes[it].boundsInRoot.width }
         val range = nodes[i].config[SemanticsProperties.VerticalScrollAxisRange]
-        val before = range.value()
-        if (before >= range.maxValue() - 1f) return false
+        if (range.value() >= range.maxValue() - 1f) return false
+        val before = compose.onRoot().captureToImage().asAndroidBitmap()
         all[i].performSemanticsAction(SemanticsActions.ScrollBy) { it(0f, px) }
         settle()
-        // Rien n'a bougé (déjà en bas, ou presque) : pas de capture en double.
-        return range.value() > before + 100f
+        // Écran identique après défilement (déjà en bas) : pas de capture en double.
+        val after = compose.onRoot().captureToImage().asAndroidBitmap()
+        return !after.sameAs(before)
     }
 
     /** Remonte tout en haut de la plus grande zone défilante. */

@@ -131,6 +131,7 @@ class Parcours2SortieTest : CaptureHarness("2-sortie") {
             go(Routes.spot(CaptureData.SPOT_FICHE, id))
             waitText("Girolle")
             // Déplie la ligne des girolles (la ligne des cèpes reste repliée).
+            waitText("310 g")
             click("310 g")
             scrollDown(900f)
             capture("11-recolte", "Récolte : 2 espèces (une dépliée)")
