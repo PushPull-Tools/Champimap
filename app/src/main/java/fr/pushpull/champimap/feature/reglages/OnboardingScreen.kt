@@ -202,7 +202,7 @@ private fun WelcomeStep(firstName: String, onNameChange: (String) -> Unit, onCon
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             shape = RoundedCornerShape(14.dp),
-            label = { Text("Comment tu t'appelles ?") },
+            label = { Text("Entre ton prénom") },
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
         )
         VSpace(20.dp)
