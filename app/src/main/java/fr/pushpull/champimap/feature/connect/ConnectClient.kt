@@ -201,7 +201,7 @@ object ConnectClient {
         if (!hasEmbeddedApk(app)) {
             _install.value = InstallState.Failed(
                 "Le module n'est pas inclus dans cette version de Champimap. " +
-                    "Installe la version complète de l'appli (avec le module) puis réessaie.",
+                    "Installe la version complète de l'appli (avec Champimap Connect) puis réessaie.",
             )
             return
         }
@@ -243,7 +243,7 @@ object ConnectClient {
         } catch (e: Exception) {
             ErrorLogger.log("Connect", "Installation du module impossible", e)
             currentSessionId = -1
-            _install.value = InstallState.Failed("L'installation du module a échoué. Réessaie dans un instant.")
+            _install.value = InstallState.Failed("L'installation de Champimap Connect a échoué. Réessaie dans un instant.")
         }
     }
 
@@ -295,7 +295,7 @@ object ConnectClient {
                     _install.value = InstallState.Installed
                 }
                 PackageInstaller.STATUS_FAILURE_ABORTED -> _install.value = InstallState.Failed("Installation annulée.")
-                PackageInstaller.STATUS_FAILURE_STORAGE -> _install.value = InstallState.Failed("Pas assez de place pour installer le module.")
+                PackageInstaller.STATUS_FAILURE_STORAGE -> _install.value = InstallState.Failed("Pas assez de place pour installer Champimap Connect.")
                 PackageInstaller.STATUS_FAILURE_CONFLICT,
                 PackageInstaller.STATUS_FAILURE_INCOMPATIBLE,
                 -> _install.value = InstallState.Failed(
@@ -304,7 +304,7 @@ object ConnectClient {
                 else -> {
                     val msg = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
                     ErrorLogger.log("Connect", "Installation refusée : ${msg ?: "raison inconnue"}")
-                    _install.value = InstallState.Failed("L'installation du module a échoué.")
+                    _install.value = InstallState.Failed("L'installation de Champimap Connect a échoué.")
                 }
             }
         }

@@ -247,7 +247,7 @@ private fun LaterDialog(onOpenSettings: () -> Unit, onContinue: () -> Unit, onDi
                 Text(champiText("• Statistiques, calendrier, sortie à plusieurs et partage."))
                 Text(champiText("• Coucher du soleil, lune et période de chasse."))
                 VSpace(4.dp)
-                Text(champiText("Tu pourras installer le module plus tard dans les paramètres."), style = MaterialTheme.typography.bodySmall)
+                Text(champiText("Tu pourras installer Champimap Connect plus tard dans les paramètres."), style = MaterialTheme.typography.bodySmall)
             }
         },
         confirmButton = { TextButton(onClick = onContinue) { Text(champiText("Continuer")) } },

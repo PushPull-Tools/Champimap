@@ -140,7 +140,7 @@ fun ConnectInstallPanel(
             // Autorisation Android manquante : explication + bouton vers le réglage.
             install is InstallState.NeedsPermission -> {
                 PanelText(
-                    "Android doit d'abord autoriser Champimap à installer le module.",
+                    "Android doit d'abord autoriser Champimap à installer Champimap Connect.",
                     bold = true,
                 )
                 VSpace(6.dp)
@@ -203,7 +203,7 @@ fun ConnectInstallPanel(
 
             // Départ : rien n'a été lancé.
             else -> {
-                ChampiButton("Installer le module", onClick = { startInstall() })
+                ChampiButton("Installer Champimap Connect", onClick = { startInstall() })
                 if (showLaterWhenIdle) {
                     VSpace(8.dp)
                     ChampiOutlinedButton(laterLabel, onClick = { later() })

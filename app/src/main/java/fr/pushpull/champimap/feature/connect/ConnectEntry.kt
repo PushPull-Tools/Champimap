@@ -102,7 +102,7 @@ fun ConnectOnboardingStep(onInstalled: () -> Unit, onLater: () -> Unit) {
             VSpace(6.dp)
             Text(
                 champiText(
-                    "Les cartes, la météo et les mises à jour passent par un petit module séparé, " +
+                    "Les cartes, la météo et les mises à jour passent par un petit module séparé nommé Champimap Connect, " +
                         "qui ne connaît que des zones larges, jamais tes spots.",
                 ),
                 style = MaterialTheme.typography.bodyLarge,
@@ -121,10 +121,10 @@ fun ConnectOnboardingStep(onInstalled: () -> Unit, onLater: () -> Unit) {
                 NumberedStep(
                     1,
                     "Android va te demander d'autoriser Champimap à installer des applis. " +
-                        "C'est seulement pour poser le module, sans donner Internet à Champimap.",
+                        "C'est seulement pour poser Champimap Connect, sans donner Internet à Champimap.",
                 )
-                NumberedStep(2, "Tu valides l'installation du module.")
-                NumberedStep(3, "C'est fini. Tu peux retirer l'autorisation ou désinstaller le module quand tu veux.")
+                NumberedStep(2, "Tu valides l'installation de Champimap Connect.")
+                NumberedStep(3, "C'est fini. Tu peux retirer l'autorisation ou désinstaller Champimap Connect quand tu veux.")
             }
             VSpace(16.dp)
             // Parcours d'installation : ne démarre que sur « Installer le module ».
@@ -325,9 +325,9 @@ fun ConnectScreen(nav: NavController) {
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     VSpace(10.dp)
-                    NumberedStep(1, "Android te demande d'autoriser Champimap à installer des applis (uniquement pour poser le module).")
-                    NumberedStep(2, "Tu valides l'installation du module.")
-                    NumberedStep(3, "C'est fini. Tu peux retirer l'autorisation ou désinstaller le module quand tu veux.")
+                    NumberedStep(1, "Android te demande d'autoriser Champimap à installer des applis (uniquement pour poser Champimap Connect).")
+                    NumberedStep(2, "Tu valides l'installation de Champimap Connect.")
+                    NumberedStep(3, "C'est fini. Tu peux retirer l'autorisation ou désinstaller Champimap Connect quand tu veux.")
                 }
                 VSpace(24.dp)
             }
@@ -346,7 +346,7 @@ private fun ConnectUpdateCard(install: InstallState) {
     val scope = rememberCoroutineScope()
     ChampiCard(Modifier.fillMaxWidth()) {
         Text(
-            champiText("Mise à jour du module nécessaire"),
+            champiText("Mise à jour de Champimap Connect nécessaire"),
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
@@ -364,7 +364,7 @@ private fun ConnectUpdateCard(install: InstallState) {
             is InstallState.Installing -> Text(champiText("Mise à jour en cours…"), color = MaterialTheme.colorScheme.onSurface)
             is InstallState.NeedsPermission -> {
                 Text(
-                    champiText("Autorise d'abord Champimap à installer des applis (uniquement pour poser le module)."),
+                    champiText("Autorise d'abord Champimap à installer des applis (uniquement pour poser Champimap Connect)."),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -378,7 +378,7 @@ private fun ConnectUpdateCard(install: InstallState) {
         }
         VSpace(8.dp)
         ChampiButton(
-            "Mettre à jour le module",
+            "Mettre à jour Champimap Connect",
             onClick = { scope.launch { ConnectClient.install(context) } },
             enabled = install !is InstallState.Installing,
         )

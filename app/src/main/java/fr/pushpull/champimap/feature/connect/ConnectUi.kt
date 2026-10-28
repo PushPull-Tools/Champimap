@@ -113,7 +113,7 @@ fun rememberConnectSync(refreshMaps: Boolean = false, iaOnly: Boolean = false, i
             try {
                 launcher.launch(intent)
             } catch (e: ActivityNotFoundException) {
-                ConnectClient.markLaunchFailed("Champimap Connect ne répond pas. Réinstalle le module.")
+                ConnectClient.markLaunchFailed("Champimap Connect ne répond pas. Réinstalle-le.")
             } catch (e: SecurityException) {
                 // Signature différente : la permission « CONNECT » est refusée par Android.
                 ErrorLogger.log("Connect", "Lancement refusé (signature différente ?)", e)
