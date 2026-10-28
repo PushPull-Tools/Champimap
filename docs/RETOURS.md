@@ -1,6 +1,6 @@
 # Retours de test — à traiter
 
-État au 27/10/2026. ✅ = fait (branche dev, compile sur la CI), ⏳ = à faire.
+État au 28/10/2026. ✅ = fait (branche dev, compile sur la CI), ⏳ = à faire.
 
 ## Lot 1 (premier test)
 - ✅ Installation de Connect : explication d'abord, réglage Android sur bouton, reprise auto, jamais bloqué.
@@ -40,8 +40,14 @@
 - Seul : le téléphone sonne fort quand on siffle (détection de sifflement en local).
 - ✅ Option vendeur : dans Paramètres, marquée « Expérimental — pourra être modifiée ou supprimée à la sortie officielle » ; ventes par sortie/jour (prix au kilo, poids vendu), stats de ventes. Paiement (Play Store, compte dév existant) plus tard.
 - ✅ APK : garder arm64-v8a + armeabi-v7a (tous les vrais téléphones), retirer x86/x86_64 (émulateurs seulement). Taille APK non bloquante.
-- Photos des espèces et identification par IA (modèle entraîné embarqué) ; entraînement dans un conteneur Docker (PC de jeu avec GPU recommandé, serveur possible mais lent).
+- ✅ Photos des espèces et identification par IA (modèle entraîné embarqué) ; entraînement dans un conteneur Docker (PC de jeu avec GPU recommandé, serveur possible mais lent).
 
 ## Couverture France (puis monde)
 - ⏳ IA : entraînée sur le catalogue + toutes les espèces de champignons observées en France sur iNaturalist (≥ 15 observations, ~2 000 à 3 000 espèces). Lieu paramétrable pour d'autres pays plus tard.
-- ⏳ Catalogue de l'appli : importer `especes_ia.json` (noms latins + français) ; espèces sans fiche de comestibilité = « Comestibilité non renseignée — ne pas consommer ». Relecture par un expert des espèces ajoutées.
+- ✅ Catalogue de l'appli : `especes_ia.json` importé (noms latins + français) ; espèces sans fiche de comestibilité = « Comestibilité non renseignée — ne pas consommer » ; lichens, rouilles, moisissures masqués. ⏳ Relecture par un expert des espèces ajoutées.
+
+## IA intégrée (modèle ia-v1) — compile, à tester
+- ✅ Modèle `ia-v1` (1 032 espèces, top-1 73,8 % · top-5 92,7 %) téléchargé par la CI depuis la release GitHub, jamais dans git (`IA_RELEASE` dans `build.yml`).
+- ✅ Identification hors ligne (ONNX Runtime) : 5 pistes avec photo, pastille et %, bandeau de prudence, sosies dangereux, pistes toxiques/mortelles marquées, espèces dangereuses inconnues du modèle.
+- ✅ Photos des fiches (3 327, auteur + licence sous chaque photo) et écran « Crédits des photos et du modèle ».
+- ⏳ À vérifier sur téléphone : temps d'analyse, pertinence sur de vraies photos, taille de l'APK.

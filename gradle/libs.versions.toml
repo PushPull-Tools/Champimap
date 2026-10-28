@@ -18,6 +18,7 @@ work = "2.10.0"
 zxingCore = "3.5.3"
 zxingEmbedded = "4.3.0"
 coil = "2.7.0"
+onnxruntime = "1.19.2"
 junit = "4.13.2"
 
 [libraries]
@@ -47,6 +48,8 @@ maplibre-android = { group = "org.maplibre.gl", name = "android-sdk", version.re
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxingCore" }
 zxing-embedded = { group = "com.journeyapps", name = "zxing-android-embedded", version.ref = "zxingEmbedded" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+# Identification hors ligne (modèle ONNX embarqué) : aucun accès réseau.
+onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxruntime" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]

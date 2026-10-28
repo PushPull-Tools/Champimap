@@ -7,4 +7,6 @@ build/
 *.keystore
 *.jks
 /app/src/main/assets/connect/
+# Modèle d'identification : téléchargé par la CI depuis la release GitHub « ia-vN » (trop lourd pour git).
+/app/src/main/assets/ia/
 captures/

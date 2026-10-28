@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -35,7 +36,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -48,10 +48,8 @@ import fr.pushpull.champimap.core.ui.SectionTitle
 import fr.pushpull.champimap.core.ui.VSpace
 import fr.pushpull.champimap.feature.bonus.champiText
 import fr.pushpull.champimap.nav.Routes
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
 
 /*
@@ -59,6 +57,7 @@ import java.io.File
  *  - EspecesPickerScreen : « Complète ta cueillette » (choisir l'espèce ajoutée à une récolte) ;
  *  - CatalogueScreen : onglet Espèces (toutes les espèces, recherche, filtres, index A–Z) ;
  *  - FicheEspeceScreen : fiche d'une espèce (photos, comestibilité, sosies dangereux, saison, habitat).
+ * L'écran de résultat de l'identification par IA est dans IaResults.kt.
  * La liste elle-même (recherche rapide, sections, index A–Z) est dans SpeciesBrowser.kt.
  */
 
@@ -67,9 +66,10 @@ private const val RAPPEL_SECURITE = "En cas de doute, fais vérifier par un phar
 
 /**
  * « Complète ta cueillette » : choix d'une espèce pour la récolte `recolteId`.
- * En haut, la photo prise avec « Trouvé ! → Photo » (photo « en attente » rattachée à la récolte)
- * avec une info fixe tant qu'il n'y a pas de modèle d'identification (plus tard : ses propositions).
- * Puis recherche, filtres, « Récentes », « De saison » et toutes les espèces avec l'index A–Z.
+ * Après « Trouvé ! → Photo » (photo « en attente » rattachée à la récolte) et si le modèle est livré :
+ * écran de résultat de l'IA (IaResultsPanel) avec ses 5 pistes ; « Aucune ne correspond » ou une
+ * analyse sans résultat (erreur comprise) ouvrent la liste complète, la photo restant en haut.
+ * Liste : recherche, filtres, « Récentes », « De saison » et toutes les espèces avec l'index A–Z.
  */
 @Composable
 fun EspecesPickerScreen(nav: NavController, recolteId: String) {
@@ -84,6 +84,25 @@ fun EspecesPickerScreen(nav: NavController, recolteId: String) {
     val recolte by remember(recolteId) { db.recolteDao().flow(recolteId) }.collectAsState(initial = null)
     val pendingPhoto by remember(recolteId) { db.photoDao().latestOf(recolteId) }.collectAsState(initial = null)
     var busy by remember { mutableStateOf(false) }
+
+    // Chemin de la photo à identifier, gardé même quand elle passe sur l'espèce choisie
+    // (évite un clignotement de la liste juste avant le retour à la fiche spot).
+    var photoPath by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(pendingPhoto?.path) { pendingPhoto?.path?.let { photoPath = it } }
+
+    val hasModel = remember { CurrentIdentifier !is NoModelIdentifier }
+    // Résultat de l'analyse, rattaché à la photo analysée (évite d'afficher celui d'une autre photo).
+    // Toute erreur donne une liste vide (repli silencieux sur la liste).
+    val analysis by produceState<Pair<String?, List<Pair<Species, Float>>>?>(initialValue = null, photoPath, hasModel) {
+        val path = photoPath
+        value = path to (
+            if (path == null || !hasModel) emptyList()
+            else runCatching { CurrentIdentifier.identify(File(path)) }.getOrDefault(emptyList())
+        )
+    }
+    // null = analyse en cours pour la photo actuelle.
+    val proposals: List<Pair<Species, Float>>? = analysis?.takeIf { it.first == photoPath }?.second
+    var showList by remember(photoPath) { mutableStateOf(false) }
 
     /** Ajoute l'espèce à la récolte (la photo en attente passe sur elle) puis revient à la fiche spot. */
     fun pick(s: Species) {
@@ -103,31 +122,49 @@ fun EspecesPickerScreen(nav: NavController, recolteId: String) {
             )
             return@ChampiScreen
         }
+        val path = photoPath
+        val list = proposals
+        // Écran de résultat de l'IA : pendant l'analyse, puis s'il y a des pistes.
+        if (path != null && hasModel && !showList && (list == null || list.isNotEmpty())) {
+            IaResultsPanel(
+                photo = File(path),
+                proposals = list,
+                all = all,
+                onPick = { pick(it) },
+                onOpenSpecies = { nav.navigate(Routes.ficheEspece(it)) },
+                onShowList = { showList = true },
+                modifier = Modifier.fillMaxSize(),
+            )
+            return@ChampiScreen
+        }
         SpeciesBrowser(
             all = all,
             recentIds = recentIds,
             onPick = { pick(it) },
             header = {
-                pendingPhoto?.let { p -> PendingPhotoHeader(File(p.path), onPick = { pick(it) }) }
+                if (path != null) {
+                    val message = when {
+                        !hasModel -> "Identification automatique non disponible : choisis l'espèce dans la liste."
+                        list.isNullOrEmpty() -> "Pas de piste de l'IA pour cette photo : choisis l'espèce dans la liste."
+                        else -> "Choisis l'espèce dans la liste."
+                    }
+                    PendingPhotoHeader(
+                        photo = File(path),
+                        message = message,
+                        onShowProposals = if (hasModel && !list.isNullOrEmpty()) ({ showList = false }) else null,
+                    )
+                }
             },
         )
     }
 }
 
 /**
- * Bandeau du haut après « Trouvé ! → Photo » : vignette de la photo et, à côté,
- * une info FIXE (pas de message éphémère) tant qu'aucun modèle n'est installé,
- * ou les propositions du modèle quand il existera (même emplacement).
+ * Bandeau du haut de la liste après « Trouvé ! → Photo » : vignette de la photo, info FIXE
+ * (pas de message éphémère) et, s'il y a des pistes de l'IA, un lien pour les revoir.
  */
 @Composable
-private fun PendingPhotoHeader(photo: File, onPick: (Species) -> Unit) {
-    val hasModel = CurrentIdentifier !is NoModelIdentifier
-    // null = analyse en cours (seulement avec un vrai modèle).
-    val proposals by produceState<List<Pair<Species, Float>>?>(initialValue = null, photo, hasModel) {
-        value = if (!hasModel) emptyList() else withContext(Dispatchers.Default) {
-            runCatching { CurrentIdentifier.identify(photo) }.getOrDefault(emptyList())
-        }
-    }
+private fun PendingPhotoHeader(photo: File, message: String, onShowProposals: (() -> Unit)?) {
     ChampiCard(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 10.dp), padding = PaddingValues(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(
@@ -137,30 +174,17 @@ private fun PendingPhotoHeader(photo: File, onPick: (Species) -> Unit) {
                 modifier = Modifier.size(64.dp).clip(RoundedCornerShape(12.dp)),
             )
             Spacer(Modifier.width(12.dp))
-            val list = proposals
-            val message = when {
-                !hasModel -> "Identification automatique bientôt disponible : choisis l'espèce dans la liste."
-                list == null -> "Analyse de la photo…"
-                list.isEmpty() -> "Pas de proposition : choisis l'espèce dans la liste."
-                else -> "C'est peut-être… (vérifie toujours toi-même)"
-            }
-            Text(
-                champiText(message),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f),
-            )
-        }
-        // Propositions du modèle (quand il existera) : appui = choisir l'espèce.
-        proposals?.take(3)?.forEach { (sp, score) ->
-            Row(
-                Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable { onPick(sp) },
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                SpeciesDot(sp)
-                Spacer(Modifier.width(10.dp))
-                Text(champiText(sp.nameFr), modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("${(score * 100).toInt()} %", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(Modifier.weight(1f)) {
+                Text(
+                    champiText(message),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (onShowProposals != null) {
+                    TextButton(onClick = onShowProposals, contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)) {
+                        Text(champiText("Revoir les pistes de l'IA"))
+                    }
+                }
             }
         }
     }
@@ -230,7 +254,8 @@ fun FicheEspeceScreen(nav: NavController, speciesId: String) {
 
             // Avertissement : espèce dangereuse elle-même, ou sosies dangereux.
             val dangerous = s.edibility == Edibility.MORTEL || s.edibility == Edibility.TOXIQUE
-            if (dangerous || sosies.isNotEmpty() || !s.lookalikeWarning.isNullOrBlank()) {
+            val unknown = s.edibility == Edibility.INCONNU
+            if (dangerous || unknown || sosies.isNotEmpty() || !s.lookalikeWarning.isNullOrBlank()) {
                 WarningCard(s, sosies) { nav.navigate(Routes.ficheEspece(it)) }
             }
 
@@ -271,6 +296,7 @@ private fun WarningCard(s: Species, sosies: List<Species>, onOpen: (String) -> U
         when (s.edibility) {
             Edibility.MORTEL -> Text(champiText("Espèce mortelle : ne jamais consommer, même en petite quantité."))
             Edibility.TOXIQUE -> Text(champiText("Espèce toxique : ne pas consommer."))
+            Edibility.INCONNU -> Text(champiText("Comestibilité non renseignée — ne pas consommer."))
             else -> {}
         }
         s.lookalikeWarning?.takeIf { it.isNotBlank() }?.let { Text(champiText(it), Modifier.padding(top = 6.dp)) }

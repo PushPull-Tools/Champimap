@@ -13,3 +13,6 @@
     *** INSTANCE;
     kotlinx.serialization.KSerializer serializer(...);
 }
+# ONNX Runtime : classes Java appelées depuis le code natif (JNI), à garder telles quelles.
+-keep class ai.onnxruntime.** { *; }
+-dontwarn ai.onnxruntime.**

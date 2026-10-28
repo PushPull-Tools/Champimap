@@ -99,6 +99,7 @@ fun ParametresScreen(nav: NavController) {
                 LinkRow("Sauvegarde et export", "Copie complète (chiffrée ou non), restauration, export CSV et corbeille.") { nav.navigate(Routes.SAUVEGARDE) }
                 LinkRow("Journal", "Uniquement ce qui n'a pas fonctionné, sans aucune position ni nom de spot.") { nav.navigate(Routes.JOURNAL) }
                 LinkRow("Preuves « hors ligne »", "Les autorisations réellement accordées, lues en direct sur le téléphone.") { nav.navigate(Routes.PREUVES) }
+                LinkRow("Crédits des photos et du modèle", "Modèle d'identification, photos iNaturalist et liste complète de leurs auteurs.") { nav.navigate(Routes.CREDITS_IA) }
                 // Mode vendeur (expérimental) : saisie des ventes (fin de sortie, Stats → Mes ventes).
                 SwitchRow(
                     "Mode vendeur (expérimental)",

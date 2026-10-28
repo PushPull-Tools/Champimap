@@ -57,6 +57,8 @@ object Routes {
     const val SAUVEGARDE = "sauvegarde"
     const val CORBEILLE = "corbeille"
     const val CONNECT = "connect"
+    /** Crédits des photos et du modèle d'identification (module spot). */
+    const val CREDITS_IA = "credits_ia"
 
     // Partage et groupe
     const val GROUPE_CREER = "groupe/creer/{sortieId}"

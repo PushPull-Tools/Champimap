@@ -54,6 +54,7 @@ import fr.pushpull.champimap.feature.sortie.SortieScreen
 import fr.pushpull.champimap.feature.spot.CatalogueScreen
 import fr.pushpull.champimap.feature.spot.EspecesPickerScreen
 import fr.pushpull.champimap.feature.spot.FicheEspeceScreen
+import fr.pushpull.champimap.feature.spot.IaCreditsScreen
 import fr.pushpull.champimap.feature.spot.SpotScreen
 import fr.pushpull.champimap.feature.stats.CalendrierScreen
 import fr.pushpull.champimap.feature.stats.StatsScreen
@@ -150,6 +151,7 @@ fun AppNav(startOnboarding: Boolean, importPending: Boolean) {
                     composable(Routes.INTOX_LIST) { IntoxListScreen(nav) }
 
                     composable(Routes.PREUVES) { PreuvesScreen(nav) }
+                    composable(Routes.CREDITS_IA) { IaCreditsScreen(nav) }
                     composable(Routes.JOURNAL) { JournalScreen(nav) }
                     composable(Routes.SAUVEGARDE) { SauvegardeScreen(nav) }
                     composable(Routes.CORBEILLE) { CorbeilleScreen(nav) }

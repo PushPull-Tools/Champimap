@@ -63,6 +63,9 @@ android {
         buildConfig = true
     }
     lint { abortOnError = false }
+    // Modèle d'identification (assets/ia/champi-ia.onnx, ~35 Mo) : stocké tel quel dans l'APK,
+    // pour ne pas le décompresser en mémoire et pouvoir lire sa taille (openFd).
+    androidResources { noCompress += "onnx" }
     packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
 }
 
@@ -96,6 +99,7 @@ dependencies {
     implementation(libs.zxing.core)
     implementation(libs.zxing.embedded)
     implementation(libs.coil.compose)
+    implementation(libs.onnxruntime.android)
     debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation(libs.junit)
 }

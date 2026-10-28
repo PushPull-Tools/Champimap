@@ -128,7 +128,7 @@ fun edibilityLabel(e: Edibility): String = when (e) {
     Edibility.TOXIQUE -> "Toxique"
     Edibility.MORTEL -> "Mortel"
     Edibility.PSYCHOTROPE -> "Psychotrope"
-    Edibility.INCONNU -> "Inconnu"
+    Edibility.INCONNU -> "Non renseigné"
 }
 
 /**

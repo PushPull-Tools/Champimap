@@ -139,8 +139,8 @@ Panneau « Comment tu démarres ? » : « Je suis garé » (on enregistre la voi
   (miniature), nom, poids en g (boutons +50/+100 et saisie libre, facultatif), pastilles stade (Bouchon, Jeune,
   Beau, Ouvert, Passé), qualité (Ferme, Véreux, Limacé, Moisi, Parasité, Abîmé), état (Gorgé d'eau, Sec, Gelé).
 - Bouton « **Trouvé !** » → petit menu « Photo » (icône) / « Liste » (icône). Photo : appareil photo système
-  (ActivityResultContracts.TakePicture + FileProvider), puis identification (interface `SpeciesIdentifier`
-  avec implémentation provisoire qui ne propose rien) et liste. Liste → route ESPECES_PICKER.
+  (ActivityResultContracts.TakePicture + FileProvider), puis identification par IA (voir ci-dessous) et liste.
+  Liste → route ESPECES_PICKER.
 - « Spot vide » (visite horodatée), « Je suis au pied » (nouvelle mesure précise, moyenne de toutes les visites).
 - « Historique des positions (N) » : liste datée par origine, « Revenir à cette position ».
   « Ajuster la position » : déplacement sur la carte avec distance en direct, confirmation au-delà de 50 m.
@@ -150,7 +150,35 @@ Panneau « Comment tu démarres ? » : « Je suis garé » (on enregistre la voi
   pastille Comestible / À éviter / Toxique / Mortel / Psychotrope, « Voir toutes les espèces (A → Z) ».
 - Catalogue (onglet Espèces) + fiche espèce : comestibilité, sosies dangereux (avertissement), saison, habitat,
   rappel « En cas de doute, fais vérifier par un pharmacien ou une société mycologique ».
-- `SpeciesLoader.ensureLoaded(context)` : charge `assets/species.json` dans la base si vide.
+- `SpeciesLoader.ensureLoaded(context)` : charge `assets/species.json` dans la base si vide, puis ajoute
+  (insert ignore, à chaque nouvelle version du catalogue mémorisée dans le DataStore `species_catalog`) les espèces
+  du modèle (`assets/ia/especes_ia.json`) absentes du catalogue : nom français avec majuscule (repli latin),
+  comestibilité INCONNU (pastille « Non renseigné », fiche « Comestibilité non renseignée — ne pas consommer »),
+  `common = false`. Lichens, rouilles, charbons, oïdiums et moisissures (liste de genres dans `IaCatalog.kt`)
+  restent dans le modèle mais ne sont ni au catalogue ni proposés.
+
+### Identification par IA (module spot, hors ligne)
+- Modèle EfficientNet-B2 (torchvision, poids ImageNet, BSD-3) ré-entraîné sur les espèces observées en France
+  (iNaturalist), exporté en ONNX (entrée `image` [1,3,288,288] NCHW RGB normalisée ImageNet, sortie `scores`
+  [1,N] logits ; `labels.json` : sortie i = `species[i]`). Exécuté sur le téléphone par ONNX Runtime
+  (`com.microsoft.onnxruntime:onnxruntime-android`, aucune permission réseau).
+- **Pas de gros fichiers dans git** : la CI télécharge l'asset `champi-ia-resultat.tar.gz` de la release GitHub
+  `IA_RELEASE` (variable en haut de `build.yml`, ex. `ia-v1` → `ia-v2`) et l'extrait dans `app/src/main/assets/ia/`
+  (ignoré par git) ; échec du téléchargement = échec de la compilation. Sans ces fichiers (compilation locale),
+  l'appli marche sans identification (`NoModelIdentifier`).
+- `OnnxSpeciesIdentifier` : session chargée une fois en arrière-plan (modèle copié dans `filesDir/ia/`),
+  prétraitement identique à l'entraînement (orientation EXIF, petit côté 316 px, recadrage central 288, mean/std),
+  softmax, 5 meilleures espèces présentes au catalogue. Erreur → journal (sans donnée personnelle) et liste.
+- Écran de résultat (après « Trouvé ! → Photo ») : 5 pistes (photo de fiche, nom, latin, pastille, %),
+  toucher = ajout à la récolte ; « Aucune ne correspond → liste complète ». Bandeau permanent : « Pistes proposées
+  par l'IA, jamais une preuve de comestibilité. Fais vérifier en cas de doute (pharmacien, société mycologique). »
+  Piste comestible avec sosies toxiques/mortels → avertissement de sosie bien visible ; piste toxique/mortelle →
+  fortement marquée. Note fixe + section dépliable « Espèces dangereuses que l'IA ne connaît pas encore »
+  (espèces TOXIQUE/MORTEL du catalogue absentes de `labels.json`, calculées au chargement).
+- Photos des fiches : `assets/ia/fiches/` + `fiches.json` (prioritaires), sinon `filesDir/fiches/` ; auteur et
+  licence en petit sous chaque photo.
+- Paramètres → Données → « Crédits des photos et du modèle » : modèle (EfficientNet-B2, BSD-3 ; ONNX Runtime, MIT),
+  photos iNaturalist CC0 / CC BY (nombres), liste complète des auteurs lue en flux depuis `credits.csv.gz`.
 
 ### Statistiques (module stats)
 - Segmenté Jour / Semaine / Mois / Saison ; total en kg ; barres par mois ; nombre de sorties/spots.
