@@ -460,7 +460,7 @@ fun Modifier.psycheCard(): Modifier {
             val contour = roundRectPath(0f, w, h, radiusPx)
             val halo1 = roundRectPath(halo1Px, w, h, radiusPx)
             val halo2 = roundRectPath(halo2Px, w, h, radiusPx)
-            val irise = Brush.sweepGradient(IRISE, center)
+            val irise = Brush.sweepGradient(IRISE, Offset(w / 2f, h / 2f))
             val disque = size.maxDimension + halo2Px
             onDrawBehind {
                 val p = phase.value
