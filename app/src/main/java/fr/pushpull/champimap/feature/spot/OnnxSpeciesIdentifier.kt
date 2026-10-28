@@ -34,16 +34,19 @@ import kotlin.math.roundToInt
  *     sur une image neutre, sortie = nombre d'espèces de labels.json, sans NaN). Échec → l'appelant
  *     remet l'ancien modèle (IaModel.rejectNew). Filet : si une session ne se charge pas alors que l'ancien
  *     modèle est encore là (bascule interrompue), retour automatique à l'ancien (journal).
- *  2. Prétraitement IDENTIQUE à l'entraînement : rotation EXIF, petit côté à 316 px,
- *     recadrage central 288 × 288, normalisation ImageNet (mean/std), ordre NCHW (RGB).
+ *  2. Prétraitement IDENTIQUE à l'entraînement : rotation EXIF, petit côté à inputSize × 1,1,
+ *     recadrage central inputSize × inputSize (lu dans labels.json), normalisation ImageNet (mean/std), ordre NCHW (RGB).
  *  3. Softmax sur les scores, puis les 5 meilleures espèces présentes dans le catalogue
  *     (les genres masqués — lichens, rouilles… — ne sont pas en base, donc jamais proposés).
  * Toute erreur est inscrite au journal (sans donnée personnelle) et donne une liste vide :
  * l'écran retombe alors silencieusement sur la liste des espèces.
  */
 object OnnxSpeciesIdentifier : SpeciesIdentifier {
-    /** Côté court après redimensionnement (Resize(316) de l'entraînement). */
-    private const val RESIZE_SHORT = 316
+    /**
+     * Côté court après redimensionnement, comme à l'entraînement : Resize(int(inputSize × 1,1)).
+     * 288 → 316 (modèle v1), 320 → 352 (modèle v2 et suivants) : lu dans labels.json.
+     */
+    private fun resizeShort(inputSize: Int): Int = (inputSize * 1.1).toInt()
 
     /** Nombre de propositions renvoyées. */
     private const val TOP = 5
@@ -184,8 +187,8 @@ object OnnxSpeciesIdentifier : SpeciesIdentifier {
     /** Photo → tenseur NCHW normalisé [1,3,taille,taille] ; null si la photo est illisible. */
     private fun preprocess(photo: File, l: IaLabels): FloatBuffer? {
         val size = l.inputSize
-        val bitmap = decodeOriented(photo, RESIZE_SHORT) ?: return null
-        val resized = resizeShortSide(bitmap, RESIZE_SHORT)
+        val bitmap = decodeOriented(photo, resizeShort(l.inputSize)) ?: return null
+        val resized = resizeShortSide(bitmap, resizeShort(l.inputSize))
         // Recadrage central (CenterCrop) : arrondi comme torchvision.
         val left = ((resized.width - size) / 2.0).roundToInt().coerceAtLeast(0)
         val top = ((resized.height - size) / 2.0).roundToInt().coerceAtLeast(0)
