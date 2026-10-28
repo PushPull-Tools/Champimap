@@ -102,8 +102,10 @@ fun ConnectOnboardingStep(onInstalled: () -> Unit, onLater: () -> Unit) {
             VSpace(6.dp)
             Text(
                 champiText(
-                    "Les cartes, la météo et les mises à jour passent par un petit module séparé nommé Champimap Connect, " +
-                        "qui ne connaît que des zones larges, jamais tes spots.",
+                    "Les cartes, la météo, les mises à jour et l'IA d'identification passent par un petit module séparé " +
+                        "nommé Champimap Connect, qui ne connaît que des zones larges, jamais tes spots.\n\n" +
+                        "L'IA d'identification, entraînée sur plus de 1 000 espèces de champignons, fonctionne " +
+                        "ensuite directement sur ton téléphone, sans Internet.",
                 ),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
@@ -172,7 +174,7 @@ fun ConnectDownloadStep(onContinue: () -> Unit) {
             Text(
                 champiText(
                     "Champimap Connect télécharge les cartes de tes départements, les urgences, la météo des zones larges " +
-                        "et le modèle d'identification par photo (≈ ${IaModel.APPROX_SIZE_MO} Mo).",
+                        "et l'IA d'identification par photo, entraînée sur plus de 1 000 espèces (≈ ${IaModel.APPROX_SIZE_MO} Mo).",
                 ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -319,7 +321,8 @@ fun ConnectScreen(nav: NavController) {
                             "Champimap Connect est un petit module séparé. Il reçoit seulement la liste de tes départements " +
                                 "et des zones météo larges (carrés d'environ 25 km), jamais la position de tes spots. " +
                                 "Il télécharge les cartes, les urgences, la météo, la liste des centres antipoison " +
-                                "et le modèle d'identification par photo, puis les remet à Champimap.",
+                                "et l'IA d'identification par photo (entraînée sur plus de 1 000 espèces), puis les remet à Champimap. " +
+                                "L'IA fonctionne ensuite sur ton téléphone, sans Internet.",
                         ),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface,
