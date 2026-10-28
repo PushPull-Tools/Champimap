@@ -49,7 +49,7 @@ enum class RevealMode { DISC, HOLE }
 @Composable
 fun transitionBrush(): Brush =
     if (LocalChampiStyle.current.psyche) {
-        Brush.radialGradient(listOf(ChampiColors.PsyViolet, ChampiColors.PsyNuit))
+        Brush.radialGradient(listOf(ChampiColors.PsyViolet, ChampiColors.PsyFond))
     } else {
         SolidColor(MaterialTheme.colorScheme.background)
     }
@@ -62,7 +62,7 @@ fun transitionContentColor(): Color =
 /** Couleur du liseré qui souligne le bord du cercle pendant l'animation. */
 @Composable
 fun transitionEdgeColor(): Color =
-    if (LocalChampiStyle.current.psyche) ChampiColors.PsyJaune else MaterialTheme.colorScheme.primary
+    if (LocalChampiStyle.current.psyche) ChampiColors.PsyOr else MaterialTheme.colorScheme.primary
 
 /**
  * Mémorise le centre de l'élément (coordonnées racine) : sert d'origine au cercle.

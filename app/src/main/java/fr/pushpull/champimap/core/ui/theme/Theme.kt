@@ -21,7 +21,7 @@ import fr.pushpull.champimap.core.settings.ThemeMode
  * Charte graphique Champimap (validée sur la maquette).
  * Clair : fond #F6F5F1, surface blanche, vert mousse #2F5D46, orange girolle #E08A2E, encre #1A1D1A.
  * Sombre : fond #121613, surface #1D231F, mousse #7FB89A, girolle #F0A24B.
- * Psyché : thème « Mushroom party » (fond animé géré par feature/fun).
+ * Psyché : thème « Mushroom party », nuit violette et effets de « trip » (fond animé géré par feature/bonus).
  */
 object ChampiColors {
     val Fond = Color(0xFFF6F5F1)
@@ -45,13 +45,22 @@ object ChampiColors {
     val TexteSombre = Color(0xFFE8ECE9)
     val GrisSombre = Color(0xFFA9B3AC)
 
-    // Psyché (Mushroom party)
+    // Psyché (Mushroom party) : couleurs vives des effets (fonds, bordures, accents).
     val PsyViolet = Color(0xFF7B2FF7)
     val PsyRose = Color(0xFFF107A3)
     val PsyOrange = Color(0xFFFF8A00)
     val PsyTurquoise = Color(0xFF2BD9A9)
     val PsyJaune = Color(0xFFF9F871)
     val PsyNuit = Color(0xFF1A0B2E)
+
+    // Psyché : surfaces « nuit violette » sur lesquelles on lit le texte (contraste ≥ 7:1 avec PsyTexte).
+    val PsyFond = Color(0xFF12081F)
+    val PsySurface = Color(0xFF22123A)
+    val PsySurfaceHaute = Color(0xFF2C1A48)
+    val PsySurfaceVariante = Color(0xFF34205A)
+    val PsyTexte = Color(0xFFF8F1FF)
+    val PsyTexteDoux = Color(0xFFD8C8F0)
+    val PsyOr = Color(0xFFFFD36E)
 }
 
 private val LightScheme = lightColorScheme(
@@ -76,14 +85,32 @@ private val DarkScheme = darkColorScheme(
     outline = Color(0xFF3A4740), error = Color(0xFFF2B8B5),
 )
 
+/*
+ * Thème Psyché : textes clairs sur surfaces nuit violette, accents or / rose / menthe.
+ * Toutes les surfaces Material (menus déroulants, boîtes de dialogue, champs, barres)
+ * sont définies : sinon Material 3 prend ses gris sombres par défaut et certains textes
+ * deviennent illisibles (ex. menu « Version du modèle » de l'écran Connect).
+ */
 private val PsycheScheme = darkColorScheme(
-    primary = ChampiColors.PsyJaune, onPrimary = ChampiColors.PsyNuit,
-    primaryContainer = ChampiColors.PsyTurquoise, onPrimaryContainer = ChampiColors.PsyNuit,
-    secondary = ChampiColors.PsyRose, onSecondary = Color.White,
-    background = ChampiColors.PsyViolet, onBackground = Color.White,
-    surface = Color(0xFFFFB3E6), onSurface = ChampiColors.PsyNuit,
-    surfaceVariant = Color(0xFFC9A7FF), onSurfaceVariant = Color(0xFF5B2A86),
-    outline = ChampiColors.PsyNuit, error = Color(0xFFB3261E),
+    primary = ChampiColors.PsyOr, onPrimary = ChampiColors.PsyNuit,
+    primaryContainer = Color(0xFF3D1F66), onPrimaryContainer = Color(0xFFF3E6FF),
+    secondary = Color(0xFFFF8AD0), onSecondary = ChampiColors.PsyNuit,
+    secondaryContainer = Color(0xFF4A1440), onSecondaryContainer = Color(0xFFFFE0F2),
+    tertiary = Color(0xFF7CF2D4), onTertiary = ChampiColors.PsyNuit,
+    tertiaryContainer = Color(0xFF0F4A40), onTertiaryContainer = Color(0xFFD2FFF2),
+    background = ChampiColors.PsyFond, onBackground = ChampiColors.PsyTexte,
+    surface = ChampiColors.PsySurface, onSurface = ChampiColors.PsyTexte,
+    surfaceVariant = ChampiColors.PsySurfaceVariante, onSurfaceVariant = ChampiColors.PsyTexteDoux,
+    surfaceTint = ChampiColors.PsyOr,
+    surfaceDim = ChampiColors.PsyFond, surfaceBright = Color(0xFF3A2858),
+    surfaceContainerLowest = Color(0xFF0E0618), surfaceContainerLow = Color(0xFF1C0F31),
+    surfaceContainer = ChampiColors.PsySurface, surfaceContainerHigh = ChampiColors.PsySurfaceHaute,
+    surfaceContainerHighest = ChampiColors.PsySurfaceVariante,
+    inverseSurface = ChampiColors.PsyTexte, inverseOnSurface = ChampiColors.PsyNuit, inversePrimary = Color(0xFF6A3FB0),
+    outline = Color(0xFF9A80C8), outlineVariant = Color(0xFF4A3470),
+    error = Color(0xFFFFB4AB), onError = Color(0xFF690005),
+    errorContainer = Color(0xFF93000A), onErrorContainer = Color(0xFFFFDAD6),
+    scrim = Color.Black,
 )
 
 /*
@@ -138,11 +165,12 @@ fun ChampimapTheme(settings: AppSettings, content: @Composable () -> Unit) {
         dark -> DarkScheme
         else -> LightScheme
     }
-    // En mode party, les émojis sont toujours actifs (c'est le principe de la blague).
+    // Les émojis ne dépendent que de leur réglage : le thème Psyché n'en ajoute plus
+    // (ils cassaient l'effet voulu et s'affichaient mal).
     val style = ChampiStyle(
         psyche = psyche,
         dark = dark,
-        emojis = settings.emojis || psyche,
+        emojis = settings.emojis,
         champignong = settings.champignong,
         easterUnlocked = settings.easterUnlocked,
     )

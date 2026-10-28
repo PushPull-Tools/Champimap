@@ -5,7 +5,7 @@ import fr.pushpull.champimap.core.ui.theme.LocalChampiStyle
 
 /*
  * Transformations des textes affichés selon les options d'affichage :
- *  - « Affichage avec émojis » (toujours actif en psyché) : un émoji lié au texte en fin de phrase ;
+ *  - « Affichage avec émojis » (réglage seul, le thème Psyché n'en ajoute plus) : un émoji lié au texte en fin de phrase ;
  *  - « Tu dis le g toi ? » : champignon(s) → champignong(s) ;
  *  - émoji devant les libellés du menu du bas (emojiFor).
  */

@@ -83,8 +83,6 @@
 - Limites connues : la carte MapLibre (GPU) est remplacée par une zone neutre ; « Sortie à plusieurs » reste sur
   l'étape « Autoriser le Bluetooth » (le QR code demande le vrai Bluetooth) ; la mesure « Marquer un spot » est
   montrée en tout début (positions simulées).
-- ⏳ Vu sur les captures : en thème Psyché, le menu déroulant « Version du modèle » (écran Connect) a un texte
-  presque invisible (texte sombre sur menu sombre).
 
 ## Avancement des téléchargements — compile, à tester
 - ✅ « C'est tout mêlé, les étapes ne sont pas représentatives » : Connect 0.4.0 (versionCode 4,
@@ -97,3 +95,17 @@
   surlignée, erreurs en rouge avec « Réessayer » (relance seulement la tâche en échec). Ancien Connect : ancien affichage.
 - ⏳ À vérifier sur téléphone : ordre et pourcentages sur une vraie synchro (3 départements + modèle), « Réessayer »
   d'une carte en échec.
+
+## Thème Psyché refait — compile, à tester
+- ✅ « Bizarre avec les émojis, moche, pas l'effet voulu » : le thème Psyché n'ajoute plus aucun émoji
+  (ils ne dépendent plus que du réglage « Affichage avec émojis ») ; aucun texte n'est déformé.
+- ✅ Effet « trip » sur les fonds uniquement : motif kaléidoscopique (6 branches) à déformation fractale qui tourne
+  et se transforme lentement, « respire » (~10 s), ondule (vagues concentriques), teintes qui glissent en douceur.
+  Android 13+ : shader AGSL ; Android 8–12 : version Canvas (taches de couleur qui dérivent, rosace, ondes).
+- ✅ Cartes : surface nuit violette quasi opaque qui respire, bordure irisée qui tourne lentement (~15 s) et halos
+  colorés autour (traînées). Texte clair sur fond sombre : contraste ≥ 4,5:1 (luminance du fond plafonnée).
+- ✅ Une seule boucle (2 min) pilote tout, rien n'est alloué à chaque image ; « Réduire les animations » : image fixe
+  colorée. Écrans de sécurité (SafetyTheme) toujours sans Psyché.
+- ✅ Menu déroulant « Version du modèle » (écran Connect) lisible : toutes les surfaces Material du thème
+  (menus, dialogues, champs) sont définies en nuit violette avec texte clair.
+- ⏳ À vérifier sur téléphone : rendu et fluidité du fond (Android 13+ et plus ancien), étirement du mode party.

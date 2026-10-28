@@ -132,12 +132,12 @@ fun ChampiOutlinedButton(text: String, onClick: () -> Unit, modifier: Modifier =
     ) { Text(champiText(text), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary) }
 }
 
-/** Carte (bloc blanc arrondi). En psyché : dégradé animé + bordure arc-en-ciel tournante. */
+/** Carte (bloc blanc arrondi). En psyché : surface nuit qui respire + bordure irisée tournante et halos. */
 @Composable
 fun ChampiCard(modifier: Modifier = Modifier, padding: PaddingValues = PaddingValues(16.dp), content: @Composable ColumnScope.() -> Unit) {
     val psyche = LocalChampiStyle.current.psyche
     if (psyche) {
-        // Fond pastel : texte et icônes en couleur « sur surface » du thème psyché (sinon blancs).
+        // Surface nuit violette : texte et icônes en couleur « sur surface » du thème psyché (clair, contrasté).
         CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
             Column(modifier.psycheCard().padding(padding), content = content)
         }
