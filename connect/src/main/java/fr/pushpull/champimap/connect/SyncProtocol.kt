@@ -87,6 +87,23 @@ import kotlinx.serialization.json.JsonPrimitive
  *                         "departements": ["33", …] } ]
  *     (champs en plus, ignorés si inutiles : "id", "city", "lat", "lon", "regions", "verified")
  *   contour_<code>.geojson : GeoJSON du département (dépôt france-geojson, tel quel).
+ *
+ * ---------------------------------------------------------------- Ajout : liste des tâches (format 2, versionCode 4)
+ * snapshot.format = 2 : snapshot.items décrit les VRAIES tâches, dans l'ordre réel d'exécution :
+ *   pour chaque département (contour, urgences, carte), puis « Général » (antipoison, météo, liste des
+ *   versions du modèle, modèle d'identification). Champs ajoutés à chaque élément (anciens champs conservés) :
+ *     "title"  : libellé court (« Carte », « Urgences les plus proches »…) ; "label" garde « Carte · Haute-Vienne » ;
+ *     "group"  : « 87 · Haute-Vienne » pour une tâche de département, « Général » sinon ;
+ *     "bytes"  : taille réelle en octets si connue (carte extraite, archive du modèle), sinon absent ;
+ *     "estimatedBytes" : poids de la tâche dans le pourcentage global (octets estimés).
+ *   Identifiants : contour_<code>, urgences_<code>, carte_<code>, antipoison, meteo, ia_versions, ia.
+ *   États : WAITING (en attente), RUNNING (en cours), DONE (fait), SKIPPED (ignoré : déjà à jour, raison
+ *   dans "detail"), ERROR (message court dans "detail"), CANCELLED (pas fait : annulation ou arrêt).
+ *   Une tâche qui n'a pas eu lieu n'est JAMAIS marquée DONE.
+ * snapshot.percent : pondéré par les octets estimés (carte ≈ 35 Mo, modèle = taille de l'archive publiée,
+ *   petites tâches = poids faible), monotone (ne recule jamais pendant une synchro).
+ * snapshot.step : libellé complet de la tâche en cours (« Carte · Haute-Vienne »), puis l'état final.
+ * Un ancien Connect (sans "format") reste lu par l'appli, qui garde alors l'ancien affichage.
  */
 object SyncProtocol {
     const val MAIN_PACKAGE = "fr.pushpull.champimap"
@@ -134,26 +151,45 @@ object SyncProtocol {
     val DEPT_REGEX = Regex("^(\\d{2}|2A|2B|97[1-6])$")
 
     val json = Json { ignoreUnknownKeys = true }
+
+    /** Format de l'instantané : 2 = liste des vraies tâches (title, group, bytes, CANCELLED). */
+    const val SNAPSHOT_FORMAT = 2
+    /** Nom du groupe des tâches qui ne dépendent pas d'un département. */
+    const val GROUP_GENERAL = "Général"
 }
 
-/** État d'un élément de la liste d'avancement. */
-enum class ItemStatus { WAITING, RUNNING, DONE, ERROR, SKIPPED }
+/**
+ * État d'une tâche. SKIPPED = ignorée car déjà à jour (jamais « faite ») ;
+ * CANCELLED = pas faite (annulation ou arrêt de la synchro). Un ancien Champimap lit CANCELLED comme WAITING.
+ */
+enum class ItemStatus { WAITING, RUNNING, DONE, ERROR, SKIPPED, CANCELLED }
 
-/** Nature d'un élément (sert à l'icône côté appli). */
+/** Nature d'une tâche (sert à l'icône côté appli). */
 enum class ItemKind { CONTOUR, URGENCES, CARTE, METEO, ANTIPOISON, IA }
 
-/** Un élément de la liste dynamique (« Carte · Haute-Vienne », « Urgences · Corrèze »…). */
+/** Une tâche de la synchro (« Carte » du groupe « 87 · Haute-Vienne »…). */
 data class SyncItem(
     val id: String,
     val kind: ItemKind,
+    /** Libellé complet, lisible seul (« Carte · Haute-Vienne ») : lu par les anciennes versions de l'appli. */
     val label: String,
     val departement: String? = null,
     val status: ItemStatus = ItemStatus.WAITING,
     val percent: Int = 0,
     val detail: String? = null,
-    /** Poids relatif dans le pourcentage global (une carte pèse bien plus qu'un contour). */
-    val weight: Int = 1,
-)
+    /** Poids dans le pourcentage global : octets estimés (une carte pèse bien plus qu'un contour). */
+    val weight: Long = 1,
+    /** Libellé court affiché sous le nom du groupe (« Carte »). */
+    val title: String = label,
+    /** Groupe d'affichage : « 87 · Haute-Vienne » ou « Général ». */
+    val group: String = SyncProtocol.GROUP_GENERAL,
+    /** Taille réelle en octets, si connue. */
+    val sizeBytes: Long? = null,
+) {
+    /** Vrai si la tâche n'est plus à faire (faite, déjà à jour ou en erreur). */
+    val isProcessed: Boolean
+        get() = status == ItemStatus.DONE || status == ItemStatus.SKIPPED || status == ItemStatus.ERROR
+}
 
 /** Avancement d'un département (moyenne pondérée de ses éléments). */
 data class DeptProgress(val code: String, val name: String, val percent: Int, val status: ItemStatus)
@@ -191,10 +227,25 @@ data class SyncSnapshot(
     /** Vrai si la synchro a donné quelque chose : au moins un fichier, ou un modèle déjà à jour. */
     val hasResult: Boolean get() = files.isNotEmpty() || ia?.upToDate == true
 
+    /**
+     * Ligne de résumé : « 3 tâches sur 9 · 42 % · Carte · Haute-Vienne ».
+     * La fin est la tâche en cours, sinon l'étape (« Préparation… », « Terminé »…).
+     */
+    fun summary(): String {
+        val done = items.count { it.isProcessed }
+        val tail = items.firstOrNull { it.status == ItemStatus.RUNNING }?.label ?: step
+        return buildString {
+            if (items.isNotEmpty()) append("$done tâche${if (done > 1) "s" else ""} sur ${items.size} · ")
+            append("$percent %")
+            if (tail.isNotBlank()) append(" · $tail")
+        }
+    }
+
     /** Sérialisation JSON (format lu par l'appli principale). */
     fun toJson(): String = SyncProtocol.json.encodeToString(JsonElement.serializer(), toElement())
 
     private fun toElement(): JsonObject = jsonObj(
+        "format" to SyncProtocol.SNAPSHOT_FORMAT,
         "syncId" to syncId, "running" to running, "finished" to finished, "percent" to percent,
         "step" to step, "startedAt" to startedAt, "endedAt" to endedAt,
         "departements" to JsonArray(departements.map {
@@ -204,6 +255,7 @@ data class SyncSnapshot(
             jsonObj(
                 "id" to it.id, "kind" to it.kind.name, "label" to it.label, "departement" to it.departement,
                 "status" to it.status.name, "percent" to it.percent, "detail" to it.detail,
+                "title" to it.title, "group" to it.group, "bytes" to it.sizeBytes, "estimatedBytes" to it.weight,
             )
         }),
         "files" to JsonArray(files.map { jsonObj("name" to it.name, "uri" to it.uri, "size" to it.size) }),
