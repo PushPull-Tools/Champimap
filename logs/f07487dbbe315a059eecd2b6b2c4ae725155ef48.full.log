@@ -1,0 +1,122 @@
+Starting a Gradle Daemon (subsequent builds will be faster)
+> Task :connect:buildKotlinToolingMetadata
+> Task :connect:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :connect:preBuild UP-TO-DATE
+> Task :connect:preReleaseBuild UP-TO-DATE
+> Task :connect:generateReleaseResValues
+> Task :connect:checkReleaseAarMetadata
+> Task :connect:mapReleaseSourceSetPaths
+> Task :connect:generateReleaseResources
+> Task :connect:packageReleaseResources
+> Task :connect:mergeReleaseResources
+> Task :connect:createReleaseCompatibleScreenManifests
+> Task :connect:extractDeepLinksRelease
+> Task :connect:parseReleaseLocalResources
+> Task :connect:processReleaseMainManifest
+> Task :connect:processReleaseManifest
+> Task :connect:javaPreCompileRelease
+> Task :connect:processReleaseManifestForPackage
+> Task :connect:extractProguardFiles
+> Task :connect:mergeReleaseJniLibFolders
+> Task :connect:mergeReleaseNativeLibs
+> Task :connect:processReleaseResources
+> Task :connect:checkReleaseDuplicateClasses
+
+> Task :connect:stripReleaseDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so.
+
+> Task :connect:mergeReleaseArtProfile
+> Task :connect:mergeReleaseStartupProfile
+> Task :connect:extractReleaseNativeSymbolTables
+> Task :connect:mergeReleaseShaders
+> Task :connect:mergeReleaseNativeDebugMetadata NO-SOURCE
+> Task :connect:compileReleaseShaders NO-SOURCE
+> Task :connect:generateReleaseAssets UP-TO-DATE
+> Task :connect:mergeReleaseAssets
+> Task :connect:compressReleaseAssets
+> Task :connect:extractReleaseVersionControlInfo
+> Task :connect:validateSigningRelease
+> Task :connect:writeReleaseAppMetadata
+> Task :connect:writeReleaseSigningConfigVersions
+> Task :connect:optimizeReleaseResources
+> Task :connect:compileReleaseKotlin
+> Task :connect:compileReleaseJavaWithJavac NO-SOURCE
+> Task :connect:generateReleaseLintVitalReportModel
+> Task :connect:mergeReleaseGeneratedProguardFiles
+> Task :connect:processReleaseJavaRes
+> Task :connect:expandReleaseArtProfileWildcards
+> Task :connect:mergeReleaseJavaResource
+> Task :connect:lintVitalAnalyzeRelease
+> Task :connect:lintVitalReportRelease
+> Task :connect:lintVitalRelease
+> Task :connect:minifyReleaseWithR8
+> Task :connect:compileReleaseArtProfile
+> Task :connect:packageRelease
+> Task :connect:createReleaseApkListingFileRedirect
+> Task :connect:assembleRelease
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793202125499.json
+
+BUILD SUCCESSFUL in 1m 21s
+44 actionable tasks: 44 executed
+> Task :app:buildKotlinToolingMetadata
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preReleaseBuild UP-TO-DATE
+> Task :app:generateReleaseBuildConfig
+> Task :app:checkReleaseAarMetadata
+> Task :app:generateReleaseResValues FROM-CACHE
+> Task :app:mapReleaseSourceSetPaths
+> Task :app:generateReleaseResources
+> Task :app:packageReleaseResources
+> Task :app:createReleaseCompatibleScreenManifests
+> Task :app:extractDeepLinksRelease FROM-CACHE
+> Task :app:parseReleaseLocalResources
+> Task :app:processReleaseMainManifest
+> Task :app:processReleaseManifest
+> Task :app:extractProguardFiles
+> Task :app:javaPreCompileRelease
+> Task :app:mergeReleaseJniLibFolders
+> Task :app:mergeReleaseResources
+> Task :app:mergeReleaseNativeLibs
+> Task :app:processReleaseManifestForPackage
+> Task :app:checkReleaseDuplicateClasses
+
+> Task :app:stripReleaseDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so, libdatastore_shared_counter.so, libmaplibre.so, libonnxruntime.so, libonnxruntime4j_jni.so.
+
+> Task :app:mergeReleaseArtProfile
+> Task :app:extractReleaseNativeSymbolTables
+> Task :app:mergeReleaseStartupProfile
+> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
+> Task :app:mergeReleaseShaders
+> Task :app:compileReleaseShaders NO-SOURCE
+> Task :app:generateReleaseAssets UP-TO-DATE
+> Task :app:mergeReleaseAssets
+> Task :app:extractReleaseVersionControlInfo
+> Task :app:validateSigningRelease
+> Task :app:writeReleaseAppMetadata
+> Task :app:writeReleaseSigningConfigVersions
+> Task :app:processReleaseResources
+> Task :app:compressReleaseAssets
+> Task :app:convertLinkedResourcesToProtoRelease
+> Task :app:kspReleaseKotlin
+
+> Task :app:compileReleaseKotlin FAILED
+e: file:///home/runner/work/Champimap/Champimap/app/src/main/java/fr/pushpull/champimap/feature/bonus/PsycheEffects.kt:463:52 Unresolved reference 'center'.
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_5-1793202204919.json
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileReleaseKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 22s
+34 actionable tasks: 32 executed, 2 from cache
