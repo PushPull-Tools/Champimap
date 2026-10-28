@@ -9,7 +9,10 @@ import fr.pushpull.champimap.feature.connect.SyncItem
 import fr.pushpull.champimap.feature.connect.SyncPhase
 import fr.pushpull.champimap.feature.connect.SyncSnapshot
 import fr.pushpull.champimap.feature.connect.SyncUi
+import fr.pushpull.champimap.core.AppGraph
+import fr.pushpull.champimap.nav.Routes
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -78,7 +81,13 @@ class Parcours1PremierLancementTest : CaptureHarness("1-premier-lancement") {
             compose.runOnIdle { sync.value = fakeSync() }
             settle()
             capture("06-preparation-cartes", "Préparation des cartes")
-            click("Continuer, ça finit en arrière-plan")
+            // Fin du premier lancement comme « Continuer, ça finit en arrière-plan » (réglage + Accueil).
+            // Fait directement : sous Robolectric, la reprise de la coroutine de l'écran après DataStore
+            // n'a pas lieu sur le fil principal et la navigation est refusée.
+            runBlocking { AppGraph.settings.setOnboardingDone(true) }
+            compose.runOnIdle {
+                CaptureHost.nav!!.navigate(Routes.HOME) { popUpTo(Routes.ONBOARDING) { inclusive = true } }
+            }
             waitRoute("home")
         }
 

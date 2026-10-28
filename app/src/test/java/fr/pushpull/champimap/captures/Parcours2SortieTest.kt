@@ -131,7 +131,7 @@ class Parcours2SortieTest : CaptureHarness("2-sortie") {
             go(Routes.spot(CaptureData.SPOT_FICHE, id))
             waitText("Girolle")
             // Déplie la ligne des girolles (la ligne des cèpes reste repliée).
-            click("Girolle", last = true)
+            clickExact("Jeune · Ferme")
             scrollDown(900f)
             capture("11-recolte", "Récolte : 2 espèces (une dépliée)")
         }
@@ -149,6 +149,9 @@ class Parcours2SortieTest : CaptureHarness("2-sortie") {
             runBlocking { AppGraph.db.sortieDao().end(id, System.currentTimeMillis()) }
             waitRoute("fin", 15_000)
             settle(8)
+            // Un toucher saute à l'état final des animations (XP de la sortie, succès débloqués).
+            click("Sortie terminée")
+            settle(4)
             captureLong("13-fin-sortie", "Fin de sortie (récap, XP, succès)", maxPages = 3)
         }
 

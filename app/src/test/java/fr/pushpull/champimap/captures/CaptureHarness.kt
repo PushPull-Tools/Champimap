@@ -274,10 +274,12 @@ abstract class CaptureHarness(private val parcours: String) {
         if (nodes.isEmpty()) return false
         val i = nodes.indices.maxBy { nodes[it].boundsInRoot.height * nodes[it].boundsInRoot.width }
         val range = nodes[i].config[SemanticsProperties.VerticalScrollAxisRange]
-        if (range.value() >= range.maxValue() - 1f) return false
+        val before = range.value()
+        if (before >= range.maxValue() - 1f) return false
         all[i].performSemanticsAction(SemanticsActions.ScrollBy) { it(0f, px) }
         settle()
-        return true
+        // Rien n'a bougé (déjà en bas) : pas de capture en double.
+        return range.value() > before + 1f
     }
 
     /** Remonte tout en haut de la plus grande zone défilante. */
