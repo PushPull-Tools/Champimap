@@ -91,9 +91,10 @@ fun ConnectResumeEffect() {
 /**
  * Renvoie une fonction qui lance la synchro dans Champimap Connect et traite son résultat.
  * @param refreshMaps true = « Actualiser les cartes » (tout retélécharger) ; false = seulement ce qui manque.
+ * @param chooseIa true = seulement le modèle d'identification, version choisie dans Connect.
  */
 @Composable
-fun rememberConnectSync(refreshMaps: Boolean = false): () -> Unit {
+fun rememberConnectSync(refreshMaps: Boolean = false, chooseIa: Boolean = false): () -> Unit {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -106,7 +107,7 @@ fun rememberConnectSync(refreshMaps: Boolean = false): () -> Unit {
                 return@launch
             }
             ConnectClient.ensureListening(context)
-            val intent = ConnectClient.buildSyncIntent(context, refreshMaps = refreshMaps)
+            val intent = ConnectClient.buildSyncIntent(context, refreshMaps = refreshMaps, chooseIa = chooseIa)
             ConnectClient.markStarted()
             try {
                 launcher.launch(intent)
@@ -175,6 +176,7 @@ private val KIND_LABELS = listOf(
     ItemKind.CARTE to "Cartes",
     ItemKind.METEO to "Météo de tes sorties",
     ItemKind.ANTIPOISON to "Centres antipoison",
+    ItemKind.IA to "Modèle d'identification",
 )
 
 /** État combiné d'une famille d'éléments. */
@@ -247,7 +249,7 @@ fun SyncProgressBlock(ui: SyncUi) {
         KIND_LABELS.forEach { (kind, label) ->
             val ofKind = items.filter { it.kind == kind }
             // Météo et antipoison n'apparaissent que si Connect les traite.
-            if (ofKind.isEmpty() && (kind == ItemKind.METEO || kind == ItemKind.ANTIPOISON)) return@forEach
+            if (ofKind.isEmpty() && (kind == ItemKind.METEO || kind == ItemKind.ANTIPOISON || kind == ItemKind.IA)) return@forEach
             val done = ofKind.count { it.status == ItemStatus.DONE || it.status == ItemStatus.SKIPPED }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 StatusIcon(groupStatus(ofKind, ui.phase))
@@ -280,6 +282,9 @@ fun SyncProgressBlock(ui: SyncUi) {
         }
     }
 }
+
+/** Rappel affiché sous les boutons de synchro (l'appli n'a pas accès à l'état du réseau : texte seul). */
+const val WIFI_ADVICE = "Conseillé : en Wi-Fi (cartes et modèle d'identification volumineux)"
 
 /** « 26/10/2026 à 14 h 05 », ou « jamais ». */
 fun formatSyncDate(ms: Long): String {

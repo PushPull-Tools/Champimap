@@ -63,8 +63,8 @@ android {
         buildConfig = true
     }
     lint { abortOnError = false }
-    // Modèle d'identification (assets/ia/champi-ia.onnx, ~35 Mo) : stocké tel quel dans l'APK,
-    // pour ne pas le décompresser en mémoire et pouvoir lire sa taille (openFd).
+    // Compatibilité : si un modèle se trouve encore dans assets/ia/ (compilation locale ancienne),
+    // il est stocké tel quel (lecture de sa taille par openFd). Normalement livré par Champimap Connect.
     androidResources { noCompress += "onnx" }
     packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
 }

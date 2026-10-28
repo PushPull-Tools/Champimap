@@ -1,6 +1,7 @@
 package fr.pushpull.champimap.connect.sync
 
 import android.content.Intent
+import fr.pushpull.champimap.connect.IaRequest
 import fr.pushpull.champimap.connect.SyncProtocol
 import fr.pushpull.champimap.connect.SyncRequest
 import fr.pushpull.champimap.connect.WeatherZoneRequest
@@ -18,7 +19,7 @@ data class ParsedRequest(val request: SyncRequest, val rejected: List<String>, v
     /** Vrai s'il n'y a rien à télécharger. */
     val isEmpty: Boolean
         get() = request.departements.isEmpty() && request.mapDepartements.isEmpty() &&
-            request.zones.isEmpty() && !request.poisonCenters
+            request.zones.isEmpty() && !request.poisonCenters && request.ia == null
 }
 
 object RequestParser {
@@ -32,7 +33,21 @@ object RequestParser {
         val zones = intent.strings(SyncProtocol.EXTRA_WEATHER_ZONES).mapNotNull { zone(it, rejected) }
         val poison = intent.getBooleanExtra(SyncProtocol.EXTRA_POISON_CENTERS, false)
         val zoom = intent.getIntExtra(SyncProtocol.EXTRA_MAP_MAX_ZOOM, SyncProtocol.MAP_MAX_ZOOM_DEFAULT).coerceIn(10, 15)
-        return ParsedRequest(SyncRequest(depts, maps, zones, poison), rejected, zoom)
+        val ia = iaRequest(intent)
+        return ParsedRequest(SyncRequest(depts, maps, zones, poison, ia), rejected, zoom)
+    }
+
+    /** Demande « modèle d'identification » (null si non demandée). Versions invalides ignorées. */
+    private fun iaRequest(intent: Intent): IaRequest? {
+        if (!intent.getBooleanExtra(SyncProtocol.EXTRA_INCLUDE_IA, false)) return null
+        fun version(name: String): String? =
+            intent.getStringExtra(name)?.trim()?.takeIf { SyncProtocol.IA_VERSION_REGEX.matches(it) }
+        return IaRequest(
+            installed = version(SyncProtocol.EXTRA_IA_VERSION_INSTALLED),
+            force = intent.getBooleanExtra(SyncProtocol.EXTRA_IA_FORCE, false),
+            wanted = version(SyncProtocol.EXTRA_IA_VERSION_WANTED),
+            choose = intent.getBooleanExtra(SyncProtocol.EXTRA_IA_CHOOSE, false),
+        )
     }
 
     /** Liste de textes : tableau (String[]) ou ArrayList<String>. */

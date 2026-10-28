@@ -7,7 +7,7 @@ import java.util.Locale
 
 /*
  * Catalogue étendu par le modèle d'identification :
- *  - lecture des espèces de assets/ia/especes_ia.json absentes de species.json
+ *  - lecture des espèces de especes_ia.json du modèle (IaAssets) absentes de species.json
  *    (comestibilité « non renseignée », jamais proposées comme comestibles) ;
  *  - filtre par genre : lichens, rouilles, charbons, oïdiums, moisissures et parasites de plantes
  *    restent dans le modèle mais ne sont ni ajoutés au catalogue ni proposés à l'écran ;

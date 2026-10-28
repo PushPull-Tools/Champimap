@@ -95,7 +95,7 @@ fun ParametresScreen(nav: NavController) {
                 BattueEditor()
             }
             CollapsibleSection("Données", Sections.DONNEES in s.collapsedSections, { toggle(Sections.DONNEES) }) {
-                LinkRow("Champimap Connect", "Cartes, météo et urgences : état du module et synchronisation.") { nav.navigate(Routes.CONNECT) }
+                LinkRow("Champimap Connect", "Cartes, météo, urgences et modèle d'identification : état du module et synchronisation.") { nav.navigate(Routes.CONNECT) }
                 LinkRow("Sauvegarde et export", "Copie complète (chiffrée ou non), restauration, export CSV et corbeille.") { nav.navigate(Routes.SAUVEGARDE) }
                 LinkRow("Journal", "Uniquement ce qui n'a pas fonctionné, sans aucune position ni nom de spot.") { nav.navigate(Routes.JOURNAL) }
                 LinkRow("Preuves « hors ligne »", "Les autorisations réellement accordées, lues en direct sur le téléphone.") { nav.navigate(Routes.PREUVES) }

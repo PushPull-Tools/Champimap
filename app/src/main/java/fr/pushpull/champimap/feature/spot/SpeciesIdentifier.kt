@@ -6,9 +6,9 @@ import java.io.File
 
 /*
  * Identification d'une espèce à partir d'une photo.
- * Si le modèle embarqué est livré dans les assets (assets/ia/, ajouté par la CI),
+ * Si un modèle est disponible (livré par Champimap Connect dans filesDir/ia/, ou ancien modèle des assets),
  * OnnxSpeciesIdentifier propose 5 espèces ; sinon NoModelIdentifier ne propose rien
- * et l'écran ouvre directement la liste.
+ * et l'écran ouvre directement la liste (avec un lien vers Champimap Connect).
  */
 
 /** Propose des espèces pour une photo, avec un score de confiance entre 0 et 1 (meilleur en premier). */
@@ -21,7 +21,9 @@ object NoModelIdentifier : SpeciesIdentifier {
     override suspend fun identify(photo: File): List<Pair<Species, Float>> = emptyList()
 }
 
-/** Identificateur utilisé par l'appli : le modèle ONNX s'il est présent dans l'APK, sinon aucun. */
-val CurrentIdentifier: SpeciesIdentifier by lazy {
-    if (OnnxSpeciesIdentifier.isAvailable(AppGraph.appContext)) OnnxSpeciesIdentifier else NoModelIdentifier
-}
+/**
+ * Identificateur utilisé par l'appli : le modèle ONNX s'il est disponible, sinon aucun.
+ * Réévalué à chaque lecture : un modèle reçu de Connect est utilisé sans redémarrer l'appli.
+ */
+val CurrentIdentifier: SpeciesIdentifier
+    get() = if (OnnxSpeciesIdentifier.isAvailable(AppGraph.appContext)) OnnxSpeciesIdentifier else NoModelIdentifier

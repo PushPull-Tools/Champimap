@@ -1,8 +1,11 @@
 package fr.pushpull.champimap.connect.net
 
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
+import java.io.InterruptedIOException
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -10,7 +13,8 @@ import java.net.URL
  * Accès réseau minimal de Champimap Connect : HttpURLConnection uniquement (aucune dépendance HTTP).
  * - délais courts, nouvelles tentatives sur les erreurs passagères (réseau, 429, 5xx) ;
  * - requêtes « Range » pour lire une petite partie d'une très grosse archive de cartes ;
- * - taille maximale de réponse pour ne jamais saturer la mémoire du téléphone.
+ * - taille maximale de réponse pour ne jamais saturer la mémoire du téléphone ;
+ * - téléchargement en flux reprenable (fichier .part + « Range: bytes=N- ») pour les gros fichiers.
  * Toutes les fonctions sont bloquantes : à appeler depuis Dispatchers.IO.
  */
 
@@ -26,10 +30,14 @@ object Http {
     /** Taille maximale d'une réponse « normale » (JSON, GeoJSON) : 32 Mo. */
     const val MAX_BODY = 32L * 1024 * 1024
 
-    /** GET : renvoie le corps de la réponse (erreur si code ≠ 2xx). */
-    fun get(url: String, maxBytes: Long = MAX_BODY): ByteArray = retry {
+    /** Nombre de tentatives d'un téléchargement reprenable (chaque reprise repart de la fin du .part). */
+    private const val DOWNLOAD_ATTEMPTS = 6
+
+    /** GET : renvoie le corps de la réponse (erreur si code ≠ 2xx). `headers` : en-têtes en plus. */
+    fun get(url: String, maxBytes: Long = MAX_BODY, headers: Map<String, String> = emptyMap()): ByteArray = retry {
         val c = open(url, "GET")
         try {
+            headers.forEach { (k, v) -> c.setRequestProperty(k, v) }
             checkOk(c, url)
             readAll(c.inputStream, maxBytes)
         } finally {
@@ -75,6 +83,86 @@ object Http {
                 throw HttpException(code, "Le serveur de cartes n'accepte pas la lecture partielle (code $code)")
             }
             readAll(c.inputStream, length)
+        } finally {
+            c.disconnect()
+        }
+    }
+
+    /**
+     * Télécharge `url` dans `part`, en reprenant là où le fichier s'est arrêté (requête Range).
+     *  - 206 + Content-Range cohérent : ajout à la fin du fichier ;
+     *  - 200 (le serveur ignore Range) : on repart de zéro ;
+     *  - 416 : le fichier est déjà complet (si sa taille vaut `expectedSize`).
+     * Les coupures réseau sont reprises automatiquement (6 tentatives, la suite seulement).
+     * `onProgress(octetsReçus, total)` est appelé au fil de l'eau. Interrompable (fil interrompu → arrêt).
+     * @param expectedSize taille attendue (0 = inconnue) ; un fichier plus gros est supprimé.
+     */
+    fun downloadTo(url: String, part: File, expectedSize: Long, onProgress: (Long, Long) -> Unit) {
+        part.parentFile?.mkdirs()
+        if (expectedSize > 0 && part.length() > expectedSize) part.delete()
+        var last: IOException? = null
+        for (attempt in 1..DOWNLOAD_ATTEMPTS) {
+            if (expectedSize > 0 && part.length() == expectedSize) return // déjà complet
+            try {
+                downloadOnce(url, part, expectedSize, onProgress)
+                return
+            } catch (e: HttpException) {
+                if (e.code != 429 && e.code < 500) throw e
+                last = e
+            } catch (e: IOException) {
+                if (Thread.currentThread().isInterrupted) throw e // annulation : pas de nouvelle tentative
+                last = e
+            }
+            if (attempt < DOWNLOAD_ATTEMPTS) Thread.sleep(minOf(2_000L * attempt, 10_000L))
+        }
+        throw last ?: IOException("Erreur réseau")
+    }
+
+    /** Une tentative de téléchargement (reprise à partir de la taille actuelle de `part`). */
+    private fun downloadOnce(url: String, part: File, expectedSize: Long, onProgress: (Long, Long) -> Unit) {
+        val start = if (part.exists()) part.length() else 0L
+        val c = open(url, "GET")
+        try {
+            if (start > 0) c.setRequestProperty("Range", "bytes=$start-")
+            val code = c.responseCode
+            if (code == 416 && start > 0 && (expectedSize <= 0 || start == expectedSize)) return
+            val append = when {
+                code == HttpURLConnection.HTTP_PARTIAL &&
+                    (c.getHeaderField("Content-Range") ?: "").startsWith("bytes $start-") -> true
+                code == HttpURLConnection.HTTP_PARTIAL -> {
+                    // Morceau inattendu : on jette le partiel et on recommence proprement.
+                    part.delete()
+                    throw IOException("Reprise du téléchargement incohérente")
+                }
+                code in 200..299 -> false
+                else -> {
+                    runCatching { c.errorStream?.close() }
+                    throw HttpException(code, "Erreur $code sur ${URL(url).host}")
+                }
+            }
+            var done = if (append) start else 0L
+            val length = c.contentLengthLong
+            val total = if (expectedSize > 0) expectedSize else if (length > 0) done + length else 0L
+            c.inputStream.use { ins ->
+                FileOutputStream(part, append).use { out ->
+                    val buf = ByteArray(64 * 1024)
+                    var lastReport = 0L
+                    while (true) {
+                        if (Thread.currentThread().isInterrupted) throw InterruptedIOException("Téléchargement annulé")
+                        val n = ins.read(buf)
+                        if (n < 0) break
+                        out.write(buf, 0, n)
+                        done += n
+                        if (total > 0 && done > total) throw IOException("Fichier plus gros que prévu")
+                        if (done - lastReport >= 256 * 1024) {
+                            lastReport = done
+                            onProgress(done, total)
+                        }
+                    }
+                }
+            }
+            onProgress(done, total)
+            if (expectedSize > 0 && done != expectedSize) throw IOException("Téléchargement incomplet")
         } finally {
             c.disconnect()
         }

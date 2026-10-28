@@ -66,9 +66,10 @@ private const val RAPPEL_SECURITE = "En cas de doute, fais vérifier par un phar
 
 /**
  * « Complète ta cueillette » : choix d'une espèce pour la récolte `recolteId`.
- * Après « Trouvé ! → Photo » (photo « en attente » rattachée à la récolte) et si le modèle est livré :
+ * Après « Trouvé ! → Photo » (photo « en attente » rattachée à la récolte) et si le modèle est disponible :
  * écran de résultat de l'IA (IaResultsPanel) avec ses 5 pistes ; « Aucune ne correspond » ou une
  * analyse sans résultat (erreur comprise) ouvrent la liste complète, la photo restant en haut.
+ * Sans modèle : liste directe, avec une ligne d'info et un bouton vers l'écran Champimap Connect.
  * Liste : recherche, filtres, « Récentes », « De saison » et toutes les espèces avec l'index A–Z.
  */
 @Composable
@@ -90,7 +91,9 @@ fun EspecesPickerScreen(nav: NavController, recolteId: String) {
     var photoPath by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(pendingPhoto?.path) { pendingPhoto?.path?.let { photoPath = it } }
 
-    val hasModel = remember { CurrentIdentifier !is NoModelIdentifier }
+    // Réévalué quand un modèle arrive (ou change) par Champimap Connect.
+    val iaRevision by IaAssets.revision.collectAsState()
+    val hasModel = remember(iaRevision) { CurrentIdentifier !is NoModelIdentifier }
     // Résultat de l'analyse, rattaché à la photo analysée (évite d'afficher celui d'une autre photo).
     // Toute erreur donne une liste vide (repli silencieux sur la liste).
     val analysis by produceState<Pair<String?, List<Pair<Species, Float>>>?>(initialValue = null, photoPath, hasModel) {
@@ -144,7 +147,7 @@ fun EspecesPickerScreen(nav: NavController, recolteId: String) {
             header = {
                 if (path != null) {
                     val message = when {
-                        !hasModel -> "Identification automatique non disponible : choisis l'espèce dans la liste."
+                        !hasModel -> "Identification par photo : télécharge le modèle avec Champimap Connect (≈ ${IaModel.APPROX_SIZE_MO} Mo)."
                         list.isNullOrEmpty() -> "Pas de piste de l'IA pour cette photo : choisis l'espèce dans la liste."
                         else -> "Choisis l'espèce dans la liste."
                     }
@@ -152,6 +155,7 @@ fun EspecesPickerScreen(nav: NavController, recolteId: String) {
                         photo = File(path),
                         message = message,
                         onShowProposals = if (hasModel && !list.isNullOrEmpty()) ({ showList = false }) else null,
+                        onOpenConnect = if (!hasModel) ({ nav.navigate(Routes.CONNECT) }) else null,
                     )
                 }
             },
@@ -161,10 +165,11 @@ fun EspecesPickerScreen(nav: NavController, recolteId: String) {
 
 /**
  * Bandeau du haut de la liste après « Trouvé ! → Photo » : vignette de la photo, info FIXE
- * (pas de message éphémère) et, s'il y a des pistes de l'IA, un lien pour les revoir.
+ * (pas de message éphémère) et, s'il y a des pistes de l'IA, un lien pour les revoir ;
+ * sans modèle, un bouton vers l'écran Champimap Connect.
  */
 @Composable
-private fun PendingPhotoHeader(photo: File, message: String, onShowProposals: (() -> Unit)?) {
+private fun PendingPhotoHeader(photo: File, message: String, onShowProposals: (() -> Unit)?, onOpenConnect: (() -> Unit)? = null) {
     ChampiCard(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 10.dp), padding = PaddingValues(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(
@@ -183,6 +188,11 @@ private fun PendingPhotoHeader(photo: File, message: String, onShowProposals: ((
                 if (onShowProposals != null) {
                     TextButton(onClick = onShowProposals, contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)) {
                         Text(champiText("Revoir les pistes de l'IA"))
+                    }
+                }
+                if (onOpenConnect != null) {
+                    TextButton(onClick = onOpenConnect, contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)) {
+                        Text(champiText("Ouvrir Champimap Connect"))
                     }
                 }
             }

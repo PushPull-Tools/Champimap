@@ -39,10 +39,10 @@ import java.io.File
 
 /*
  * Photos des fiches espèces (1 à 3 par espèce), cherchées dans cet ordre :
- *  1. assets/ia/fiches.json + assets/ia/fiches/ (livrées avec le modèle d'IA, ajoutées par la CI) ;
+ *  1. fiches.json + fiches/ du modèle d'IA (IaAssets : livrées par Champimap Connect, sinon assets de l'APK) ;
  *  2. filesDir/fiches.json + filesDir/fiches/ (photos livrées plus tard dans le dossier privé).
  * fiches.json : { "<id espèce>": [ { "fichier": "...", "licence": "...", "credit": "..." }, … ] }
- * Chaque fiches.json est lu une seule fois puis gardé en mémoire. Sans photo : aucun affichage.
+ * Chaque fiches.json est lu une seule fois (par version du modèle) puis gardé en mémoire. Sans photo : aucun affichage.
  */
 
 /**
@@ -54,34 +54,32 @@ class FichePhoto(val model: Any, val licence: String?, val credit: String?)
 /** Nombre maximal de photos par fiche. */
 private const val MAX_PHOTOS = 3
 
-/** Adresse Coil des fichiers d'assets. */
-private const val ASSET_URI = "file:///android_asset/"
-
 /** Index des photos lu une fois : fiches.json décodé et liste des fichiers présents. */
 private class FicheIndex(val json: JSONObject, val files: Set<String>)
 
 @Volatile private var assetIndex: FicheIndex? = null
-@Volatile private var assetIndexLoaded = false
+/** Version du modèle (IaAssets.revision) correspondant à assetIndex (-1 = pas encore lu). */
+@Volatile private var assetIndexRevision = -1
 
 /** Texte d'un champ JSON, null si absent, vide ou « null ». */
 private fun JSONObject.text(name: String): String? =
     optString(name, "").trim().takeIf { it.isNotEmpty() && it != "null" }
 
-/** Index des photos livrées dans les assets (null si absentes). Lu une seule fois. */
+/** Index des photos livrées avec le modèle (null si absentes). Relu à chaque nouvelle version du modèle. */
 private fun assetFiches(context: Context): FicheIndex? {
-    if (assetIndexLoaded) return assetIndex
+    val revision = IaAssets.revision.value
+    if (assetIndexRevision == revision) return assetIndex
     synchronized(FicheIndex::class.java) {
-        if (!assetIndexLoaded) {
+        if (assetIndexRevision != revision) {
             assetIndex = try {
                 IaAssets.readText(context, IaAssets.FICHES_JSON)?.let { text ->
-                    val files = context.assets.list(IaAssets.FICHES_DIR)?.toSet() ?: emptySet()
-                    FicheIndex(JSONObject(text), files)
+                    FicheIndex(JSONObject(text), IaAssets.list(context, IaAssets.FICHES_DIR))
                 }
             } catch (e: Exception) {
-                ErrorLogger.log("Espèces", "Lecture des photos de fiches (assets) impossible", e)
+                ErrorLogger.log("Espèces", "Lecture des photos de fiches du modèle impossible", e)
                 null
             }
-            assetIndexLoaded = true
+            assetIndexRevision = revision
         }
     }
     return assetIndex
@@ -108,12 +106,12 @@ private fun photosFrom(arr: JSONArray, speciesId: String, resolve: (String) -> A
  * Une photo sans fichier présent est ignorée ; toute erreur de lecture donne une liste vide.
  */
 fun loadFichePhotos(context: Context, speciesId: String): List<FichePhoto> {
-    // 1. Photos livrées avec le modèle (assets/ia/fiches/).
+    // 1. Photos livrées avec le modèle (fiches/ du modèle).
     assetFiches(context)?.let { idx ->
         val arr = idx.json.optJSONArray(speciesId)
         if (arr != null) {
             val list = photosFrom(arr, speciesId) { name ->
-                if (name in idx.files) "$ASSET_URI${IaAssets.FICHES_DIR}/$name" else null
+                if (name in idx.files) IaAssets.imageModel(context, "${IaAssets.FICHES_DIR}/$name") else null
             }
             if (list.isNotEmpty()) return list
         }
@@ -131,7 +129,7 @@ fun loadFichePhotos(context: Context, speciesId: String): List<FichePhoto> {
     }
 }
 
-/** Nombre total de photos de fiches livrées dans les assets (0 si aucune). */
+/** Nombre total de photos de fiches livrées avec le modèle (0 si aucune). */
 fun countAssetFichePhotos(context: Context): Int = assetFiches(context)?.files?.size ?: 0
 
 /**

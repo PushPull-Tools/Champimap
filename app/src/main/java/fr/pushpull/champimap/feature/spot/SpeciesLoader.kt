@@ -23,11 +23,12 @@ import java.io.FileNotFoundException
 /*
  * Chargement du catalogue des espèces dans la table `species` :
  *  1. assets/species.json (fiches complètes) : copié UNIQUEMENT si la table est vide ;
- *  2. assets/ia/especes_ia.json (espèces connues du modèle d'IA) : ajoutées sans rien écraser
+ *  2. especes_ia.json du modèle d'IA (IaAssets : Connect, sinon APK) : ajoutées sans rien écraser
  *     (« insert ignore »), comestibilité non renseignée, genres masqués exclus (lichens, rouilles…).
  * L'étape 2 est rejouée à chaque démarrage où la VERSION du catalogue change (numéro + empreinte
  * du fichier du modèle, mémorisés dans un petit DataStore propre au module) : idempotente, sans
- * changement de schéma Room. Appelé au démarrage (ChampimapApp) et à l'ouverture des listes.
+ * changement de schéma Room. Appelé au démarrage (ChampimapApp), à l'ouverture des listes et après
+ * l'arrivée d'un nouveau modèle (IaAssets.revision change : le chargement est rejoué).
  */
 
 /** Une espèce telle qu'écrite dans species.json (champs facultatifs nullables). */
@@ -61,18 +62,19 @@ object SpeciesLoader {
     private val mutex = Mutex() // évite deux chargements simultanés (démarrage + catalogue)
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
-    /** Vrai une fois le travail fait pendant ce lancement de l'appli (appels suivants immédiats). */
-    @Volatile private var done = false
+    /** Version du modèle (IaAssets.revision) déjà traitée pendant ce lancement (-1 = rien de fait). */
+    @Volatile private var doneRevision = -1
 
     suspend fun ensureLoaded(context: Context) {
-        if (done) return
+        if (doneRevision == IaAssets.revision.value) return
         withContext(Dispatchers.IO) { load(context.applicationContext) }
     }
 
     /** Lecture des fichiers et insertion en base (sur le fil d'entrées-sorties). */
     private suspend fun load(context: Context) {
         mutex.withLock {
-            if (done) return@withLock
+            val revision = IaAssets.revision.value
+            if (doneRevision == revision) return@withLock
             val dao = AppGraph.db.speciesDao()
             if (dao.count() == 0) loadBaseCatalog(context)
 
@@ -86,7 +88,7 @@ object SpeciesLoader {
                 if (ok) runCatching { store.edit { it[KEY_VERSION] = version } }
             }
             // Catalogue toujours vide (fichier illisible) : on réessaiera au prochain appel.
-            done = dao.count() > 0
+            if (dao.count() > 0) doneRevision = revision
         }
     }
 

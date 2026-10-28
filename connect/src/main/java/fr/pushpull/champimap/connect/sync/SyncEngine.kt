@@ -5,6 +5,8 @@ import android.content.Intent
 import android.net.Uri
 import androidx.core.content.FileProvider
 import fr.pushpull.champimap.connect.DeptProgress
+import fr.pushpull.champimap.connect.IaRequest
+import fr.pushpull.champimap.connect.IaSyncInfo
 import fr.pushpull.champimap.connect.ItemKind
 import fr.pushpull.champimap.connect.ItemStatus
 import fr.pushpull.champimap.connect.SyncFile
@@ -14,8 +16,10 @@ import fr.pushpull.champimap.connect.SyncSnapshot
 import fr.pushpull.champimap.connect.data.Departements
 import fr.pushpull.champimap.connect.download.ContourDownloader
 import fr.pushpull.champimap.connect.download.HospitalDownloader
+import fr.pushpull.champimap.connect.download.IaModelDownloader
 import fr.pushpull.champimap.connect.download.MapDownloader
 import fr.pushpull.champimap.connect.download.PoisonCenters
+import fr.pushpull.champimap.connect.download.TarGzExtractor
 import fr.pushpull.champimap.connect.download.WeatherDownloader
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -30,9 +34,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runInterruptible
+import fr.pushpull.champimap.connect.jsonObj
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import java.io.File
 import java.io.IOException
 import java.time.LocalDate
@@ -45,10 +51,12 @@ import java.util.UUID
  *  1. centres antipoison (liste intégrée) ;
  *  2. pour chaque département coché : contour puis hôpitaux avec urgences ;
  *  3. météo de toutes les zones demandées ;
- *  4. cartes des départements demandés (le plus long, en dernier).
+ *  4. cartes des départements demandés ;
+ *  5. modèle d'identification, s'il est demandé et qu'une version plus récente (ou choisie) existe.
  * Chaque élément est indépendant : un échec est noté (liste d'erreurs) et la suite continue.
  * Chaque fichier terminé est aussitôt autorisé en lecture pour Champimap et annoncé (diffusion + state.json).
- * Aucune donnée de spot n'est reçue ni envoyée : seulement des départements et des carrés de 0,25°.
+ * Aucune donnée de spot n'est reçue ni envoyée : seulement des départements et des carrés de 0,25°
+ * (et, pour le modèle, un simple GET de la liste publique des releases GitHub).
  */
 object SyncEngine {
     private const val STATE_FILE = "state.json"
@@ -60,6 +68,12 @@ object SyncEngine {
     private const val W_METEO = 6
     private const val W_ANTIPOISON = 1
     private const val W_CARTE = 40
+    private const val W_IA = 40
+
+    /** Fichiers obligatoires du paquet du modèle (à la racine de l'archive). */
+    private val IA_REQUIRED = listOf("champi-ia.onnx", "labels.json", "especes_ia.json")
+    /** Statistiques transmises à l'appli avec le modèle (ajoutées par Connect à côté des fichiers extraits). */
+    private const val IA_STATS = "stats.json"
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val _state = MutableStateFlow(SyncSnapshot())
@@ -124,6 +138,7 @@ object SyncEngine {
             val name = Departements.byCode(code)?.name ?: code
             items += SyncItem("carte_$code", ItemKind.CARTE, "Carte · $name", code, weight = W_CARTE)
         }
+        if (r.ia != null) items += SyncItem("ia", ItemKind.IA, "Modèle d'identification", weight = W_IA)
         return items
     }
 
@@ -199,6 +214,12 @@ object SyncEngine {
                     }
                 }
             }
+
+            // 5. Modèle d'identification (gros fichier, en dernier).
+            r.ia?.let { ia ->
+                step("Modèle d'identification")
+                runItem("ia") { syncIa(ia, dir) }
+            }
             finish(cancelled = false, fatal = null)
         } catch (e: CancellationException) {
             finish(cancelled = true, fatal = null)
@@ -246,6 +267,121 @@ object SyncEngine {
     }
 
     /**
+     * Modèle d'identification :
+     *  1. liste publique des versions (GitHub) → version voulue ou la plus récente ;
+     *  2. rien à faire si l'appli l'a déjà (sauf actualisation forcée) ;
+     *  3. téléchargement reprenable dans cacheDir/ia_download/ (0–85 %), empreinte SHA-256 (85–90 %),
+     *     extraction dans sync/ia/<version>/ (90–99 %), statistiques dans stats.json ;
+     *  4. lecture accordée à Champimap pour tout le dossier, puis ia_manifest.json annoncé (dernier fichier).
+     */
+    private suspend fun syncIa(req: IaRequest, dir: File): String {
+        setItem("ia") { it.copy(detail = "Recherche de la dernière version…") }
+        val releases = runInterruptible { IaModelDownloader.listReleases() }
+        if (releases.isEmpty()) throw IOException("Aucun modèle publié pour le moment")
+        val target = if (req.wanted != null) {
+            releases.firstOrNull { it.tag == req.wanted } ?: throw IOException("Version ${req.wanted} introuvable")
+        } else releases.first()
+
+        // Déjà installé dans l'appli ?
+        val installedN = IaModelDownloader.versionNumber(req.installed)
+        val upToDate = when {
+            req.force || installedN == null -> false
+            req.wanted != null -> installedN == target.number
+            else -> installedN >= target.number
+        }
+        if (upToDate) {
+            _state.update { it.copy(ia = IaSyncInfo(version = req.installed ?: target.tag, upToDate = true)) }
+            return "À jour · ${target.summary()}"
+        }
+
+        // Téléchargement reprenable (le partiel survit à une annulation ou à une coupure).
+        val cache = File(app.cacheDir, "ia_download").apply { mkdirs() }
+        val part = File(cache, "${target.tag}.tar.gz.part")
+        cache.listFiles()?.filter { it.name != part.name }?.forEach { it.deleteRecursively() }
+        runInterruptible {
+            IaModelDownloader.download(target, part) { done, total ->
+                val pct = if (total > 0) (done * 85 / total).toInt() else 0
+                setItem("ia") {
+                    it.copy(percent = pct.coerceIn(0, 85), detail = "${target.tag} · ${sizeText(done)} sur ${sizeText(total)}")
+                }
+            }
+        }
+
+        // Empreinte SHA-256 : comparée à celle publiée par GitHub, sinon calculée et transmise.
+        setItem("ia") { it.copy(percent = 85, detail = "Vérification de l'empreinte…") }
+        val sha = runInterruptible {
+            IaModelDownloader.sha256(part) { done, total ->
+                val pct = 85 + if (total > 0) (done * 5 / total).toInt() else 0
+                setItem("ia") { it.copy(percent = pct.coerceIn(85, 90)) }
+            }
+        }
+        val expected = target.sha256
+        if (expected != null && !sha.equals(expected, ignoreCase = true)) {
+            part.delete()
+            throw IOException("Empreinte du modèle incorrecte : fichier supprimé, relance la synchro")
+        }
+
+        // Extraction (chemins vérifiés : rien ne peut sortir du dossier).
+        setItem("ia") { it.copy(percent = 90, detail = "Extraction…") }
+        val iaRoot = File(dir, "ia")
+        iaRoot.deleteRecursively()
+        val out = File(iaRoot, target.tag)
+        val entries = runInterruptible {
+            TarGzExtractor.extract(part, out) { done, total ->
+                val pct = 90 + if (total > 0) (done * 9 / total).toInt() else 0
+                setItem("ia") { it.copy(percent = pct.coerceIn(90, 99)) }
+            }
+        }.filter { it.path != IA_STATS }.toMutableList()
+        for (f in IA_REQUIRED) {
+            if (entries.none { it.path == f }) throw IOException("Fichier $f absent du modèle ${target.tag}")
+        }
+        part.delete() // l'archive ne sert plus : place libérée
+
+        // Statistiques publiées avec la release (stats.json, même vide : version et date au minimum).
+        val statsJson = JsonObject(
+            (target.stats?.raw ?: JsonObject(emptyMap())) +
+                mapOf("version" to JsonPrimitive(target.tag), "datePublication" to JsonPrimitive(target.date)),
+        )
+        val statsBytes = SyncProtocol.json.encodeToString(JsonElement.serializer(), statsJson).toByteArray(Charsets.UTF_8)
+        File(out, IA_STATS).writeBytes(statsBytes)
+        entries += TarGzExtractor.Entry(
+            IA_STATS, statsBytes.size.toLong(),
+            IaModelDownloader.hex(java.security.MessageDigest.getInstance("SHA-256").digest(statsBytes)),
+        )
+
+        // Lecture accordée pour tout le dossier de la version (préfixe d'URI), plus chaque fichier hors photos.
+        val base = Uri.parse("content://${SyncProtocol.FILES_AUTHORITY}/sync/ia/${target.tag}/")
+        runCatching {
+            app.grantUriPermission(
+                SyncProtocol.MAIN_PACKAGE, base,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PREFIX_URI_PERMISSION,
+            )
+        }
+        entries.filter { '/' !in it.path }.forEach { grant(uriFor(File(out, it.path))) }
+
+        val totalBytes = entries.sumOf { it.size }
+        _state.update {
+            it.copy(
+                ia = IaSyncInfo(
+                    version = target.tag, upToDate = false, sha256 = sha, digestVerified = expected != null,
+                    fileCount = entries.size, totalBytes = totalBytes,
+                ),
+            )
+        }
+        // Manifeste en dernier : sa présence signifie « tout est prêt ».
+        val manifest = jsonObj(
+            "version" to target.tag,
+            "sha256" to sha,
+            "digestVerified" to (expected != null),
+            "archiveSize" to target.size,
+            "exact" to (req.wanted != null),
+            "files" to JsonArray(entries.map { jsonObj("path" to it.path, "size" to it.size, "sha256" to it.sha256) }),
+        )
+        writeJson(dir, SyncProtocol.IA_MANIFEST, manifest)
+        return "${target.summary()} · ${entries.size} fichiers · ${sizeText(totalBytes)}"
+    }
+
+    /**
      * Exécute un élément : statut « en cours », puis « terminé » (avec un détail) ou « erreur ».
      * Une erreur n'arrête PAS la synchronisation ; une annulation, si.
      */
@@ -286,7 +422,7 @@ object SyncEngine {
             if (cancelled) errors += "Synchronisation annulée"
             val step = when {
                 cancelled -> "Annulé"
-                s.files.isEmpty() -> "Échec"
+                !s.hasResult -> "Échec"
                 errors.isNotEmpty() -> "Terminé, avec des erreurs"
                 else -> "Terminé"
             }
@@ -346,7 +482,7 @@ object SyncEngine {
     /** Vide le dossier d'échange (résultats de la synchro précédente). */
     private fun prepareDir(dir: File) {
         dir.mkdirs()
-        dir.listFiles()?.forEach { it.delete() }
+        dir.listFiles()?.forEach { it.deleteRecursively() } // dont sync/ia/ (modèle de la synchro précédente)
     }
 
     /** Écrit un JSON de façon atomique (fichier temporaire puis renommage) et l'annonce. */

@@ -37,7 +37,7 @@ import java.util.zip.GZIPInputStream
  * « Crédits des photos et du modèle » (Paramètres → Données) :
  *  - modèle d'identification (EfficientNet-B2, poids ImageNet torchvision, BSD-3) et ONNX Runtime (MIT) ;
  *  - photos iNaturalist (CC0 / CC BY) : nombres de photos, d'auteurs, photos des fiches ;
- *  - liste complète des auteurs, lue EN FLUX depuis assets/ia/credits.csv.gz (ligne par ligne,
+ *  - liste complète des auteurs, lue EN FLUX depuis credits.csv.gz du modèle (ligne par ligne,
  *    seul le décompte par auteur reste en mémoire) puis affichée dans une LazyColumn.
  */
 
@@ -83,13 +83,13 @@ private fun parseCsvLine(line: String): List<String> {
  * et compte les photos par licence et par auteur. Null si le fichier est absent ou illisible.
  */
 private fun readCredits(context: Context): CreditsSummary? {
-    if (!IaAssets.exists(context, IaAssets.CREDITS)) return null
+    val input = IaAssets.open(context, IaAssets.CREDITS) ?: return null
     return try {
         var total = 0
         var cc0 = 0
         var ccBy = 0
         val byAuthor = HashMap<String, Int>()
-        GZIPInputStream(context.assets.open(IaAssets.CREDITS)).bufferedReader(Charsets.UTF_8).useLines { lines ->
+        GZIPInputStream(input).bufferedReader(Charsets.UTF_8).useLines { lines ->
             lines.drop(1).forEach { line ->
                 if (line.isBlank()) return@forEach
                 val cols = parseCsvLine(line)

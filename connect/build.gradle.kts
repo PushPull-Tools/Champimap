@@ -15,8 +15,9 @@ android {
         applicationId = "fr.pushpull.champimap.connect"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        // 2 = modèle d'identification + choix Wi-Fi (ConnectProtocol.MIN_CONNECT_VERSION_CODE côté appli).
+        versionCode = 2
+        versionName = "0.2.0"
     }
 
     // Même clé que l'appli principale : obligatoire pour la permission « signature » partagée.

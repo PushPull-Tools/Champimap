@@ -42,7 +42,7 @@ import fr.pushpull.champimap.connect.SyncSnapshot
  *  - avancement par département ;
  *  - liste détaillée des éléments (contours, urgences, météo, cartes) avec leur état ;
  *  - erreurs éventuelles, en clair ;
- *  - bouton Annuler (pendant) ou Fermer (après).
+ *  - bouton Annuler (pendant) ou Fermer (après), avec le rappel « Conseillé : en Wi-Fi ».
  */
 
 /** Écran complet. `onCancel` : annuler la synchro ; `onClose` : rendre la main à Champimap. */
@@ -87,8 +87,8 @@ fun SyncScreen(snapshot: SyncSnapshot, onCancel: () -> Unit, onClose: () -> Unit
 private fun Header(s: SyncSnapshot) {
     val (state, color) = when {
         s.running -> "En cours…" to MaterialTheme.colorScheme.primary
-        s.finished && s.files.isNotEmpty() && s.errors.isEmpty() -> "Terminé ✓" to MaterialTheme.colorScheme.primary
-        s.finished && s.files.isNotEmpty() -> "Terminé ✓ (avec des erreurs)" to ConnectColors.Orange
+        s.finished && s.hasResult && s.errors.isEmpty() -> "Terminé ✓" to MaterialTheme.colorScheme.primary
+        s.finished && s.hasResult -> "Terminé ✓ (avec des erreurs)" to ConnectColors.Orange
         s.finished -> "Échec" to MaterialTheme.colorScheme.error
         else -> "Préparation…" to MaterialTheme.colorScheme.onSurfaceVariant
     }
@@ -192,6 +192,13 @@ private fun BottomButtons(s: SyncSnapshot, onCancel: () -> Unit, onClose: () -> 
                 Text("Fermer", fontSize = 18.sp)
             }
         }
+        // Rappel permanent : les cartes et le modèle sont lourds.
+        Spacer(Modifier.height(4.dp))
+        Text(
+            WIFI_REMINDER,
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

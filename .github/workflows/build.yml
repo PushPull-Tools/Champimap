@@ -13,10 +13,9 @@ on:
 permissions:
   contents: write
 
-# Version du modèle d'identification : release GitHub dont l'asset champi-ia-resultat.tar.gz
-# est intégré à l'appli (passer à ia-v2, ia-v3… pour changer de modèle).
-env:
-  IA_RELEASE: ia-v1
+# Modèle d'identification : il n'est PLUS embarqué dans l'APK. Champimap Connect le télécharge
+# depuis la release GitHub « ia-vN » la plus récente (asset champi-ia-resultat.tar.gz) : APK légère,
+# et un nouveau modèle se publie sans recompiler l'appli (voir docs/CAHIER-DES-CHARGES.md).
 
 jobs:
   build:
@@ -36,26 +35,9 @@ jobs:
         with:
           gradle-version: "8.11.1"
 
-      # Modèle d'identification (trop lourd pour git) : téléchargé depuis la release $IA_RELEASE
-      # et extrait dans app/src/main/assets/ia/. Échec du téléchargement = échec de la compilation.
-      - name: Intégrer le modèle d'IA (${{ env.IA_RELEASE }})
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          fail() { echo "::error::$1"; echo "* What went wrong: $1" >> build.log; exit 1; }
-          echo "Téléchargement du modèle : release $IA_RELEASE"
-          mkdir -p "$RUNNER_TEMP/ia"
-          gh release download "$IA_RELEASE" --repo "${{ github.repository }}" -p champi-ia-resultat.tar.gz \
-            -D "$RUNNER_TEMP/ia" --clobber || fail "Téléchargement du modèle d'IA impossible (release $IA_RELEASE, asset champi-ia-resultat.tar.gz)"
-          rm -rf app/src/main/assets/ia
-          mkdir -p app/src/main/assets/ia
-          tar -xzf "$RUNNER_TEMP/ia/champi-ia-resultat.tar.gz" -C app/src/main/assets/ia || fail "Archive du modèle d'IA illisible"
-          for f in champi-ia.onnx labels.json especes_ia.json fiches.json credits.csv.gz; do
-            test -s "app/src/main/assets/ia/$f" || fail "Fichier $f absent de l'archive du modèle ($IA_RELEASE)"
-          done
-          test -d app/src/main/assets/ia/fiches || fail "Dossier fiches/ absent de l'archive du modèle ($IA_RELEASE)"
-          echo "Modèle intégré : $(ls app/src/main/assets/ia/fiches | wc -l) photos de fiches, $(du -sh app/src/main/assets/ia | cut -f1) au total."
+      # Aucun ancien modèle ne doit traîner dans les assets (il gonflerait l'APK de ~140 Mo).
+      - name: Retirer tout ancien modèle d'IA des assets
+        run: rm -rf app/src/main/assets/ia
 
       # La clé de signature vient des secrets du dépôt ; sans eux, signature de test.
       - name: Clé de signature

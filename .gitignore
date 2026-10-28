@@ -7,6 +7,6 @@ build/
 *.keystore
 *.jks
 /app/src/main/assets/connect/
-# Modèle d'identification : téléchargé par la CI depuis la release GitHub « ia-vN » (trop lourd pour git).
+# Modèle d'identification : livré par Champimap Connect (release GitHub « ia-vN »), jamais dans git ni dans l'APK.
 /app/src/main/assets/ia/
 captures/

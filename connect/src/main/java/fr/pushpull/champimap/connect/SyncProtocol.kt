@@ -49,6 +49,27 @@ import kotlinx.serialization.json.JsonPrimitive
  *   - RESULT_CANCELED : annulé ou aucun fichier obtenu (raisons dans snapshot.errors) ;
  *   - dans tous les cas l'extra EXTRA_SNAPSHOT (texte JSON de SyncSnapshot) est présent.
  *
+ * ---------------------------------------------------------------- Ajout : modèle d'identification (compatible)
+ * Demande (facultative ; absente = comportement d'avant, rien n'est téléchargé pour l'IA) :
+ *   EXTRA_INCLUDE_IA (Boolean) : vérifier / télécharger le modèle d'identification ;
+ *   EXTRA_IA_VERSION_INSTALLED (String, « ia-vN », vide = aucun) : version déjà installée dans l'appli ;
+ *   EXTRA_IA_FORCE (Boolean) : « Actualiser » complet = retélécharger même si la version est à jour ;
+ *   EXTRA_IA_VERSION_WANTED (String, « ia-vN », facultatif) : version précise voulue (sinon la plus récente) ;
+ *   EXTRA_IA_CHOOSE (Boolean) : Connect affiche la liste des versions publiées pour que l'utilisateur choisisse
+ *     (« La plus récente » ou une version précise, pour réinstaller une ancienne version si besoin).
+ * Connect lit la liste PUBLIQUE des releases GitHub (GET non authentifié, aucune donnée envoyée), garde
+ * les releases non brouillon « ia-vN » ayant l'asset champi-ia-resultat.tar.gz et prend le plus grand N.
+ * Téléchargement reprenable, empreinte SHA-256 vérifiée (champ « digest » de l'API s'il existe), extraction
+ * dans cacheDir/sync/ia/<version>/ ; lecture accordée à Champimap pour tout ce dossier (préfixe d'URI :
+ *   content://fr.pushpull.champimap.connect.files/sync/ia/<version>/<chemin>).
+ * Réponse : snapshot.ia = { version, upToDate, sha256, digestVerified, fileCount, totalBytes } et le fichier
+ *   ia_manifest.json (dans snapshot.files, annoncé quand TOUT est extrait) :
+ *   { "version": "ia-v2", "sha256": "<archive>", "digestVerified": true, "archiveSize": 143386734,
+ *     "exact": false,   (true = version précise choisie, false = « la plus récente »)
+ *     "files": [ { "path": "champi-ia.onnx", "size": 36591017, "sha256": "<fichier>" }, … ] }
+ *   (liste dans un fichier : ~3 300 photos de fiches, trop pour l'instantané diffusé toutes les 400 ms).
+ * Résultat d'activité EXTRA_WAIT_WIFI = true (RESULT_CANCELED) : l'utilisateur a choisi « Attendre le Wi-Fi ».
+ *
  * Formats des fichiers JSON (FIGÉS, lus par l'appli principale) : UTF-8, TABLEAU d'objets à la racine.
  *   weather.json : [ { "zoneId": "45.75_1.25", "date": "AAAA-MM-JJ", "rainMm": 3.2, "tMinC": 4.1, "tMaxC": 13.8 } ]
  *     (une ligne par zone et par jour ; jours incomplets omis ; dates futures ignorées ; heure de Paris ;
@@ -81,8 +102,21 @@ object SyncProtocol {
     /** 15 = niveau maximal Protomaps, nécessaire pour avoir tous les chemins et lieux-dits (voir plus haut). */
     const val MAP_MAX_ZOOM_DEFAULT = 15
 
+    /** Ajout : modèle d'identification (voir l'en-tête). */
+    const val EXTRA_INCLUDE_IA = "includeIa"
+    const val EXTRA_IA_VERSION_INSTALLED = "iaVersionInstalled"
+    const val EXTRA_IA_FORCE = "iaForce"
+    const val EXTRA_IA_VERSION_WANTED = "iaVersionWanted"
+    const val EXTRA_IA_CHOOSE = "iaChoose"
+    /** Nom du manifeste du modèle renvoyé dans snapshot.files. */
+    const val IA_MANIFEST = "ia_manifest.json"
+    /** Version d'un modèle : « ia-v1 », « ia-v2 »… */
+    val IA_VERSION_REGEX = Regex("^ia-v(\\d{1,6})$")
+
     // Réponse (résultat d'activité et diffusion)
     const val EXTRA_SNAPSHOT = "snapshot"
+    /** Résultat : true = synchro non lancée, l'utilisateur attend d'être en Wi-Fi. */
+    const val EXTRA_WAIT_WIFI = "waitWifi"
 
     /** Zone météo : coin sud-ouest d'un carré de 0,25°, ex. « 45.75_1.25 » (aucune autre précision acceptée). */
     val ZONE_REGEX = Regex("^-?\\d{1,2}\\.(00|25|50|75)_-?\\d{1,3}\\.(00|25|50|75)$")
@@ -96,7 +130,7 @@ object SyncProtocol {
 enum class ItemStatus { WAITING, RUNNING, DONE, ERROR, SKIPPED }
 
 /** Nature d'un élément (sert à l'icône côté appli). */
-enum class ItemKind { CONTOUR, URGENCES, CARTE, METEO, ANTIPOISON }
+enum class ItemKind { CONTOUR, URGENCES, CARTE, METEO, ANTIPOISON, IA }
 
 /** Un élément de la liste dynamique (« Carte · Haute-Vienne », « Urgences · Corrèze »…). */
 data class SyncItem(
@@ -117,6 +151,18 @@ data class DeptProgress(val code: String, val name: String, val percent: Int, va
 /** Fichier prêt, déjà autorisé en lecture pour Champimap. */
 data class SyncFile(val name: String, val uri: String, val size: Long)
 
+/** Résumé du modèle d'identification dans l'instantané (null = non demandé ou pas encore traité). */
+data class IaSyncInfo(
+    val version: String,
+    /** Vrai si la version installée dans l'appli est déjà la plus récente (rien de téléchargé). */
+    val upToDate: Boolean,
+    val sha256: String? = null,
+    /** Vrai si l'empreinte a été comparée à celle publiée par GitHub (sinon : calculée et transmise). */
+    val digestVerified: Boolean = false,
+    val fileCount: Int = 0,
+    val totalBytes: Long = 0,
+)
+
 /** Instantané complet de la synchronisation (diffusé, écrit dans state.json et renvoyé à l'appli). */
 data class SyncSnapshot(
     val syncId: String = "",
@@ -130,7 +176,11 @@ data class SyncSnapshot(
     val errors: List<String> = emptyList(),
     val startedAt: Long = 0,
     val endedAt: Long = 0,
+    val ia: IaSyncInfo? = null,
 ) {
+    /** Vrai si la synchro a donné quelque chose : au moins un fichier, ou un modèle déjà à jour. */
+    val hasResult: Boolean get() = files.isNotEmpty() || ia?.upToDate == true
+
     /** Sérialisation JSON (format lu par l'appli principale). */
     fun toJson(): String = SyncProtocol.json.encodeToString(JsonElement.serializer(), toElement())
 
@@ -148,6 +198,12 @@ data class SyncSnapshot(
         }),
         "files" to JsonArray(files.map { jsonObj("name" to it.name, "uri" to it.uri, "size" to it.size) }),
         "errors" to JsonArray(errors.map { JsonPrimitive(it) }),
+        "ia" to ia?.let {
+            jsonObj(
+                "version" to it.version, "upToDate" to it.upToDate, "sha256" to it.sha256,
+                "digestVerified" to it.digestVerified, "fileCount" to it.fileCount, "totalBytes" to it.totalBytes,
+            )
+        },
     )
 }
 
@@ -157,7 +213,18 @@ data class SyncRequest(
     val mapDepartements: List<String>,
     val zones: List<WeatherZoneRequest>,
     val poisonCenters: Boolean,
+    /** Modèle d'identification à vérifier (null = non demandé). */
+    val ia: IaRequest? = null,
 )
+
+/**
+ * Demande « modèle d'identification ».
+ * @param installed version installée dans l'appli (null = aucune)
+ * @param force retélécharger même si la version est à jour
+ * @param wanted version précise voulue (null = la plus récente)
+ * @param choose afficher la liste des versions publiées avant de lancer la synchro
+ */
+data class IaRequest(val installed: String?, val force: Boolean, val wanted: String? = null, val choose: Boolean = false)
 
 /** Une zone météo : carré de 0,25° et période (dates locales AAAA-MM-JJ). */
 data class WeatherZoneRequest(val zoneId: String, val from: String, val to: String) {

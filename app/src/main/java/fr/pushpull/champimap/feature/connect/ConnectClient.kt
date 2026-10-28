@@ -14,11 +14,13 @@ import android.os.Build
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 import androidx.core.content.IntentCompat
+import androidx.core.content.pm.PackageInfoCompat
 import androidx.room.withTransaction
 import fr.pushpull.champimap.core.AppGraph
 import fr.pushpull.champimap.core.ErrorLogger
 import fr.pushpull.champimap.core.db.Hospital
 import fr.pushpull.champimap.core.db.WeatherDay
+import fr.pushpull.champimap.feature.spot.IaModel
 import fr.pushpull.champimap.feature.stats.WeatherCorrelation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,7 +47,8 @@ import java.time.temporal.ChronoUnit
  *  1. installe l'APK de Connect embarquée dans les assets (PackageInstaller) ;
  *  2. construit l'Intent explicite de synchro (départements + zones météo larges, jamais un spot) ;
  *  3. reçoit l'avancement (diffusion protégée par permission « signature ») et le résultat ;
- *  4. importe les fichiers renvoyés : cartes, contours, urgences, météo, centres antipoison.
+ *  4. importe les fichiers renvoyés : cartes, contours, urgences, météo, centres antipoison,
+ *     modèle d'identification (IaModelImport).
  */
 
 /** État de l'installation du module. */
@@ -135,6 +138,20 @@ object ConnectClient {
         context.packageManager.getPackageInfo(ConnectProtocol.CONNECT_PACKAGE, 0).versionName ?: "?"
     } catch (e: PackageManager.NameNotFoundException) {
         null
+    }
+
+    /**
+     * Vrai si le Connect installé est trop ancien pour ce protocole (il ignorerait le modèle d'identification)
+     * et que l'APK incluse permet de le mettre à jour.
+     */
+    @Suppress("DEPRECATION")
+    fun needsUpdate(context: Context): Boolean {
+        val info = try {
+            context.packageManager.getPackageInfo(ConnectProtocol.CONNECT_PACKAGE, 0)
+        } catch (e: PackageManager.NameNotFoundException) {
+            return false
+        }
+        return PackageInfoCompat.getLongVersionCode(info) < ConnectProtocol.MIN_CONNECT_VERSION_CODE && hasEmbeddedApk(context)
     }
 
     /** Vrai si l'APK de Connect est bien incluse dans cette version de l'appli. */
@@ -329,11 +346,30 @@ object ConnectClient {
      * Synchro normale : seulement ce qui manque — carte, contour et urgences des départements qui n'en ont
      * pas encore (nouveau département coché), jours de météo absents. Les cartes déjà présentes ne sont
      * jamais retéléchargées.
-     * @param refreshMaps true = « Actualiser les cartes » : tout est retéléchargé (cartes, contours, urgences).
+     * Modèle d'identification : demandé si l'interrupteur est activé ; Connect ne le télécharge que si une
+     * version plus récente existe (ou la version fixée, si l'utilisateur en a choisi une).
+     * @param refreshMaps true = « Actualiser les cartes » : tout est retéléchargé (cartes, contours, urgences, modèle).
      * @param background true = Connect rend la main tout de suite (avancement par diffusion).
+     * @param chooseIa true = seulement le modèle, Connect affiche la liste des versions publiées.
      */
-    suspend fun buildSyncIntent(context: Context, refreshMaps: Boolean = false, background: Boolean = false): Intent {
+    suspend fun buildSyncIntent(
+        context: Context,
+        refreshMaps: Boolean = false,
+        background: Boolean = false,
+        chooseIa: Boolean = false,
+    ): Intent {
         val app = context.applicationContext
+        val ia = IaModel.info(app)
+        val iaInstalled = IaModel.installedVersion(app) ?: ""
+        if (chooseIa) {
+            // Choix de version : rien d'autre n'est demandé.
+            return Intent(ConnectProtocol.ACTION_SYNC)
+                .setPackage(ConnectProtocol.CONNECT_PACKAGE)
+                .putExtra(ConnectProtocol.EXTRA_INCLUDE_IA, true)
+                .putExtra(ConnectProtocol.EXTRA_IA_CHOOSE, true)
+                .putExtra(ConnectProtocol.EXTRA_IA_VERSION_INSTALLED, iaInstalled)
+                .putExtra(ConnectProtocol.EXTRA_BACKGROUND, background)
+        }
         val departements = AppGraph.settings.flow.first().departements
             .filter { ConnectProtocol.DEPT_REGEX.matches(it) }
         // Cartes : seulement les départements sans carte valide (sauf actualisation complète).
@@ -352,6 +388,10 @@ object ConnectClient {
             .putStringArrayListExtra(ConnectProtocol.EXTRA_WEATHER_ZONES, ArrayList(zones))
             .putExtra(ConnectProtocol.EXTRA_POISON_CENTERS, true)
             .putExtra(ConnectProtocol.EXTRA_BACKGROUND, background)
+            .putExtra(ConnectProtocol.EXTRA_INCLUDE_IA, ia.enabled)
+            .putExtra(ConnectProtocol.EXTRA_IA_VERSION_INSTALLED, iaInstalled)
+            .putExtra(ConnectProtocol.EXTRA_IA_VERSION_WANTED, ia.pinnedVersion ?: "")
+            .putExtra(ConnectProtocol.EXTRA_IA_FORCE, refreshMaps && ia.enabled)
     }
 
     /**
@@ -389,6 +429,11 @@ object ConnectClient {
     /** Résultat de l'activité Connect (ActivityResultContracts.StartActivityForResult). */
     fun handleResult(context: Context, resultCode: Int, data: Intent?) {
         val app = context.applicationContext
+        // « Attendre le Wi-Fi » choisi dans Connect : rien n'a été lancé.
+        if (data?.getBooleanExtra(ConnectProtocol.EXTRA_WAIT_WIFI, false) == true) {
+            _sync.value = SyncUi(phase = SyncPhase.CANCELLED, message = "Synchro reportée : relance-la une fois en Wi-Fi.")
+            return
+        }
         val snap = SyncSnapshot.parse(data?.getStringExtra(ConnectProtocol.EXTRA_SNAPSHOT))
         AppGraph.appScope.launch {
             // Sinon, on tente l'état écrit par Connect (synchro peut-être finie en arrière-plan).
@@ -505,6 +550,9 @@ object ConnectClient {
                 importHospitals(code, readText(context, uri))
             }
             name == ConnectProtocol.FILE_WEATHER -> importWeather(readText(context, uri))
+            name == ConnectProtocol.FILE_IA_MANIFEST -> IaModelImport.install(context, readText(context, uri)) { step ->
+                _sync.update { it.copy(message = step) }
+            }
             name == ConnectProtocol.FILE_ANTIPOISON -> {
                 val text = readText(context, uri)
                 // On ne remplace la liste que si elle contient au moins un centre lisible.

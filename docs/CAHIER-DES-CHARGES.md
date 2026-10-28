@@ -77,7 +77,9 @@ manifeste, Gradle) : NE PAS modifier. Si un changement y est indispensable, le s
    météo) ». « Plus tard » ouvre une fenêtre : ce qui manque (pas de fond de carte : grille avec spots, trace et
    flèche ; pas de météo ; urgences moins à jour), ce qui marche, boutons « Ouvrir les paramètres » (va sur le
    bouton de synchro Connect) et « Continuer ».
-4. Téléchargement : avancement global en %, par département, liste dynamique (contours, urgences, cartes).
+4. Téléchargement : avancement global en %, par département, liste dynamique (contours, urgences, cartes,
+   modèle d'identification ≈ 140 Mo). Texte fixe « Conseillé : en Wi-Fi (cartes et modèle d'identification
+   volumineux) » (l'appli n'a pas ACCESS_NETWORK_STATE : la détection Wi-Fi / données mobiles est dans Connect).
    « Continuer, ça finit en arrière-plan ».
 Indicateur « Étape x sur 4 » + barre de progression en 4 segments.
 
@@ -152,7 +154,7 @@ Panneau « Comment tu démarres ? » : « Je suis garé » (on enregistre la voi
   rappel « En cas de doute, fais vérifier par un pharmacien ou une société mycologique ».
 - `SpeciesLoader.ensureLoaded(context)` : charge `assets/species.json` dans la base si vide, puis ajoute
   (insert ignore, à chaque nouvelle version du catalogue mémorisée dans le DataStore `species_catalog`) les espèces
-  du modèle (`assets/ia/especes_ia.json`) absentes du catalogue : nom français avec majuscule (repli latin),
+  du modèle (`especes_ia.json`, lu par `IaAssets` : `filesDir/ia/`, sinon assets) absentes du catalogue : nom français avec majuscule (repli latin),
   comestibilité INCONNU (pastille « Non renseigné », fiche « Comestibilité non renseignée — ne pas consommer »),
   `common = false`. Lichens, rouilles, charbons, oïdiums et moisissures (liste de genres dans `IaCatalog.kt`)
   restent dans le modèle mais ne sont ni au catalogue ni proposés.
@@ -162,11 +164,26 @@ Panneau « Comment tu démarres ? » : « Je suis garé » (on enregistre la voi
   (iNaturalist), exporté en ONNX (entrée `image` [1,3,288,288] NCHW RGB normalisée ImageNet, sortie `scores`
   [1,N] logits ; `labels.json` : sortie i = `species[i]`). Exécuté sur le téléphone par ONNX Runtime
   (`com.microsoft.onnxruntime:onnxruntime-android`, aucune permission réseau).
-- **Pas de gros fichiers dans git** : la CI télécharge l'asset `champi-ia-resultat.tar.gz` de la release GitHub
-  `IA_RELEASE` (variable en haut de `build.yml`, ex. `ia-v1` → `ia-v2`) et l'extrait dans `app/src/main/assets/ia/`
-  (ignoré par git) ; échec du téléchargement = échec de la compilation. Sans ces fichiers (compilation locale),
-  l'appli marche sans identification (`NoModelIdentifier`).
-- `OnnxSpeciesIdentifier` : session chargée une fois en arrière-plan (modèle copié dans `filesDir/ia/`),
+- **Modèle livré par Champimap Connect** (plus dans l'APK ni dans git) : paquet `champi-ia-resultat.tar.gz`
+  (champi-ia.onnx, labels.json, especes_ia.json, fiches.json, fiches/*.webp, credits.csv.gz, rapport.txt ;
+  Connect ajoute stats.json). APK légère ; nouveau modèle sans réinstaller l'appli.
+- Réception (`feature/connect/IaModelImport.kt`) : `ia_manifest.json` (version, empreinte de l'archive, fichiers avec
+  taille + SHA-256) ; copie dans `filesDir/ia_tmp/` avec vérification taille + SHA-256 de chaque fichier, fichiers
+  obligatoires (onnx, labels, especes_ia) et labels.json lisible, puis bascule par renommage (`IaModel.commitNew`) :
+  `ia/` → `ia_precedent/` (UNE version précédente gardée, la plus ancienne supprimée), `ia_tmp/` → `ia/`.
+  Version, empreinte, nombre d'espèces, version précédente et version fixée dans le DataStore `ia_model`.
+- `IaAssets` lit `filesDir/ia/` en priorité, sinon les assets de l'APK (compatibilité), sinon « modèle absent »
+  (`NoModelIdentifier`). `IaAssets.revision` change à chaque nouveau modèle : session ONNX rechargée, catalogue
+  (`SpeciesLoader`) rejoué, photos des fiches relues — sans redémarrer l'appli.
+- Échec de chargement d'un modèle reçu (session ONNX impossible, labels incohérents : nombre de sorties ≠ nombre
+  d'espèces) → retour automatique au modèle précédent + entrée au journal. Le nouveau modèle est testé
+  (`OnnxSpeciesIdentifier.preload`) dès sa réception.
+- Sans modèle : « Trouvé ! → Photo » mène directement à la liste avec « Identification par photo : télécharge le
+  modèle avec Champimap Connect (≈ 140 Mo) » + bouton « Ouvrir Champimap Connect ».
+- Statistiques d'un modèle : « ia-v1 · 1 032 espèces · réussite 73,8 % (top-5 92,7 %) · 35 Mo · date », lues dans
+  stats.json (texte de la release), sinon rapport.txt + labels.json. Affichées dans la liste de choix de Connect
+  et dans l'écran Connect de l'appli (modèle installé et précédent). Un seul modèle actif (pas de combinaison).
+- `OnnxSpeciesIdentifier` : session chargée une fois par version du modèle, en arrière-plan,
   prétraitement identique à l'entraînement (orientation EXIF, petit côté 316 px, recadrage central 288, mean/std),
   softmax, 5 meilleures espèces présentes au catalogue. Erreur → journal (sans donnée personnelle) et liste.
 - Écran de résultat (après « Trouvé ! → Photo ») : titre « Ressemble à… » (jamais « C'est un… »), 5 pistes
@@ -180,7 +197,7 @@ Panneau « Comment tu démarres ? » : « Je suis garé » (on enregistre la voi
   Piste comestible avec sosies toxiques/mortels → avertissement de sosie bien visible ; piste toxique/mortelle →
   fortement marquée. Note fixe + section dépliable « Espèces dangereuses que l'IA ne connaît pas encore »
   (espèces TOXIQUE/MORTEL du catalogue absentes de `labels.json`, calculées au chargement).
-- Photos des fiches : `assets/ia/fiches/` + `fiches.json` (prioritaires), sinon `filesDir/fiches/` ; auteur et
+- Photos des fiches : `fiches/` + `fiches.json` du modèle (prioritaires), sinon `filesDir/fiches/` ; auteur et
   licence en petit sous chaque photo.
 - Paramètres → Données → « Crédits des photos et du modèle » : modèle (EfficientNet-B2, BSD-3 ; ONNX Runtime, MIT),
   photos iNaturalist CC0 / CC BY (nombres), liste complète des auteurs lue en flux depuis `credits.csv.gz`.
@@ -243,7 +260,39 @@ Panneau « Comment tu démarres ? » : « Je suis garé » (on enregistre la voi
 - Connect télécharge : cartes vectorielles des départements (extraction PMTiles depuis les builds Protomaps
   par requêtes HTTP Range, emprise du département), météo Open-Meteo (archive + 30 jours avant chaque sortie),
   urgences (Overpass API, amenity=hospital + emergency=yes, emprise du département), mises à jour des centres
-  antipoison. Écran Connect dans les réglages : état, « Lancer la synchro », dernière synchro.
+  antipoison, **modèle d'identification**. Écran Connect dans les réglages : état, « Lancer la synchro », dernière
+  synchro, rappel fixe « Conseillé : en Wi-Fi (cartes et modèle d'identification volumineux) ».
+- Modèle d'identification (Connect, `download/IaModelDownloader.kt`, `download/TarGzExtractor.kt`) :
+  - versions : `GET https://api.github.com/repos/PushPull-Tools/Champimap/releases` (public, non authentifié,
+    aucune donnée envoyée) ; releases non brouillon dont l'étiquette est `ia-vN`, avec l'asset
+    `champi-ia-resultat.tar.gz` ; la plus récente = N le plus grand (ia-v1 < ia-v2 < ia-v10) ;
+  - demande (rétrocompatible) : `includeIa`, `iaVersionInstalled`, `iaForce` (« Actualiser » complet),
+    `iaVersionWanted` (version fixée), `iaChoose` (Connect affiche la liste des versions avec leurs statistiques :
+    « La plus récente » ou une version précise, pour réinstaller une ancienne version) ;
+  - téléchargement seulement si la version de l'appli est plus ancienne (ou forcé / choisi), reprenable (Range,
+    fichier `.part` dans `cacheDir/ia_download/`), % dans la liste d'avancement ; SHA-256 vérifié contre le
+    `digest` de l'API (sinon calculé et transmis) ; extraction tar.gz maison (ustar, PAX, GNU ; chemins hors du
+    dossier refusés, liens jamais créés) dans `sync/ia/<version>/` ; lecture accordée par préfixe d'URI ;
+    `ia_manifest.json` annoncé en dernier ; snapshot.ia = version, empreinte, nombre de fichiers ;
+  - version choisie à la main ou restaurée = version **fixée** : la synchro normale ne la remplace pas
+    (« Suivre la plus récente » dans l'appli).
+- Données mobiles (Connect, `util/Network.kt`, permission ACCESS_NETWORK_STATE de Connect uniquement) : si le
+  réseau actif n'est pas Wi-Fi/Ethernet non facturé, fenêtre « Tu es sur les données mobiles » avec la taille
+  estimée (cartes ≈ 35 Mo par département + modèle ≈ 140 Mo) : « Attendre le Wi-Fi » (rien n'est lancé, l'appli
+  affiche « Synchro reportée ») / « Continuer quand même ».
+- Écran Connect de l'appli, section « Identification par photo » : interrupteur « Identification par photo
+  (≈ 140 Mo, Wi-Fi conseillé) » activé par défaut (la synchro normale inclut le modèle s'il y a plus récent),
+  état « Modèle ia-vN installé · X espèces » + statistiques, version fixée, « Choisir une version du modèle… »,
+  « Modèle précédent : ia-vN (X Mo) » avec « Revenir à ce modèle » (confirmation) et « Supprimer ».
+- Connect `versionCode` 2 (0.2.0) = premier à gérer le modèle ; un Connect plus ancien installé → carte
+  « Mise à jour du module nécessaire » + « Mettre à jour le module » (APK incluse, `MIN_CONNECT_VERSION_CODE`).
+  Toute évolution du protocole : augmenter `versionCode` de Connect et `MIN_CONNECT_VERSION_CODE`.
+- **Publier un nouveau modèle** : créer sur GitHub la release `ia-vN` (N = précédent + 1, non brouillon) avec
+  l'asset `champi-ia-resultat.tar.gz` (fichiers à la racine de l'archive), rien d'autre : ni recompilation, ni
+  changement de code. Facultatif : dans le texte de la release, le commentaire
+  `<!-- STATS {"version":"ia-vN","especes":…,"top1":…,"top5":…,"photosControle":…,"photosEntrainement":…,"architecture":"…","tailleModeleMo":…} -->`
+  (champs absents = non affichés). **Les anciennes releases `ia-v*` ne sont jamais supprimées** : elles
+  permettent de réinstaller une ancienne version depuis Connect.
 - Fiche « En cas d'intoxication » (SafetyTheme, jamais party) : bandeaux « 15 · SAMU », « Centre antipoison »,
   « Urgences » avec boutons-icônes à droite (appeler = ouvre le clavier avec le numéro, ne compose pas ;
   y aller = ouvre l'appli GPS via `geo:`), sélon la position GPS actuelle (repli : zone des cartes).

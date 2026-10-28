@@ -23,10 +23,18 @@ import kotlinx.serialization.json.longOrNull
  *
  * Fichiers renvoyés par Connect :
  *   map_<code>.pmtiles · contour_<code>.geojson · hospitals_<code>.json · weather.json · antipoison.json
+ *   ia_manifest.json (modèle d'identification : version, empreinte, liste des fichiers avec leur SHA-256 ;
+ *   les fichiers eux-mêmes sont lus sous IA_BASE_URI/<version>/<chemin>, lecture accordée par préfixe).
+ *
+ * Modèle d'identification (ajout compatible) : EXTRA_INCLUDE_IA, EXTRA_IA_VERSION_INSTALLED, EXTRA_IA_FORCE,
+ * EXTRA_IA_VERSION_WANTED (version fixée), EXTRA_IA_CHOOSE (Connect affiche la liste des versions).
+ * Résultat EXTRA_WAIT_WIFI = true : l'utilisateur a choisi « Attendre le Wi-Fi » (rien n'a été lancé).
  */
 object ConnectProtocol {
     /** Paquet de l'appli Champimap Connect (seule à avoir Internet). */
     const val CONNECT_PACKAGE = "fr.pushpull.champimap.connect"
+    /** Version minimale de Connect comprenant ce protocole (modèle d'identification) : sinon « Mettre à jour ». */
+    const val MIN_CONNECT_VERSION_CODE = 2L
 
     const val MAIN_PACKAGE = "fr.pushpull.champimap"
     const val PERMISSION = "fr.pushpull.champimap.permission.CONNECT"
@@ -42,9 +50,15 @@ object ConnectProtocol {
     const val EXTRA_WEATHER_ZONES = "weatherZones"
     const val EXTRA_POISON_CENTERS = "poisonCenters"
     const val EXTRA_BACKGROUND = "background"
+    const val EXTRA_INCLUDE_IA = "includeIa"
+    const val EXTRA_IA_VERSION_INSTALLED = "iaVersionInstalled"
+    const val EXTRA_IA_FORCE = "iaForce"
+    const val EXTRA_IA_VERSION_WANTED = "iaVersionWanted"
+    const val EXTRA_IA_CHOOSE = "iaChoose"
 
     // Réponse (résultat d'activité et diffusion)
     const val EXTRA_SNAPSHOT = "snapshot"
+    const val EXTRA_WAIT_WIFI = "waitWifi"
 
     /** Zone météo : carré de 0,25°, ex. « 45.75_1.25 » (aucune autre précision acceptée). */
     val ZONE_REGEX = Regex("^-?\\d{1,2}\\.(00|25|50|75)_-?\\d{1,3}\\.(00|25|50|75)$")
@@ -57,6 +71,12 @@ object ConnectProtocol {
     const val FILE_HOSPITALS_PREFIX = "hospitals_"
     const val FILE_WEATHER = "weather.json"
     const val FILE_ANTIPOISON = "antipoison.json"
+    const val FILE_IA_MANIFEST = "ia_manifest.json"
+
+    /** Dossier des fichiers du modèle chez Connect : IA_BASE_URI + "<version>/<chemin>". */
+    const val IA_BASE_URI = "content://$FILES_AUTHORITY/sync/ia/"
+    /** Version d'un modèle : « ia-v1 », « ia-v2 »… */
+    val IA_VERSION_REGEX = Regex("^ia-v(\\d{1,6})$")
 
     /** Lecteur JSON tolérant (champs inconnus ignorés). */
     val json = Json { ignoreUnknownKeys = true; isLenient = true }
@@ -66,7 +86,7 @@ object ConnectProtocol {
 enum class ItemStatus { WAITING, RUNNING, DONE, ERROR, SKIPPED }
 
 /** Nature d'un élément (sert à l'icône et au regroupement). */
-enum class ItemKind { CONTOUR, URGENCES, CARTE, METEO, ANTIPOISON }
+enum class ItemKind { CONTOUR, URGENCES, CARTE, METEO, ANTIPOISON, IA }
 
 /** Un élément de la liste dynamique (« Carte · Haute-Vienne »…). */
 data class SyncItem(

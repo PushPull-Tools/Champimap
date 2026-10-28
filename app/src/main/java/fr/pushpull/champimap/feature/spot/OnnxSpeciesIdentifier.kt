@@ -3,6 +3,7 @@ package fr.pushpull.champimap.feature.spot
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
+import ai.onnxruntime.TensorInfo
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -26,9 +27,11 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 
 /*
- * Identification hors ligne avec le modèle ONNX embarqué (ONNX Runtime, sur le téléphone).
- *  1. Session chargée UNE fois, à la première photo, en arrière-plan (le modèle est copié
- *     des assets vers filesDir/ia/ : ONNX Runtime lit un fichier, pas un flux d'assets).
+ * Identification hors ligne avec le modèle ONNX (ONNX Runtime, sur le téléphone).
+ *  1. Session chargée une fois par version du modèle (IaAssets.revision), en arrière-plan : modèle
+ *     livré par Champimap Connect (filesDir/ia/), sinon celui des assets de l'APK (compatibilité).
+ *     Nouvelle version reçue → session fermée et rechargée. Échec de chargement d'un modèle reçu
+ *     (session impossible, labels incohérents) → retour automatique au modèle précédent (journal).
  *  2. Prétraitement IDENTIQUE à l'entraînement : rotation EXIF, petit côté à 316 px,
  *     recadrage central 288 × 288, normalisation ImageNet (mean/std), ordre NCHW (RGB).
  *  3. Softmax sur les scores, puis les 5 meilleures espèces présentes dans le catalogue
@@ -50,11 +53,20 @@ object OnnxSpeciesIdentifier : SpeciesIdentifier {
     private var session: OrtSession? = null
     private var labels: IaLabels? = null
 
-    /** Vrai après un échec de chargement : on ne réessaie pas à chaque photo. */
+    /** Vrai après un échec de chargement : on ne réessaie pas à chaque photo (jusqu'au prochain modèle). */
     @Volatile private var loadFailed = false
 
-    /** Vrai si le modèle est livré dans l'appli (assets/ia/). */
+    /** Version du modèle (IaAssets.revision) à laquelle correspondent session / labels / loadFailed. */
+    private var loadedRevision = -1
+
+    /** Vrai si un modèle est disponible (Connect ou APK). */
     fun isAvailable(context: Context): Boolean = IaAssets.modelAvailable(context)
+
+    /**
+     * Charge la session tout de suite (après réception d'un modèle) : vérifie qu'il fonctionne,
+     * avec retour automatique au précédent sinon. Vrai si un modèle utilisable est chargé.
+     */
+    suspend fun preload(context: Context): Boolean = withContext(Dispatchers.Default) { ensureSession(context) != null }
 
     override suspend fun identify(photo: File): List<Pair<Species, Float>> = withContext(Dispatchers.Default) {
         try {
@@ -73,46 +85,58 @@ object OnnxSpeciesIdentifier : SpeciesIdentifier {
     // Chargement de la session
     // ---------------------------------------------------------------------------------------
 
-    /** Session et labels, chargés une seule fois (null si le modèle est absent ou illisible). */
+    /**
+     * Session et labels de la version actuelle du modèle (null si absent ou inutilisable).
+     * Un modèle reçu de Connect qui ne se charge pas est remplacé par le précédent, puis on réessaie une fois.
+     */
     private suspend fun ensureSession(context: Context): Pair<OrtSession, IaLabels>? = mutex.withLock {
-        val s = session
-        val l = labels
-        if (s != null && l != null) return@withLock s to l
-        if (loadFailed) return@withLock null
-        try {
-            val lab = IaAssets.labels(context) ?: error("labels.json absent")
-            require(lab.species.isNotEmpty() && lab.mean.size == 3 && lab.std.size == 3) { "labels.json incomplet" }
-            val modelFile = withContext(Dispatchers.IO) { copyModel(context) }
-            val env = OrtEnvironment.getEnvironment()
-            val options = OrtSession.SessionOptions().apply {
-                setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
+        for (attempt in 0..1) {
+            val rev = IaAssets.revision.value
+            if (loadedRevision != rev) {
+                // Nouvelle version (ou retour arrière) : l'ancienne session est fermée.
+                runCatching { session?.close() }
+                session = null
+                labels = null
+                loadFailed = false
+                loadedRevision = rev
             }
-            val created = env.createSession(modelFile.absolutePath, options)
-            session = created
-            labels = lab
-            created to lab
-        } catch (e: Throwable) {
-            loadFailed = true
-            ErrorLogger.log("IA", "Chargement du modèle d'identification impossible", e)
-            null
+            val s = session
+            val l = labels
+            if (s != null && l != null) return@withLock s to l
+            if (loadFailed) return@withLock null
+            try {
+                val created = load(context)
+                session = created.first
+                labels = created.second
+                return@withLock created
+            } catch (e: Throwable) {
+                loadFailed = true
+                ErrorLogger.log("IA", "Chargement du modèle d'identification impossible", e)
+                // Modèle reçu de Connect en échec : retour au précédent (s'il existe), puis nouvel essai.
+                val canRestore = attempt == 0 && IaAssets.isFromConnect(context) && IaModel.hasPreviousFiles(context)
+                if (!canRestore || !IaModel.restorePrevious(context, e.message ?: e.javaClass.simpleName)) return@withLock null
+            }
         }
+        null
     }
 
-    /**
-     * Copie le modèle des assets vers filesDir/ia/champi-ia.onnx s'il manque ou a changé de taille
-     * (nouvelle version du modèle). Copie dans un fichier temporaire puis renommage : jamais de modèle tronqué.
-     */
-    private fun copyModel(context: Context): File {
-        val dir = File(context.filesDir, "ia").apply { mkdirs() }
-        val target = File(dir, "champi-ia.onnx")
-        // Taille dans l'APK (le .onnx n'est pas compressé : openFd fonctionne) ; -1 si inconnue.
-        val assetSize = runCatching { context.assets.openFd(IaAssets.MODEL).use { it.length } }.getOrDefault(-1L)
-        if (target.exists() && target.length() > 0 && (assetSize < 0 || target.length() == assetSize)) return target
-        val tmp = File(dir, "champi-ia.onnx.tmp")
-        context.assets.open(IaAssets.MODEL).use { input -> tmp.outputStream().use { input.copyTo(it, 1 shl 16) } }
-        if (target.exists()) target.delete()
-        if (!tmp.renameTo(target)) error("Renommage du modèle impossible")
-        return target
+    /** Charge labels + session et vérifie leur cohérence (nombre de sorties = nombre d'espèces). */
+    private suspend fun load(context: Context): Pair<OrtSession, IaLabels> {
+        val lab = withContext(Dispatchers.IO) { IaAssets.labels(context) } ?: error("labels.json absent ou invalide")
+        require(lab.species.isNotEmpty() && lab.mean.size == 3 && lab.std.size == 3) { "labels.json incomplet" }
+        val modelFile = withContext(Dispatchers.IO) { IaAssets.modelFile(context) } ?: error("champi-ia.onnx absent")
+        val env = OrtEnvironment.getEnvironment()
+        val options = OrtSession.SessionOptions().apply {
+            setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
+        }
+        val created = env.createSession(modelFile.absolutePath, options)
+        // Sortie [1, N] : N doit valoir le nombre d'espèces de labels.json (dimension inconnue = acceptée).
+        val outputs = (created.outputInfo.values.firstOrNull()?.info as? TensorInfo)?.shape?.lastOrNull() ?: -1L
+        if (outputs > 0 && outputs != lab.species.size.toLong()) {
+            runCatching { created.close() }
+            error("Modèle incohérent : $outputs sorties pour ${lab.species.size} espèces")
+        }
+        return created to lab
     }
 
     // ---------------------------------------------------------------------------------------

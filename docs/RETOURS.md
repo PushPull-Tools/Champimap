@@ -47,10 +47,22 @@
 - ✅ Catalogue de l'appli : `especes_ia.json` importé (noms latins + français) ; espèces sans fiche de comestibilité = « Comestibilité non renseignée — ne pas consommer » ; lichens, rouilles, moisissures masqués. ⏳ Relecture par un expert des espèces ajoutées.
 
 ## IA intégrée (modèle ia-v1) — compile, à tester
-- ✅ Modèle `ia-v1` (1 032 espèces, top-1 73,8 % · top-5 92,7 %) téléchargé par la CI depuis la release GitHub, jamais dans git (`IA_RELEASE` dans `build.yml`).
+- ✅ Modèle `ia-v1` (1 032 espèces, top-1 73,8 % · top-5 92,7 %) publié en release GitHub, jamais dans git (désormais livré par Connect, voir plus bas).
 - ✅ Identification hors ligne (ONNX Runtime) : 5 pistes avec photo, pastille et %, bandeau de prudence, sosies dangereux, pistes toxiques/mortelles marquées, espèces dangereuses inconnues du modèle.
 - ✅ Photos des fiches (3 327, auteur + licence sous chaque photo) et écran « Crédits des photos et du modèle ».
 - ⏳ À vérifier sur téléphone : temps d'analyse, pertinence sur de vraies photos, taille de l'APK.
+
+## Modèle IA livré par Connect — compile, à tester
+- ✅ Modèle IA livré par Connect, APK légère : la CI n'embarque plus le modèle ; Connect trouve la dernière release
+  `ia-vN` (API publique GitHub), télécharge (reprenable, %), vérifie le SHA-256, extrait et remet le modèle à l'appli.
+- ✅ Appli : réception vérifiée (tailles + SHA-256) puis bascule atomique, modèle rechargé sans redémarrer,
+  catalogue rejoué ; sans modèle, « Trouvé ! → Photo » mène à la liste avec un lien vers Connect.
+- ✅ Modèle précédent gardé (`ia_precedent/`), retour automatique si le nouveau ne se charge pas, « Revenir à ce
+  modèle » / « Supprimer » dans l'écran Connect ; choix d'une version précise dans Connect (liste des releases).
+- ✅ Statistiques de chaque modèle (stats.json / rapport.txt) dans la liste de Connect et l'écran Connect.
+- ✅ Wi-Fi conseillé : fenêtre « Tu es sur les données mobiles » dans Connect (taille estimée), rappel fixe dans l'appli.
+- ⏳ À vérifier sur téléphone : lecture des fichiers par préfixe d'URI, reprise après coupure, durée de la copie
+  (~150 Mo), place libre nécessaire (jusqu'à ~600 Mo au pic : archive + extraction + copie + version précédente).
 
 ## Sécurité IA et démarrage — compile, à tester
 - ✅ Propositions de l'IA sans verdict de comestibilité : « Ressemble à… », lien « Voir la fiche », TOXIQUE / MORTEL et sosies toujours marqués, « Identification incertaine » sous 60 % (sans pourcentages), rappel fixe en bas ; avertissement « Prudence » plein écran (4 s, « J'ai compris » après 2 s) à chaque lancement à froid.
