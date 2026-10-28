@@ -20,6 +20,10 @@ zxingEmbedded = "4.3.0"
 coil = "2.7.0"
 onnxruntime = "1.19.2"
 junit = "4.13.2"
+# Captures d'écran automatiques (tests Robolectric + Roborazzi, jamais dans l'APK).
+robolectric = "4.14.1"
+roborazzi = "1.32.2"
+androidxTestCore = "1.6.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -51,6 +55,13 @@ coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coi
 # Identification hors ligne (modèle ONNX embarqué) : aucun accès réseau.
 onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxruntime" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+# Captures d'écran automatiques : rendu des écrans sur la JVM (CI), voir app/src/test/.../captures.
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+roborazzi = { group = "io.github.takahirom.roborazzi", name = "roborazzi", version.ref = "roborazzi" }
+roborazzi-compose = { group = "io.github.takahirom.roborazzi", name = "roborazzi-compose", version.ref = "roborazzi" }
+androidx-test-core = { group = "androidx.test", name = "core-ktx", version.ref = "androidxTestCore" }
+androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -130,3 +130,60 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: out/*
+
+  # Captures d'écran automatiques de chaque écran (thèmes clair, sombre et Psyché), rangées par parcours.
+  # Tests Robolectric + Roborazzi (app/src/test/.../captures). Job séparé : un échec ne bloque JAMAIS l'APK.
+  # Résultat : branche « captures » (captures/<sha>/ et captures/derniere/, avec index.html et rapport.txt)
+  # et artefact « Captures ».
+  captures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    continue-on-error: true
+    if: github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Gradle 8.11.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Retirer tout ancien modèle d'IA des assets
+        run: rm -rf app/src/main/assets/ia
+
+      # Les erreurs n'arrêtent pas le job : la planche et le rapport sont publiés quoi qu'il arrive.
+      - name: Enregistrer les captures
+        run: |
+          gradle :app:testDebugUnitTest --tests 'fr.pushpull.champimap.captures.*' --continue 2>&1 | tee captures.log || true
+          # Sorties des tests (lignes « [captures] ») ajoutées au journal pour le rapport.
+          cat app/build/test-results/testDebugUnitTest/*.xml 2>/dev/null | grep -E "\[captures\]|Exception|at fr\.pushpull" | head -n 3000 >> captures.log || true
+
+      - name: Planche (index.html) et rapport
+        if: always()
+        run: python3 .github/scripts/captures_planche.py app/build/captures planche "$GITHUB_SHA" captures.log
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Captures
+          path: planche/
+
+      # Même méthode que « ci-logs » : branche orpheline réécrite à chaque passage (seul le dernier commit compte).
+      - name: Publier sur la branche « captures »
+        if: always()
+        run: |
+          git config user.name "ci"; git config user.email "ci@localhost"
+          rm -rf captures && mkdir -p captures
+          cp -r planche "captures/${GITHUB_SHA}"
+          cp -r planche captures/derniere
+          echo "${GITHUB_SHA}" > captures/derniere/SHA.txt
+          git checkout --orphan captures-tmp
+          git rm -rfq --cached . >/dev/null
+          git add -f captures && git commit -qm "Captures ${GITHUB_SHA}"
+          git push -f origin HEAD:captures

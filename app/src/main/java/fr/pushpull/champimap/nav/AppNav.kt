@@ -21,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -77,10 +78,11 @@ private val TABS = listOf(
  * Navigation complète de l'appli.
  * @param startOnboarding true au tout premier lancement.
  * @param importPending true si l'appli a été ouverte avec un fichier de spot partagé.
+ * @param nav contrôleur de navigation ; l'appli garde la valeur par défaut. Seuls les tests de captures
+ *  d'écran en fournissent un, pour ouvrir directement chaque écran.
  */
 @Composable
-fun AppNav(startOnboarding: Boolean, importPending: Boolean) {
-    val nav = rememberNavController()
+fun AppNav(startOnboarding: Boolean, importPending: Boolean, nav: NavHostController = rememberNavController()) {
     val backStack by nav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
     // Écran de départ figé au premier affichage : MainActivity rappelle AppNav à CHAQUE changement

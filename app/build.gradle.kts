@@ -67,6 +67,24 @@ android {
     // il est stocké tel quel (lecture de sa taille par openFd). Normalement livré par Champimap Connect.
     androidResources { noCompress += "onnx" }
     packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
+
+    // Captures d'écran automatiques (tests unitaires Robolectric + Roborazzi, lancés par la CI) :
+    // rendu natif des écrans sur la JVM, ressources et assets de l'appli disponibles.
+    // N'a AUCUN effet sur l'APK (seulement sur la tâche testDebugUnitTest).
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            all {
+                it.systemProperty("robolectric.graphicsMode", "NATIVE")
+                it.systemProperty("robolectric.pixelCopyRenderMode", "hardware")
+                it.systemProperty("roborazzi.test.record", "true")
+                it.maxHeapSize = "4g"
+                // Une JVM neuve par classe de test (un parcours) : aucun état partagé entre parcours.
+                it.forkEvery = 1
+                it.testLogging { events("passed", "failed", "skipped") }
+            }
+        }
+    }
 }
 
 ksp {
@@ -102,4 +120,13 @@ dependencies {
     implementation(libs.onnxruntime.android)
     debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation(libs.junit)
+    // Captures d'écran automatiques (tests seulement, jamais dans l'APK de release).
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    // Activité vide utilisée par les tests Compose (manifeste de debug seulement).
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

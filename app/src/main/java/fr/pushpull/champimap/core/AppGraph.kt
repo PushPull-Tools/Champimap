@@ -1,6 +1,7 @@
 package fr.pushpull.champimap.core
 
 import android.content.Context
+import androidx.annotation.VisibleForTesting
 import fr.pushpull.champimap.core.db.AppDatabase
 import fr.pushpull.champimap.core.db.ErrorLog
 import fr.pushpull.champimap.core.settings.SettingsRepository
@@ -29,6 +30,29 @@ object AppGraph {
         appContext = context.applicationContext
         db = AppDatabase.build(appContext)
         settings = SettingsRepository(appContext)
+    }
+
+    /**
+     * Vrai UNIQUEMENT pendant les captures d'écran automatiques (tests Robolectric de la CI).
+     * Toujours faux dans l'appli : seul [initForTests] le met à vrai.
+     * Sert à remplacer la carte MapLibre (bibliothèque native + GPU, indisponibles sur la JVM)
+     * par une zone neutre (voir core/map/ChampiMap.kt).
+     */
+    @Volatile
+    var testMode: Boolean = false
+        private set
+
+    /**
+     * Point d'injection pour les tests SEULEMENT (captures d'écran) : base fournie par le test
+     * (Room en mémoire remplie de données factices) à la place du fichier champimap.db.
+     * Jamais appelé par l'appli (ChampimapApp appelle [init]).
+     */
+    @VisibleForTesting
+    fun initForTests(context: Context, database: AppDatabase) {
+        appContext = context.applicationContext
+        db = database
+        settings = SettingsRepository(appContext)
+        testMode = true
     }
 }
 

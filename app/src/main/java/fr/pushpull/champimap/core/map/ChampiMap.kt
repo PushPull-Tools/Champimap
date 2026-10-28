@@ -22,6 +22,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import fr.pushpull.champimap.core.AppGraph
 import fr.pushpull.champimap.core.ErrorLogger
 import fr.pushpull.champimap.core.ui.theme.LocalChampiStyle
 import fr.pushpull.champimap.feature.sortie.OfflineMapStyle
@@ -58,6 +59,12 @@ fun ChampiMapView(
     modifier: Modifier = Modifier,
     onMapReady: (MapLibreMap) -> Unit = {},
 ) {
+    // Captures d'écran automatiques (tests sur la JVM, sans GPU ni bibliothèque native) :
+    // zone neutre à la place de la carte. Jamais le cas dans l'appli (AppGraph.testMode faux).
+    if (AppGraph.testMode) {
+        MapPlaceholder(modifier)
+        return
+    }
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val dark = LocalChampiStyle.current.dark
@@ -121,6 +128,19 @@ fun ChampiMapView(
                     .padding(horizontal = 4.dp, vertical = 1.dp),
             )
         }
+    }
+}
+
+/** Zone neutre affichée à la place de la carte pendant les captures d'écran automatiques. */
+@Composable
+private fun MapPlaceholder(modifier: Modifier) {
+    val dark = LocalChampiStyle.current.dark
+    Box(modifier.background(if (dark) Color(0xFF2A322D) else Color(0xFFE4E8DF)), contentAlignment = Alignment.Center) {
+        Text(
+            "Carte (non rendue dans les captures)",
+            fontSize = 12.sp,
+            color = if (dark) Color(0xFF8C968F) else Color(0xFF7A8279),
+        )
     }
 }
 
