@@ -24,6 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -53,11 +54,25 @@ import kotlin.math.roundToInt
  * Écran de résultat de l'identification (après « Trouvé ! → Photo ») :
  *  - bandeau permanent et calme : pistes de l'IA, jamais une preuve de comestibilité ;
  *  - avertissements de SOSIES bien visibles quand une piste comestible a des sosies toxiques/mortels ;
- *  - les 5 propositions (photo de fiche, noms, pastille, pourcentage) ; toucher = choisir l'espèce ;
- *    une piste toxique ou mortelle est fortement marquée ;
+ *  - « Ressemble à… » : les 5 propositions (photo de fiche, noms, pourcentage, lien « Voir la fiche ») ;
+ *    toucher = choisir l'espèce. JAMAIS de verdict de comestibilité (ni « Comestible », ni « C'est un… ») ;
+ *    seule une piste toxique ou mortelle est fortement marquée (sécurité, pas un verdict) ;
+ *  - confiance de la 1re piste < SEUIL_CONFIANCE → « Identification incertaine » en tête, pistes sans chiffres ;
  *  - « Aucune ne correspond → liste complète » ;
- *  - note fixe + section dépliable « Espèces dangereuses que l'IA ne connaît pas encore ».
+ *  - note fixe + section dépliable « Espèces dangereuses que l'IA ne connaît pas encore » ;
+ *  - rappel fixe tout en bas (hors défilement) : faire vérifier par un pharmacien ou une société mycologique.
  */
+
+/**
+ * Seuil de confiance de la 1re proposition (probabilité softmax, 0 à 1).
+ * En dessous de 60 %, l'IA hésite trop : on affiche « Identification incertaine »
+ * et on masque les pourcentages (pour ne pas donner une fausse impression de précision).
+ */
+private const val SEUIL_CONFIANCE = 0.60f
+
+/** Rappel fixe affiché en bas de l'écran (texte validé). */
+private const val RAPPEL_BAS =
+    "Ne consomme jamais un champignon identifié seulement par l'appli : fais-le vérifier par un pharmacien ou une société mycologique."
 
 /** Bandeau de prudence (texte validé). */
 private const val BANDEAU_IA =
@@ -91,31 +106,87 @@ fun IaResultsPanel(
         value = withContext(Dispatchers.Default) { unknownDangerousSpecies(all, IaAssets.labelIds(context)) }
     }
 
-    Column(
-        modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        PhotoTitle(photo, analysing = proposals == null)
-        CalmBanner(BANDEAU_IA)
+    val list = proposals.orEmpty()
+    // Identification incertaine : la meilleure piste est sous le seuil de confiance.
+    val uncertain = list.isNotEmpty() && list.first().second < SEUIL_CONFIANCE
 
-        val list = proposals.orEmpty()
-        // Sosies dangereux des pistes comestibles : bien visibles, AVANT la liste.
-        list.forEach { (sp, _) ->
-            if (sp.edibility == Edibility.COMESTIBLE) {
-                val dangerousLookalikes = sp.lookalikes?.split(',')?.map { it.trim() }
-                    ?.mapNotNull { byId[it] }?.filter { it.isDangerous() }.orEmpty()
-                if (dangerousLookalikes.isNotEmpty() || !sp.lookalikeWarning.isNullOrBlank()) {
-                    LookalikeWarning(sp, dangerousLookalikes, onOpenSpecies)
+    // Partie qui défile au-dessus, rappel fixe tout en bas (toujours visible).
+    Column(modifier) {
+        Column(
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            PhotoTitle(photo, analysing = proposals == null)
+            if (uncertain) UncertainBanner()
+            CalmBanner(BANDEAU_IA)
+
+            // Sosies dangereux des pistes comestibles : bien visibles, AVANT la liste.
+            list.forEach { (sp, _) ->
+                if (sp.edibility == Edibility.COMESTIBLE) {
+                    val dangerousLookalikes = sp.lookalikes?.split(',')?.map { it.trim() }
+                        ?.mapNotNull { byId[it] }?.filter { it.isDangerous() }.orEmpty()
+                    if (dangerousLookalikes.isNotEmpty() || !sp.lookalikeWarning.isNullOrBlank()) {
+                        LookalikeWarning(sp, dangerousLookalikes, onOpenSpecies)
+                    }
                 }
             }
+
+            list.forEach { (sp, p) ->
+                ProposalRow(sp, p, showPercent = !uncertain, onOpenFiche = { onOpenSpecies(sp.id) }) { onPick(sp) }
+            }
+
+            ChampiOutlinedButton("Aucune ne correspond → liste complète", onClick = onShowList)
+
+            if (unknownDangerous.isNotEmpty()) UnknownDangerousSection(unknownDangerous, onOpenSpecies)
+            VSpace(12.dp)
         }
+        BottomReminder()
+    }
+}
 
-        list.forEach { (sp, p) -> ProposalRow(sp, p) { onPick(sp) } }
+/** « Identification incertaine » : explication courte + conseil pour reprendre une photo. */
+@Composable
+private fun UncertainBanner() {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.secondary),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Warning, contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(champiText("Identification incertaine"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+            Text(
+                champiText(
+                    "Photo floue, mauvais angle, ou espèce peu connue de l'IA. " +
+                        "Reprends une photo du dessus, du dessous et du pied. Les pistes ci-dessous sont données sans chiffres."
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+}
 
-        ChampiOutlinedButton("Aucune ne correspond → liste complète", onClick = onShowList)
-
-        if (unknownDangerous.isNotEmpty()) UnknownDangerousSection(unknownDangerous, onOpenSpecies)
-        VSpace(24.dp)
+/** Rappel fixe en bas de l'écran (hors zone de défilement). */
+@Composable
+private fun BottomReminder() {
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(champiText(RAPPEL_BAS), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+        }
     }
 }
 
@@ -132,7 +203,7 @@ private fun PhotoTitle(photo: File, analysing: Boolean) {
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                champiText(if (analysing) "Analyse de la photo…" else "C'est peut-être…"),
+                champiText(if (analysing) "Analyse de la photo…" else "Ressemble à…"),
                 style = MaterialTheme.typography.titleLarge,
             )
             Text(
@@ -201,9 +272,13 @@ private fun LookalikeWarning(sp: Species, dangerous: List<Species>, onOpen: (Str
     }
 }
 
-/** Une proposition : photo de fiche, noms, pastille, pourcentage. Toxique / mortelle : bordure et texte d'alerte. */
+/**
+ * Une proposition : photo de fiche, noms, pourcentage (si confiance suffisante), lien « Voir la fiche ».
+ * Aucune pastille de comestibilité (pas de verdict) ; seule une piste toxique / mortelle garde
+ * sa pastille, sa bordure et son texte d'alerte (sécurité).
+ */
 @Composable
-private fun ProposalRow(sp: Species, p: Float, onClick: () -> Unit) {
+private fun ProposalRow(sp: Species, p: Float, showPercent: Boolean, onOpenFiche: () -> Unit, onClick: () -> Unit) {
     val danger = sp.isDangerous()
     Surface(
         onClick = onClick,
@@ -240,8 +315,16 @@ private fun ProposalRow(sp: Species, p: Float, onClick: () -> Unit) {
             }
             Spacer(Modifier.width(8.dp))
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                EdibilityChip(sp.edibility)
-                Text(formatPercent(p), style = MaterialTheme.typography.labelLarge)
+                if (danger) EdibilityChip(sp.edibility) // TOXIQUE / MORTEL seulement
+                if (showPercent) Text(formatPercent(p), style = MaterialTheme.typography.labelLarge)
+                // Lien discret vers la fiche complète (comestibilité, sosies, description).
+                TextButton(onClick = onOpenFiche, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
+                    Text(
+                        champiText("Voir la fiche"),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
         }
     }

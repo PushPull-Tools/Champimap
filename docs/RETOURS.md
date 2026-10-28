@@ -51,3 +51,6 @@
 - ✅ Identification hors ligne (ONNX Runtime) : 5 pistes avec photo, pastille et %, bandeau de prudence, sosies dangereux, pistes toxiques/mortelles marquées, espèces dangereuses inconnues du modèle.
 - ✅ Photos des fiches (3 327, auteur + licence sous chaque photo) et écran « Crédits des photos et du modèle ».
 - ⏳ À vérifier sur téléphone : temps d'analyse, pertinence sur de vraies photos, taille de l'APK.
+
+## Sécurité IA et démarrage — compile, à tester
+- ✅ Propositions de l'IA sans verdict de comestibilité : « Ressemble à… », lien « Voir la fiche », TOXIQUE / MORTEL et sosies toujours marqués, « Identification incertaine » sous 60 % (sans pourcentages), rappel fixe en bas ; avertissement « Prudence » plein écran (4 s, « J'ai compris » après 2 s) à chaque lancement à froid.

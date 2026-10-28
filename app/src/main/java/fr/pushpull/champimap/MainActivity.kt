@@ -9,8 +9,13 @@ import androidx.fragment.app.FragmentActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import fr.pushpull.champimap.core.AppGraph
 import fr.pushpull.champimap.core.settings.AppSettings
+import fr.pushpull.champimap.core.ui.StartupWarningScreen
+import fr.pushpull.champimap.core.ui.StartupWarningState
 import fr.pushpull.champimap.core.ui.theme.ChampimapTheme
 import fr.pushpull.champimap.feature.reglages.LockGate
 import fr.pushpull.champimap.nav.AppNav
@@ -49,9 +54,20 @@ object PendingImport {
 private fun Root() {
     val settings by AppGraph.settings.flow.collectAsState(initial = null)
     val s: AppSettings = settings ?: return // attend la lecture des réglages (quelques ms)
+    // Avertissement « Prudence » : une fois par lancement à froid (état du processus).
+    var warningShown by remember { mutableStateOf(StartupWarningState.shown) }
     ChampimapTheme(s) {
         LockGate {
-            AppNav(startOnboarding = !s.onboardingDone, importPending = PendingImport.uri != null)
+            if (!warningShown) {
+                // Après le code de verrouillage, avant l'accueil / le premier lancement.
+                // Un fichier .champi reçu reste dans PendingImport : l'import s'ouvre juste après.
+                StartupWarningScreen(onDone = {
+                    StartupWarningState.shown = true
+                    warningShown = true
+                })
+            } else {
+                AppNav(startOnboarding = !s.onboardingDone, importPending = PendingImport.uri != null)
+            }
         }
     }
 }

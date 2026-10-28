@@ -169,8 +169,13 @@ Panneau « Comment tu démarres ? » : « Je suis garé » (on enregistre la voi
 - `OnnxSpeciesIdentifier` : session chargée une fois en arrière-plan (modèle copié dans `filesDir/ia/`),
   prétraitement identique à l'entraînement (orientation EXIF, petit côté 316 px, recadrage central 288, mean/std),
   softmax, 5 meilleures espèces présentes au catalogue. Erreur → journal (sans donnée personnelle) et liste.
-- Écran de résultat (après « Trouvé ! → Photo ») : 5 pistes (photo de fiche, nom, latin, pastille, %),
-  toucher = ajout à la récolte ; « Aucune ne correspond → liste complète ». Bandeau permanent : « Pistes proposées
+- Écran de résultat (après « Trouvé ! → Photo ») : titre « Ressemble à… » (jamais « C'est un… »), 5 pistes
+  (photo de fiche, nom, latin, %, lien discret « Voir la fiche »), toucher = ajout à la récolte ; **jamais de
+  verdict de comestibilité** : aucune pastille « Comestible » / « À éviter » sur les pistes (seules TOXIQUE / MORTEL
+  restent marquées, c'est de la sécurité). Confiance de la 1re piste < `SEUIL_CONFIANCE` (0,60) → « Identification
+  incertaine » en tête (photo floue, angle, espèce peu connue ; reprendre dessus, dessous, pied) et pistes sans
+  pourcentages. Rappel fixe en bas (hors défilement) : « Ne consomme jamais un champignon identifié seulement par
+  l'appli : fais-le vérifier par un pharmacien ou une société mycologique. » ; « Aucune ne correspond → liste complète ». Bandeau permanent : « Pistes proposées
   par l'IA, jamais une preuve de comestibilité. Fais vérifier en cas de doute (pharmacien, société mycologique). »
   Piste comestible avec sosies toxiques/mortels → avertissement de sosie bien visible ; piste toxique/mortelle →
   fortement marquée. Note fixe + section dépliable « Espèces dangereuses que l'IA ne connaît pas encore »
@@ -207,6 +212,12 @@ Panneau « Comment tu démarres ? » : « Je suis garé » (on enregistre la voi
 - Sauvegarde : export complet (base + photos) chiffré (mot de passe, AES-GCM, PBKDF2) ou non, import,
   export CSV, corbeille (restaurer / supprimer définitivement).
 - Verrouillage : `LockGate { }` avec BiometricPrompt (empreinte ou code du téléphone).
+- Avertissement « Prudence » (`core/ui/StartupWarning.kt`) : plein écran à chaque lancement à froid (état du
+  processus, pas au retour d'arrière-plan ni à la rotation), après le verrouillage et avant l'accueil / le premier
+  lancement : logo, « Prudence », texte validé (pas un expert, jamais consommer sur la seule foi de l'appli,
+  pharmacien ou société mycologique, intoxication : 15 ou centre antipoison). Barre fine 4 s puis passage auto ;
+  « J'ai compris » actif après 2 s. SafetyTheme (lisible clair / sombre / party). Un fichier .champi reçu reste en
+  attente et l'import s'ouvre juste après.
 
 ### Sortie à plusieurs et partage (module groupe)
 - Créer : QR code (zxing) avec les infos du groupe ; liaison Bluetooth Low Energy (L2CAP) — Wi-Fi Direct impossible sans permission INTERNET ; Rejoindre : scan.
