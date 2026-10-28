@@ -94,6 +94,14 @@ fun PerduScreen(nav: NavController, sortieId: String) {
                                 (if (toCar) "Voiture à " else "Départ à ") + Geo.formatDistance(Geo.distanceM(f.lat, f.lon, sLat, sLon)),
                                 style = MaterialTheme.typography.headlineMedium,
                             )
+                            // Coordonnées de la voiture / du départ, à dicter aussi au besoin.
+                            SelectionContainer {
+                                Text(
+                                    (if (toCar) "Voiture : " else "Départ : ") + Geo.formatCoords(sLat, sLon),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    textAlign = TextAlign.Center,
+                                )
+                            }
                             if (heading == null) {
                                 Text("Pas de boussole : la flèche indique la direction par rapport au nord.", style = MaterialTheme.typography.bodySmall)
                             }

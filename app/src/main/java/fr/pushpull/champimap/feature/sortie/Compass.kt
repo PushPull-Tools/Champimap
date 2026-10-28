@@ -97,7 +97,7 @@ private fun displayRotation(context: Context): Int =
  * Flèche orientée (en degrés, 0 = vers le haut de l'écran). Dessinée en Canvas, sans image.
  */
 @Composable
-fun DirectionArrow(rotationDeg: Float, modifier: Modifier = Modifier, size: Dp = 64.dp, color: Color = Color(0xFFE08A2E)) {
+fun DirectionArrow(rotationDeg: Float, modifier: Modifier = Modifier, size: Dp = 64.dp, color: Color = androidx.compose.material3.MaterialTheme.colorScheme.primary) {
     Canvas(modifier.size(size)) {
         rotate(rotationDeg) {
             val w = this.size.width
