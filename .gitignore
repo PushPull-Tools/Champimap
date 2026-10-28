@@ -9,4 +9,4 @@ build/
 /app/src/main/assets/connect/
 # Modèle d'identification : livré par Champimap Connect (release GitHub « ia-vN »), jamais dans git ni dans l'APK.
 /app/src/main/assets/ia/
-captures/
+/captures/
