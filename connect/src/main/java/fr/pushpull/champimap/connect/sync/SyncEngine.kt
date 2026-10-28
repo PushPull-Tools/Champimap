@@ -53,6 +53,7 @@ import java.util.UUID
  *  3. météo de toutes les zones demandées ;
  *  4. cartes des départements demandés ;
  *  5. modèle d'identification, s'il est demandé et qu'une version plus récente (ou choisie) existe.
+ *     La liste des versions publiées (ia_versions.json) est toujours renvoyée quand le modèle est demandé.
  * Chaque élément est indépendant : un échec est noté (liste d'erreurs) et la suite continue.
  * Chaque fichier terminé est aussitôt autorisé en lecture pour Champimap et annoncé (diffusion + state.json).
  * Aucune donnée de spot n'est reçue ni envoyée : seulement des départements et des carrés de 0,25°
@@ -138,7 +139,11 @@ object SyncEngine {
             val name = Departements.byCode(code)?.name ?: code
             items += SyncItem("carte_$code", ItemKind.CARTE, "Carte · $name", code, weight = W_CARTE)
         }
-        if (r.ia != null) items += SyncItem("ia", ItemKind.IA, "Modèle d'identification", weight = W_IA)
+        r.ia?.let { ia ->
+            // Liste des versions seule : élément léger (quelques Ko).
+            items += if (ia.listOnly) SyncItem("ia", ItemKind.IA, "Versions du modèle d'identification", weight = 1)
+            else SyncItem("ia", ItemKind.IA, "Modèle d'identification", weight = W_IA)
+        }
         return items
     }
 
@@ -277,7 +282,10 @@ object SyncEngine {
     private suspend fun syncIa(req: IaRequest, dir: File): String {
         setItem("ia") { it.copy(detail = "Recherche de la dernière version…") }
         val releases = runInterruptible { IaModelDownloader.listReleases() }
+        // Liste des versions publiées remise à l'appli à chaque fois (menu de choix de version).
+        writeJson(dir, SyncProtocol.IA_VERSIONS, versionsJson(releases))
         if (releases.isEmpty()) throw IOException("Aucun modèle publié pour le moment")
+        if (req.listOnly) return "${releases.size} version${if (releases.size > 1) "s" else ""} publiée${if (releases.size > 1) "s" else ""}"
         val target = if (req.wanted != null) {
             releases.firstOrNull { it.tag == req.wanted } ?: throw IOException("Version ${req.wanted} introuvable")
         } else releases.first()
@@ -380,6 +388,24 @@ object SyncEngine {
         writeJson(dir, SyncProtocol.IA_MANIFEST, manifest)
         return "${target.summary()} · ${entries.size} fichiers · ${sizeText(totalBytes)}"
     }
+
+    /**
+     * ia_versions.json : tableau des versions publiées (plus récente d'abord) avec leurs statistiques.
+     * Les statistiques inconnues sont omises (l'appli ne les affiche pas).
+     */
+    private fun versionsJson(releases: List<IaModelDownloader.IaRelease>): JsonArray = JsonArray(
+        releases.map { r ->
+            val fields = LinkedHashMap<String, Any?>()
+            fields["version"] = r.tag
+            r.stats?.especes?.let { fields["especes"] = it }
+            r.stats?.top1?.let { fields["top1"] = it }
+            r.stats?.top5?.let { fields["top5"] = it }
+            r.stats?.tailleModeleMo?.let { fields["tailleModeleMo"] = it }
+            fields["size"] = r.size
+            fields["date"] = r.date
+            jsonObj(*fields.map { it.key to it.value }.toTypedArray())
+        },
+    )
 
     /**
      * Exécute un élément : statut « en cours », puis « terminé » (avec un détail) ou « erreur ».

@@ -57,6 +57,8 @@ import kotlinx.serialization.json.JsonPrimitive
  *   EXTRA_IA_VERSION_WANTED (String, « ia-vN », facultatif) : version précise voulue (sinon la plus récente) ;
  *   EXTRA_IA_CHOOSE (Boolean) : Connect affiche la liste des versions publiées pour que l'utilisateur choisisse
  *     (« La plus récente » ou une version précise, pour réinstaller une ancienne version si besoin).
+ *   EXTRA_IA_LIST_ONLY (Boolean, Connect versionCode 3) : seulement la liste des versions publiées
+ *     (fichier ia_versions.json), rien n'est téléchargé d'autre ; pas de fenêtre « données mobiles » (quelques Ko).
  * Connect lit la liste PUBLIQUE des releases GitHub (GET non authentifié, aucune donnée envoyée), garde
  * les releases non brouillon « ia-vN » ayant l'asset champi-ia-resultat.tar.gz et prend le plus grand N.
  * Téléchargement reprenable, empreinte SHA-256 vérifiée (champ « digest » de l'API s'il existe), extraction
@@ -68,6 +70,10 @@ import kotlinx.serialization.json.JsonPrimitive
  *     "exact": false,   (true = version précise choisie, false = « la plus récente »)
  *     "files": [ { "path": "champi-ia.onnx", "size": 36591017, "sha256": "<fichier>" }, … ] }
  *   (liste dans un fichier : ~3 300 photos de fiches, trop pour l'instantané diffusé toutes les 400 ms).
+ * Liste des versions (Connect versionCode 3) : à CHAQUE demande avec EXTRA_INCLUDE_IA, dès la liste lue,
+ *   le fichier ia_versions.json (TABLEAU, de la plus récente à la plus ancienne) est annoncé :
+ *   [ { "version": "ia-v1", "especes": 1032, "top1": 73.8, "top5": 92.7, "tailleModeleMo": 35.0,
+ *       "size": 143386734, "date": "2026-10-26" } ]   (champs de statistiques absents = inconnus)
  * Résultat d'activité EXTRA_WAIT_WIFI = true (RESULT_CANCELED) : l'utilisateur a choisi « Attendre le Wi-Fi ».
  *
  * Formats des fichiers JSON (FIGÉS, lus par l'appli principale) : UTF-8, TABLEAU d'objets à la racine.
@@ -108,6 +114,10 @@ object SyncProtocol {
     const val EXTRA_IA_FORCE = "iaForce"
     const val EXTRA_IA_VERSION_WANTED = "iaVersionWanted"
     const val EXTRA_IA_CHOOSE = "iaChoose"
+    /** Ajout (versionCode 3) : seulement la liste des versions (ia_versions.json), aucun téléchargement de modèle. */
+    const val EXTRA_IA_LIST_ONLY = "iaListOnly"
+    /** Nom de la liste des versions publiées renvoyée dans snapshot.files. */
+    const val IA_VERSIONS = "ia_versions.json"
     /** Nom du manifeste du modèle renvoyé dans snapshot.files. */
     const val IA_MANIFEST = "ia_manifest.json"
     /** Version d'un modèle : « ia-v1 », « ia-v2 »… */
@@ -223,8 +233,15 @@ data class SyncRequest(
  * @param force retélécharger même si la version est à jour
  * @param wanted version précise voulue (null = la plus récente)
  * @param choose afficher la liste des versions publiées avant de lancer la synchro
+ * @param listOnly seulement renvoyer la liste des versions (ia_versions.json), sans télécharger de modèle
  */
-data class IaRequest(val installed: String?, val force: Boolean, val wanted: String? = null, val choose: Boolean = false)
+data class IaRequest(
+    val installed: String?,
+    val force: Boolean,
+    val wanted: String? = null,
+    val choose: Boolean = false,
+    val listOnly: Boolean = false,
+)
 
 /** Une zone météo : carré de 0,25° et période (dates locales AAAA-MM-JJ). */
 data class WeatherZoneRequest(val zoneId: String, val from: String, val to: String) {

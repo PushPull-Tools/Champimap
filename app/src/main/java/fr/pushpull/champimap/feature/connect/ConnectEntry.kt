@@ -1,14 +1,18 @@
 package fr.pushpull.champimap.feature.connect
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -348,7 +352,10 @@ private fun ConnectUpdateCard(install: InstallState) {
             color = MaterialTheme.colorScheme.onSurface,
         )
         Text(
-            champiText("Ton module Champimap Connect est ancien : il ne sait pas encore télécharger le modèle d'identification."),
+            champiText(
+                "Ton module Champimap Connect est ancien : il ne gère pas encore tout le modèle d'identification " +
+                    "(téléchargement, liste des versions).",
+            ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -382,32 +389,41 @@ private fun ConnectUpdateCard(install: InstallState) {
 // Modèle d'identification (écran des Paramètres)
 // ---------------------------------------------------------------------------------------------
 
-/** Statistiques affichées : modèle actif et modèle précédent. */
-private class IaScreenStats(val current: IaStats?, val previous: IaStats?, val fromConnect: Boolean, val fromApk: Boolean)
+/** Statistiques affichées : modèle actif et son origine. */
+private class IaScreenStats(val current: IaStats?, val fromConnect: Boolean, val fromApk: Boolean)
+
+/** Entrée « La plus récente (automatique) » du menu des versions. */
+private const val LATEST_LABEL = "La plus récente (automatique)"
 
 /**
- * Carte « Identification par photo » : interrupteur (inclus dans la synchro), état du modèle installé
- * avec ses statistiques, version fixée, choix d'une version dans Connect, modèle précédent
- * (« Revenir à ce modèle » avec confirmation, « Supprimer »).
+ * Carte « Identification par photo » : interrupteur (inclus dans la synchro), état du modèle installé avec ses
+ * statistiques, message si le dernier modèle reçu a été refusé, menu déroulant des versions (la plus récente ou
+ * une version précise, liste reçue de Connect) et « Télécharger cette version ».
+ * Pas de version précédente durable : l'ancien modèle ne sert de secours que pendant la bascule.
  * @param installed vrai si Champimap Connect est installé
  * @param running vrai pendant une synchro (boutons de synchro désactivés)
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun IaModelCard(installed: Boolean, running: Boolean) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val info by remember { IaModel.flow(context) }.collectAsState(initial = IaModelInfo())
     val revision by IaAssets.revision.collectAsState()
-    val chooseVersion = rememberConnectSync(chooseIa = true)
-    var confirmRestore by remember { mutableStateOf(false) }
+    val versions by IaVersions.list.collectAsState()
+    // Modèle seul (version fixée, sinon la plus récente) et liste des versions seule.
+    val downloadVersion = rememberConnectSync(iaOnly = true)
+    val refreshList = rememberConnectSync(iaListOnly = true)
+    var menuOpen by remember { mutableStateOf(false) }
+
+    // Liste des versions gardée sur le téléphone (lue une fois).
+    LaunchedEffect(Unit) { IaVersions.load(context) }
 
     // Statistiques lues hors du fil principal, relues à chaque changement de modèle.
-    val stats by produceState<IaScreenStats?>(initialValue = null, revision, info.version, info.previousVersion) {
+    val stats by produceState<IaScreenStats?>(initialValue = null, revision, info.version) {
         value = withContext(Dispatchers.IO) {
             IaScreenStats(
                 current = IaAssets.stats(context, info.version),
-                previous = info.previousVersion?.takeIf { IaModel.hasPreviousFiles(context) }
-                    ?.let { IaModel.previousStats(context, it) },
                 fromConnect = IaAssets.isFromConnect(context),
                 fromApk = IaAssets.modelAvailable(context) && !IaAssets.isFromConnect(context),
             )
@@ -443,76 +459,109 @@ private fun IaModelCard(installed: Boolean, running: Boolean) {
             Text(champiText(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
-        // Version fixée (choisie à la main ou restaurée).
-        info.pinnedVersion?.let { pinned ->
-            VSpace(6.dp)
+        // Dernier modèle reçu refusé (test de chargement en échec) : message clair, effaçable.
+        info.failedVersion?.let { failed ->
+            VSpace(8.dp)
             Text(
-                champiText("Version fixée : $pinned (la synchro ne la remplace pas par une plus récente)."),
+                champiText(
+                    if (info.failedKeptOld) "Le nouveau modèle n'a pas pu être chargé : l'ancien est conservé ($failed refusé)."
+                    else "Le nouveau modèle n'a pas pu être chargé ($failed refusé) : relance la synchro plus tard.",
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.error,
+            )
+            TextButton(onClick = { scope.launch { IaModel.clearFailure(context) } }) { Text(champiText("OK")) }
+        }
+
+        // Choix de la version : menu déroulant (liste reçue de Connect), téléchargée par Connect.
+        if (installed) {
+            VSpace(12.dp)
+            val known = versions.orEmpty()
+            val pinned = info.pinnedVersion
+            // Texte de l'entrée choisie : statistiques si la version est connue, sinon son nom seul.
+            val selectedLabel = pinned?.let { p -> known.firstOrNull { it.version == p }?.summary() ?: p } ?: LATEST_LABEL
+            ExposedDropdownMenuBox(
+                expanded = menuOpen,
+                onExpandedChange = { if (!running) menuOpen = it },
+            ) {
+                OutlinedTextField(
+                    value = champiText(selectedLabel),
+                    onValueChange = {},
+                    readOnly = true,
+                    enabled = !running,
+                    singleLine = true,
+                    label = { Text(champiText("Version du modèle")) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuOpen) },
+                    modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+                )
+                ExposedDropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    // Suivi automatique de la plus récente.
+                    DropdownMenuItem(
+                        text = { Text(champiText(LATEST_LABEL), fontWeight = if (pinned == null) FontWeight.Bold else null) },
+                        onClick = {
+                            menuOpen = false
+                            scope.launch { IaModel.unpin(context) }
+                        },
+                    )
+                    // Versions publiées connues (plus récente d'abord), avec leurs statistiques.
+                    known.forEach { v ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    champiText(v.summary() + if (v.version == info.version) " · installée" else ""),
+                                    fontWeight = if (v.version == pinned) FontWeight.Bold else null,
+                                )
+                            },
+                            onClick = {
+                                menuOpen = false
+                                scope.launch { IaModel.pin(context, v.version) }
+                            },
+                        )
+                    }
+                    // Version fixée absente de la liste (liste pas encore reçue) : affichée quand même.
+                    if (pinned != null && known.none { it.version == pinned }) {
+                        DropdownMenuItem(
+                            text = { Text(champiText(pinned), fontWeight = FontWeight.Bold) },
+                            onClick = { menuOpen = false },
+                        )
+                    }
+                    // Récupère (ou met à jour) la liste des versions auprès de Connect.
+                    DropdownMenuItem(
+                        text = { Text(champiText("Actualiser la liste (via Connect)"), color = MaterialTheme.colorScheme.primary) },
+                        onClick = {
+                            menuOpen = false
+                            refreshList()
+                        },
+                    )
+                }
+            }
+            VSpace(4.dp)
+            Text(
+                champiText(
+                    when {
+                        known.isEmpty() -> "Liste des versions pas encore reçue : choisis « Actualiser la liste (via Connect) »."
+                        pinned != null && pinned != info.version -> "$pinned sera téléchargée à la prochaine synchro (version fixée)."
+                        pinned != null -> "Version fixée : la synchro ne la remplace pas par une plus récente."
+                        else -> "La synchro installe automatiquement chaque nouvelle version."
+                    },
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface,
             )
-            TextButton(onClick = { scope.launch { IaModel.unpin(context) } }) {
-                Text(champiText("Suivre la plus récente"))
-            }
-        }
-
-        // Choix d'une version précise (liste affichée par Connect).
-        if (installed) {
             VSpace(8.dp)
-            ChampiOutlinedButton("Choisir une version du modèle…", onClick = chooseVersion, enabled = !running)
-        }
-
-        // Modèle précédent, gardé en secours.
-        val prevVersion = info.previousVersion
-        if (prevVersion != null && s?.previous != null) {
-            VSpace(12.dp)
+            ChampiOutlinedButton("Télécharger cette version", onClick = downloadVersion, enabled = !running)
+            VSpace(4.dp)
             Text(
-                champiText("Modèle précédent : $prevVersion (${formatMo(info.previousBytes)})"),
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface,
+                champiText("Les versions se téléchargent avec Champimap Connect ; l'appli reste hors ligne."),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            s.previous.summary().takeIf { it.isNotBlank() }?.let {
-                Text(champiText(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Row {
-                TextButton(onClick = { confirmRestore = true }) { Text(champiText("Revenir à ce modèle")) }
-                TextButton(onClick = { scope.launch { IaModel.deletePrevious(context) } }) {
-                    Text(champiText("Supprimer"), color = MaterialTheme.colorScheme.error)
-                }
-            }
         }
-    }
-
-    // Confirmation avant de revenir au modèle précédent.
-    if (confirmRestore && prevVersionOf(info) != null) {
-        AlertDialog(
-            onDismissRequest = { confirmRestore = false },
-            title = { Text(champiText("Revenir au modèle ${info.previousVersion} ?")) },
-            text = {
-                Text(
-                    champiText(
-                        "Le modèle actuel est gardé à sa place en secours. La version restaurée est fixée : " +
-                            "la synchro ne la remplacera pas tant que tu ne choisis pas « Suivre la plus récente ».",
-                    ),
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmRestore = false
-                    scope.launch { IaModel.restorePrevious(context, reason = null) }
-                }) { Text(champiText("Revenir")) }
-            },
-            dismissButton = { TextButton(onClick = { confirmRestore = false }) { Text(champiText("Annuler")) } },
-        )
     }
 }
-
-/** Version précédente (raccourci lisible pour la condition de la fenêtre). */
-private fun prevVersionOf(info: IaModelInfo): String? = info.previousVersion
 
 /** « 1 032 ». */
 private fun formatCount(n: Int): String =
     String.format(Locale.FRANCE, "%,d", n).replace('\u202F', ' ').replace('\u00A0', ' ')
 
-/** « 142 Mo ». */
-private fun formatMo(bytes: Long): String = String.format(Locale.FRANCE, "%.0f Mo", bytes / 1048576.0)

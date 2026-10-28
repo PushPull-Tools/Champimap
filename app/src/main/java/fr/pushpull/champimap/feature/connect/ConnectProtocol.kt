@@ -27,14 +27,19 @@ import kotlinx.serialization.json.longOrNull
  *   les fichiers eux-mêmes sont lus sous IA_BASE_URI/<version>/<chemin>, lecture accordée par préfixe).
  *
  * Modèle d'identification (ajout compatible) : EXTRA_INCLUDE_IA, EXTRA_IA_VERSION_INSTALLED, EXTRA_IA_FORCE,
- * EXTRA_IA_VERSION_WANTED (version fixée), EXTRA_IA_CHOOSE (Connect affiche la liste des versions).
+ * EXTRA_IA_VERSION_WANTED (version fixée), EXTRA_IA_CHOOSE (Connect affiche la liste des versions),
+ * EXTRA_IA_LIST_ONLY (Connect 3 : seulement la liste des versions). Connect 3 renvoie ia_versions.json
+ * (versions publiées et statistiques) à chaque demande incluant le modèle.
  * Résultat EXTRA_WAIT_WIFI = true : l'utilisateur a choisi « Attendre le Wi-Fi » (rien n'a été lancé).
  */
 object ConnectProtocol {
     /** Paquet de l'appli Champimap Connect (seule à avoir Internet). */
     const val CONNECT_PACKAGE = "fr.pushpull.champimap.connect"
-    /** Version minimale de Connect comprenant ce protocole (modèle d'identification) : sinon « Mettre à jour ». */
-    const val MIN_CONNECT_VERSION_CODE = 2L
+    /**
+     * Version minimale de Connect comprenant ce protocole : sinon « Mettre à jour ».
+     * 2 = modèle d'identification ; 3 = liste des versions du modèle (ia_versions.json, EXTRA_IA_LIST_ONLY).
+     */
+    const val MIN_CONNECT_VERSION_CODE = 3L
 
     const val MAIN_PACKAGE = "fr.pushpull.champimap"
     const val PERMISSION = "fr.pushpull.champimap.permission.CONNECT"
@@ -55,6 +60,7 @@ object ConnectProtocol {
     const val EXTRA_IA_FORCE = "iaForce"
     const val EXTRA_IA_VERSION_WANTED = "iaVersionWanted"
     const val EXTRA_IA_CHOOSE = "iaChoose"
+    const val EXTRA_IA_LIST_ONLY = "iaListOnly"
 
     // Réponse (résultat d'activité et diffusion)
     const val EXTRA_SNAPSHOT = "snapshot"
@@ -72,6 +78,7 @@ object ConnectProtocol {
     const val FILE_WEATHER = "weather.json"
     const val FILE_ANTIPOISON = "antipoison.json"
     const val FILE_IA_MANIFEST = "ia_manifest.json"
+    const val FILE_IA_VERSIONS = "ia_versions.json"
 
     /** Dossier des fichiers du modèle chez Connect : IA_BASE_URI + "<version>/<chemin>". */
     const val IA_BASE_URI = "content://$FILES_AUTHORITY/sync/ia/"

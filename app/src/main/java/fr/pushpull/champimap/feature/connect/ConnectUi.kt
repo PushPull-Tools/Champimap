@@ -91,10 +91,11 @@ fun ConnectResumeEffect() {
 /**
  * Renvoie une fonction qui lance la synchro dans Champimap Connect et traite son résultat.
  * @param refreshMaps true = « Actualiser les cartes » (tout retélécharger) ; false = seulement ce qui manque.
- * @param chooseIa true = seulement le modèle d'identification, version choisie dans Connect.
+ * @param iaOnly true = seulement le modèle d'identification (version choisie dans le menu, sinon la plus récente).
+ * @param iaListOnly true = seulement la liste des versions publiées du modèle (quelques Ko).
  */
 @Composable
-fun rememberConnectSync(refreshMaps: Boolean = false, chooseIa: Boolean = false): () -> Unit {
+fun rememberConnectSync(refreshMaps: Boolean = false, iaOnly: Boolean = false, iaListOnly: Boolean = false): () -> Unit {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -107,7 +108,7 @@ fun rememberConnectSync(refreshMaps: Boolean = false, chooseIa: Boolean = false)
                 return@launch
             }
             ConnectClient.ensureListening(context)
-            val intent = ConnectClient.buildSyncIntent(context, refreshMaps = refreshMaps, chooseIa = chooseIa)
+            val intent = ConnectClient.buildSyncIntent(context, refreshMaps = refreshMaps, iaOnly = iaOnly, iaListOnly = iaListOnly)
             ConnectClient.markStarted()
             try {
                 launcher.launch(intent)

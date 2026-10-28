@@ -47,6 +47,7 @@ object RequestParser {
             force = intent.getBooleanExtra(SyncProtocol.EXTRA_IA_FORCE, false),
             wanted = version(SyncProtocol.EXTRA_IA_VERSION_WANTED),
             choose = intent.getBooleanExtra(SyncProtocol.EXTRA_IA_CHOOSE, false),
+            listOnly = intent.getBooleanExtra(SyncProtocol.EXTRA_IA_LIST_ONLY, false),
         )
     }
 

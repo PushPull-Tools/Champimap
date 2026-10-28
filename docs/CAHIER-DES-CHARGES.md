@@ -170,19 +170,24 @@ Panneau « Comment tu démarres ? » : « Je suis garé » (on enregistre la voi
 - Réception (`feature/connect/IaModelImport.kt`) : `ia_manifest.json` (version, empreinte de l'archive, fichiers avec
   taille + SHA-256) ; copie dans `filesDir/ia_tmp/` avec vérification taille + SHA-256 de chaque fichier, fichiers
   obligatoires (onnx, labels, especes_ia) et labels.json lisible, puis bascule par renommage (`IaModel.commitNew`) :
-  `ia/` → `ia_precedent/` (UNE version précédente gardée, la plus ancienne supprimée), `ia_tmp/` → `ia/`.
-  Version, empreinte, nombre d'espèces, version précédente et version fixée dans le DataStore `ia_model`.
+  `ia/` → `ia_precedent/` (secours **le temps de la bascule seulement**), `ia_tmp/` → `ia/`.
+  Version, empreinte, nombre d'espèces, version fixée et dernier modèle refusé dans le DataStore `ia_model`.
 - `IaAssets` lit `filesDir/ia/` en priorité, sinon les assets de l'APK (compatibilité), sinon « modèle absent »
   (`NoModelIdentifier`). `IaAssets.revision` change à chaque nouveau modèle : session ONNX rechargée, catalogue
   (`SpeciesLoader`) rejoué, photos des fiches relues — sans redémarrer l'appli.
-- Échec de chargement d'un modèle reçu (session ONNX impossible, labels incohérents : nombre de sorties ≠ nombre
-  d'espèces) → retour automatique au modèle précédent + entrée au journal. Le nouveau modèle est testé
-  (`OnnxSpeciesIdentifier.preload`) dès sa réception.
+- Test immédiat du nouveau modèle (`OnnxSpeciesIdentifier.validateInstalled`) : session ONNX chargée + une
+  inférence de contrôle sur une image neutre (gris moyen) générée en mémoire ; la sortie doit avoir le nombre
+  d'espèces de `labels.json` et aucune valeur NaN / infinie.
+  - réussite → `ia_precedent/` supprimé automatiquement (`IaModel.dropBackup`, place libérée) ;
+  - échec → nouveau modèle supprimé, ancien remis en place et **fixé** (pas de re-téléchargement en boucle),
+    entrée au journal, message dans l'écran Connect « Le nouveau modèle n'a pas pu être chargé : l'ancien est
+    conservé » (`IaModel.rejectNew`). Bascule interrompue (appli fermée pendant le test) → terminée à la
+    synchro suivante ou au premier chargement. Plus aucune version précédente durable.
 - Sans modèle : « Trouvé ! → Photo » mène directement à la liste avec « Identification par photo : télécharge le
   modèle avec Champimap Connect (≈ 140 Mo) » + bouton « Ouvrir Champimap Connect ».
 - Statistiques d'un modèle : « ia-v1 · 1 032 espèces · réussite 73,8 % (top-5 92,7 %) · 35 Mo · date », lues dans
   stats.json (texte de la release), sinon rapport.txt + labels.json. Affichées dans la liste de choix de Connect
-  et dans l'écran Connect de l'appli (modèle installé et précédent). Un seul modèle actif (pas de combinaison).
+  et dans l'écran Connect de l'appli (modèle installé, menu des versions). Un seul modèle actif (pas de combinaison).
 - `OnnxSpeciesIdentifier` : session chargée une fois par version du modèle, en arrière-plan,
   prétraitement identique à l'entraînement (orientation EXIF, petit côté 316 px, recadrage central 288, mean/std),
   softmax, 5 meilleures espèces présentes au catalogue. Erreur → journal (sans donnée personnelle) et liste.
@@ -267,24 +272,32 @@ Panneau « Comment tu démarres ? » : « Je suis garé » (on enregistre la voi
     aucune donnée envoyée) ; releases non brouillon dont l'étiquette est `ia-vN`, avec l'asset
     `champi-ia-resultat.tar.gz` ; la plus récente = N le plus grand (ia-v1 < ia-v2 < ia-v10) ;
   - demande (rétrocompatible) : `includeIa`, `iaVersionInstalled`, `iaForce` (« Actualiser » complet),
-    `iaVersionWanted` (version fixée), `iaChoose` (Connect affiche la liste des versions avec leurs statistiques :
-    « La plus récente » ou une version précise, pour réinstaller une ancienne version) ;
+    `iaVersionWanted` (version fixée), `iaChoose` (liste affichée dans Connect, n'est plus utilisé par l'appli),
+    `iaListOnly` (Connect 3 : seulement la liste des versions, sans fenêtre « données mobiles ») ;
+  - liste des versions (Connect 3) : `ia_versions.json` renvoyé à chaque demande incluant le modèle (tableau, plus
+    récente d'abord : `version`, `especes`, `top1`, `top5`, `tailleModeleMo`, `size`, `date`), gardé par l'appli
+    dans `filesDir/ia_versions.json` (`feature/connect/IaVersions.kt`) pour le menu des versions, hors ligne ;
   - téléchargement seulement si la version de l'appli est plus ancienne (ou forcé / choisi), reprenable (Range,
     fichier `.part` dans `cacheDir/ia_download/`), % dans la liste d'avancement ; SHA-256 vérifié contre le
     `digest` de l'API (sinon calculé et transmis) ; extraction tar.gz maison (ustar, PAX, GNU ; chemins hors du
     dossier refusés, liens jamais créés) dans `sync/ia/<version>/` ; lecture accordée par préfixe d'URI ;
     `ia_manifest.json` annoncé en dernier ; snapshot.ia = version, empreinte, nombre de fichiers ;
-  - version choisie à la main ou restaurée = version **fixée** : la synchro normale ne la remplace pas
-    (« Suivre la plus récente » dans l'appli).
+  - version choisie dans le menu (ou remise après un échec) = version **fixée** : la synchro normale ne la
+    remplace pas (« La plus récente (automatique) » dans le menu rétablit le suivi).
 - Données mobiles (Connect, `util/Network.kt`, permission ACCESS_NETWORK_STATE de Connect uniquement) : si le
   réseau actif n'est pas Wi-Fi/Ethernet non facturé, fenêtre « Tu es sur les données mobiles » avec la taille
   estimée (cartes ≈ 35 Mo par département + modèle ≈ 140 Mo) : « Attendre le Wi-Fi » (rien n'est lancé, l'appli
   affiche « Synchro reportée ») / « Continuer quand même ».
 - Écran Connect de l'appli, section « Identification par photo » : interrupteur « Identification par photo
   (≈ 140 Mo, Wi-Fi conseillé) » activé par défaut (la synchro normale inclut le modèle s'il y a plus récent),
-  état « Modèle ia-vN installé · X espèces » + statistiques, version fixée, « Choisir une version du modèle… »,
-  « Modèle précédent : ia-vN (X Mo) » avec « Revenir à ce modèle » (confirmation) et « Supprimer ».
-- Connect `versionCode` 2 (0.2.0) = premier à gérer le modèle ; un Connect plus ancien installé → carte
+  état « Modèle ia-vN installé · X espèces » + statistiques, message d'échec éventuel (« OK » l'efface),
+  **menu déroulant** « Version du modèle » : « La plus récente (automatique) », puis chaque version connue avec
+  ses stats (« ia-v1 · 1 032 espèces · 73,8 % · 35 Mo », « · installée »), puis « Actualiser la liste (via
+  Connect) ». Choisir une version = la fixer : téléchargée à la prochaine synchro, ou tout de suite avec
+  « Télécharger cette version » (modèle seul). Mention : « Les versions se téléchargent avec Champimap Connect ;
+  l'appli reste hors ligne. » Plus de ligne « Modèle précédent ».
+- Connect `versionCode` 2 (0.2.0) = premier à gérer le modèle, 3 (0.3.0) = liste des versions
+  (`MIN_CONNECT_VERSION_CODE` = 3) ; un Connect plus ancien installé → carte
   « Mise à jour du module nécessaire » + « Mettre à jour le module » (APK incluse, `MIN_CONNECT_VERSION_CODE`).
   Toute évolution du protocole : augmenter `versionCode` de Connect et `MIN_CONNECT_VERSION_CODE`.
 - **Publier un nouveau modèle** : créer sur GitHub la release `ia-vN` (N = précédent + 1, non brouillon) avec
@@ -292,7 +305,7 @@ Panneau « Comment tu démarres ? » : « Je suis garé » (on enregistre la voi
   changement de code. Facultatif : dans le texte de la release, le commentaire
   `<!-- STATS {"version":"ia-vN","especes":…,"top1":…,"top5":…,"photosControle":…,"photosEntrainement":…,"architecture":"…","tailleModeleMo":…} -->`
   (champs absents = non affichés). **Les anciennes releases `ia-v*` ne sont jamais supprimées** : elles
-  permettent de réinstaller une ancienne version depuis Connect.
+  permettent de réinstaller une ancienne version depuis le menu des versions.
 - Fiche « En cas d'intoxication » (SafetyTheme, jamais party) : bandeaux « 15 · SAMU », « Centre antipoison »,
   « Urgences » avec boutons-icônes à droite (appeler = ouvre le clavier avec le numéro, ne compose pas ;
   y aller = ouvre l'appli GPS via `geo:`), sélon la position GPS actuelle (repli : zone des cartes).

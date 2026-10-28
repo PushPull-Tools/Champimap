@@ -30,8 +30,10 @@ import kotlin.math.roundToInt
  * Identification hors ligne avec le modèle ONNX (ONNX Runtime, sur le téléphone).
  *  1. Session chargée une fois par version du modèle (IaAssets.revision), en arrière-plan : modèle
  *     livré par Champimap Connect (filesDir/ia/), sinon celui des assets de l'APK (compatibilité).
- *     Nouvelle version reçue → session fermée et rechargée. Échec de chargement d'un modèle reçu
- *     (session impossible, labels incohérents) → retour automatique au modèle précédent (journal).
+ *     Nouvelle version reçue → testée tout de suite (validateInstalled : session + inférence de contrôle
+ *     sur une image neutre, sortie = nombre d'espèces de labels.json, sans NaN). Échec → l'appelant
+ *     remet l'ancien modèle (IaModel.rejectNew). Filet : si une session ne se charge pas alors que l'ancien
+ *     modèle est encore là (bascule interrompue), retour automatique à l'ancien (journal).
  *  2. Prétraitement IDENTIQUE à l'entraînement : rotation EXIF, petit côté à 316 px,
  *     recadrage central 288 × 288, normalisation ImageNet (mean/std), ordre NCHW (RGB).
  *  3. Softmax sur les scores, puis les 5 meilleures espèces présentes dans le catalogue
@@ -67,6 +69,41 @@ object OnnxSpeciesIdentifier : SpeciesIdentifier {
      * avec retour automatique au précédent sinon. Vrai si un modèle utilisable est chargé.
      */
     suspend fun preload(context: Context): Boolean = withContext(Dispatchers.Default) { ensureSession(context) != null }
+
+    /**
+     * Teste le modèle actif juste après sa réception : session ONNX chargée, puis inférence de contrôle sur
+     * une image neutre (gris moyen) générée en mémoire. La sortie doit avoir exactement le nombre d'espèces
+     * de labels.json et aucune valeur NaN / infinie. Réussite → la session est gardée pour les photos.
+     * @return null si le modèle fonctionne, sinon le motif de l'échec (pour le journal)
+     */
+    suspend fun validateInstalled(context: Context): String? = withContext(Dispatchers.Default) {
+        mutex.withLock {
+            // Toujours un chargement neuf (jamais la session d'un modèle précédent).
+            runCatching { session?.close() }
+            session = null
+            labels = null
+            loadFailed = false
+            loadedRevision = IaAssets.revision.value
+            try {
+                val (s, l) = load(context)
+                try {
+                    val logits = runModel(s, neutralInput(l), l.inputSize)
+                    check(logits.size == l.species.size) { "Sortie de ${logits.size} valeurs pour ${l.species.size} espèces" }
+                    check(logits.none { it.isNaN() || it.isInfinite() }) { "Sortie invalide (NaN)" }
+                } catch (e: Throwable) {
+                    runCatching { s.close() }
+                    throw e
+                }
+                session = s
+                labels = l
+                null
+            } catch (e: Throwable) {
+                loadFailed = true
+                ErrorLogger.log("IA", "Test du nouveau modèle d'identification en échec", e)
+                e.message ?: e.javaClass.simpleName
+            }
+        }
+    }
 
     override suspend fun identify(photo: File): List<Pair<Species, Float>> = withContext(Dispatchers.Default) {
         try {
@@ -112,9 +149,10 @@ object OnnxSpeciesIdentifier : SpeciesIdentifier {
             } catch (e: Throwable) {
                 loadFailed = true
                 ErrorLogger.log("IA", "Chargement du modèle d'identification impossible", e)
-                // Modèle reçu de Connect en échec : retour au précédent (s'il existe), puis nouvel essai.
+                // Bascule interrompue (ancien modèle encore là) : retour à l'ancien, puis nouvel essai.
                 val canRestore = attempt == 0 && IaAssets.isFromConnect(context) && IaModel.hasPreviousFiles(context)
-                if (!canRestore || !IaModel.restorePrevious(context, e.message ?: e.javaClass.simpleName)) return@withLock null
+                val failed = IaModel.info(context).version ?: "modèle reçu"
+                if (!canRestore || !IaModel.rejectNew(context, failed, e.message ?: e.javaClass.simpleName)) return@withLock null
             }
         }
         null
@@ -230,17 +268,32 @@ object OnnxSpeciesIdentifier : SpeciesIdentifier {
     // ---------------------------------------------------------------------------------------
 
     /** Lance le modèle et renvoie les probabilités (softmax des scores). */
-    private fun infer(s: OrtSession, input: FloatBuffer, size: Int): FloatArray {
+    private fun infer(s: OrtSession, input: FloatBuffer, size: Int): FloatArray = softmax(runModel(s, input, size))
+
+    /** Lance le modèle et renvoie les scores bruts (logits), une valeur par sortie. */
+    private fun runModel(s: OrtSession, input: FloatBuffer, size: Int): FloatArray {
         val env = OrtEnvironment.getEnvironment()
         val inputName = s.inputNames.firstOrNull() ?: "image"
-        val logits: FloatArray = OnnxTensor.createTensor(env, input, longArrayOf(1, 3, size.toLong(), size.toLong())).use { tensor ->
+        return OnnxTensor.createTensor(env, input, longArrayOf(1, 3, size.toLong(), size.toLong())).use { tensor ->
             s.run(mapOf(inputName to tensor)).use { result ->
                 // Sortie « scores » : float[1][N] côté Java.
                 @Suppress("UNCHECKED_CAST")
                 (result.get(0).value as Array<FloatArray>)[0]
             }
         }
-        return softmax(logits)
+    }
+
+    /** Image neutre (gris moyen 128/255 partout) déjà normalisée, au format NCHW du modèle. */
+    private fun neutralInput(l: IaLabels): FloatBuffer {
+        val plane = l.inputSize * l.inputSize
+        val buffer = ByteBuffer.allocateDirect(3 * plane * 4).order(ByteOrder.nativeOrder()).asFloatBuffer()
+        val gray = 128f / 255f
+        for (c in 0 until 3) {
+            val v = (gray - l.mean[c]) / l.std[c]
+            for (i in 0 until plane) buffer.put(c * plane + i, v)
+        }
+        buffer.rewind()
+        return buffer
     }
 
     /** Softmax stable (on retire le maximum avant l'exponentielle). */

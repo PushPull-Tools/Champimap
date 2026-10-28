@@ -26,11 +26,17 @@ import java.util.Locale
  * Modèle d'identification livré par Champimap Connect (plus dans l'APK) :
  *   filesDir/ia/            modèle actif (lu en priorité par IaAssets)
  *   filesDir/ia_tmp/        réception d'une nouvelle version (copie + vérifications)
- *   filesDir/ia_precedent/  version précédente gardée en secours (une seule ; la plus ancienne est supprimée)
+ *   filesDir/ia_precedent/  ancien modèle, gardé SEULEMENT pendant la bascule (secours le temps du test)
  * Les bascules se font par renommage de dossiers (atomique) : jamais de modèle à moitié copié.
- * Le DataStore « ia_model » mémorise : interrupteur « Identification par photo », version active et
- * précédente (empreinte, nombre d'espèces, taille) et la version FIXÉE (choisie à la main ou restaurée :
- * la synchro normale ne la remplace pas par une plus récente).
+ * Déroulé d'une réception : commitNew (ia → ia_precedent, ia_tmp → ia), test du nouveau modèle
+ * (OnnxSpeciesIdentifier.validateInstalled), puis :
+ *   - test réussi → dropBackup : ia_precedent supprimé (place libérée) ;
+ *   - test échoué → rejectNew : nouveau supprimé, ancien remis en place (version fixée), échec mémorisé
+ *     pour l'écran Connect (« Le nouveau modèle n'a pas pu être chargé : l'ancien est conservé »).
+ * Le DataStore « ia_model » mémorise : interrupteur « Identification par photo », version active
+ * (empreinte, nombre d'espèces, taille), ancienne version pendant la bascule, la version FIXÉE (choisie
+ * dans le menu ou remise après un échec : la synchro normale ne la remplace pas par une plus récente)
+ * et la dernière version refusée.
  */
 
 /** Ce que l'appli sait du modèle (versions, interrupteur). */
@@ -40,11 +46,16 @@ data class IaModelInfo(
     val version: String? = null,
     val sha256: String? = null,
     val speciesCount: Int = 0,
+    /** Ancienne version, présente seulement pendant la bascule (secours le temps du test). */
     val previousVersion: String? = null,
     val previousSpeciesCount: Int = 0,
     val previousBytes: Long = 0,
     /** Version fixée (null = suivre la plus récente). */
     val pinnedVersion: String? = null,
+    /** Dernier modèle reçu qui n'a pas pu être chargé (null = aucun échec à signaler). */
+    val failedVersion: String? = null,
+    /** Vrai si l'ancien modèle a été conservé lors de cet échec (faux = aucun modèle avant). */
+    val failedKeptOld: Boolean = false,
 )
 
 /** Statistiques d'un modèle (toutes facultatives) : stats.json, sinon rapport.txt + labels.json. */
@@ -119,8 +130,11 @@ object IaModel {
     private val K_PREV_BYTES = longPreferencesKey("previousBytes")
     private val K_BYTES = longPreferencesKey("bytes")
     private val K_PINNED = stringPreferencesKey("pinnedVersion")
+    private val K_PREV_PINNED = stringPreferencesKey("previousPinnedVersion")
+    private val K_FAILED = stringPreferencesKey("failedVersion")
+    private val K_FAILED_KEPT = booleanPreferencesKey("failedKeptOld")
 
-    /** Une seule bascule à la fois (réception, retour arrière, suppression). */
+    /** Une seule bascule à la fois (réception, refus, nettoyage). */
     private val mutex = Mutex()
 
     fun activeDir(context: Context): File = File(context.filesDir, DIR_ACTIVE)
@@ -138,6 +152,8 @@ object IaModel {
             previousSpeciesCount = p[K_PREV_COUNT] ?: 0,
             previousBytes = p[K_PREV_BYTES] ?: 0L,
             pinnedVersion = p[K_PINNED],
+            failedVersion = p[K_FAILED],
+            failedKeptOld = p[K_FAILED_KEPT] ?: false,
         )
     }
 
@@ -160,9 +176,20 @@ object IaModel {
         runCatching { context.applicationContext.iaModelStore.edit { it.remove(K_PINNED) } }
     }
 
+    /** Fixe une version (choisie dans le menu) : elle sera téléchargée par Connect à la prochaine synchro. */
+    suspend fun pin(context: Context, version: String) {
+        runCatching { context.applicationContext.iaModelStore.edit { it[K_PINNED] = version } }
+    }
+
+    /** Efface le message d'échec affiché dans l'écran Connect. */
+    suspend fun clearFailure(context: Context) {
+        runCatching { context.applicationContext.iaModelStore.edit { it.remove(K_FAILED); it.remove(K_FAILED_KEPT) } }
+    }
+
     /**
      * Bascule vers la version reçue dans filesDir/ia_tmp/ (déjà vérifiée) :
-     * ia_precedent supprimé, ia → ia_precedent, ia_tmp → ia, puis versions mémorisées.
+     * ia_precedent supprimé, ia → ia_precedent (secours le temps du test), ia_tmp → ia, puis versions mémorisées.
+     * L'appelant teste ensuite le modèle puis appelle dropBackup (réussite) ou rejectNew (échec).
      * @param exact true = version choisie à la main (elle devient la version fixée)
      */
     suspend fun commitNew(context: Context, version: String, sha256: String, speciesCount: Int, exact: Boolean) = mutex.withLock {
@@ -172,13 +199,16 @@ object IaModel {
             val previous = previousDir(app)
             val tmp = tmpDir(app)
             val old = info(app)
-            // Une seule version précédente : la plus ancienne disparaît.
+            // Reste éventuel d'une bascule interrompue : supprimé.
             previous.deleteRecursively()
             val keepOld = old.version != null && IaAssets.installedDir(app) != null
             if (active.exists() && (!keepOld || !active.renameTo(previous))) active.deleteRecursively()
             if (!tmp.renameTo(active)) throw IOException("Bascule vers le nouveau modèle impossible")
             val prevBytes = if (keepOld) dirSize(previous) else 0L
             app.iaModelStore.edit { p ->
+                // Version fixée d'avant la bascule (remise en place si le nouveau modèle est refusé).
+                val oldPinned = p[K_PINNED]
+                if (oldPinned != null) p[K_PREV_PINNED] = oldPinned else p.remove(K_PREV_PINNED)
                 if (keepOld) {
                     p[K_PREV_VERSION] = old.version!!
                     val oldSha = old.sha256
@@ -199,79 +229,75 @@ object IaModel {
     }
 
     /**
-     * Revient au modèle précédent (échange des dossiers ia ↔ ia_precedent : le modèle quitté reste en secours).
-     * La version restaurée devient la version fixée (la synchro ne la remplace pas toute seule).
-     * @param reason motif inscrit au journal (retour automatique), null = demande de l'utilisateur
-     * @return true si la bascule a eu lieu
+     * Le nouveau modèle ne se charge pas : il est supprimé et l'ancien (filesDir/ia_precedent/) remis en place.
+     * L'ancienne version devient la version fixée (sinon chaque synchro retéléchargerait le modèle refusé) ;
+     * l'échec est mémorisé pour l'écran Connect et inscrit au journal. Sans ancien modèle, le nouveau est
+     * simplement supprimé (« modèle absent »).
+     * @param failedVersion version refusée (affichée dans l'écran Connect)
+     * @param reason motif inscrit au journal
+     * @return true si l'ancien modèle est de nouveau actif
      */
-    suspend fun restorePrevious(context: Context, reason: String?): Boolean = mutex.withLock {
+    suspend fun rejectNew(context: Context, failedVersion: String, reason: String): Boolean = mutex.withLock {
         val app = context.applicationContext
-        val ok = withContext(Dispatchers.IO) {
+        // Déjà refusé entre-temps (autre chemin de chargement) : on ne touche plus à rien.
+        if (info(app).version != failedVersion) return@withLock false
+        val restored = withContext(Dispatchers.IO) {
             val old = info(app)
-            val prevVersion = old.previousVersion ?: return@withContext false
             val active = activeDir(app)
             val previous = previousDir(app)
-            if (!File(previous, "champi-ia.onnx").isFile || !File(previous, "labels.json").isFile) return@withContext false
-            val swap = File(app.filesDir, DIR_SWAP).apply { deleteRecursively() }
-            val hadActive = active.exists() && old.version != null
-            if (active.exists() && !active.renameTo(swap)) return@withContext false
-            if (!previous.renameTo(active)) {
-                swap.renameTo(active) // remise en place
-                return@withContext false
-            }
-            if (hadActive) swap.renameTo(previous) else swap.deleteRecursively()
+            val prevVersion = old.previousVersion
+            val hasOld = prevVersion != null && File(previous, "champi-ia.onnx").isFile && File(previous, "labels.json").isFile
+            // Le nouveau modèle disparaît dans tous les cas (place libérée).
+            active.deleteRecursively()
+            val ok = hasOld && previous.renameTo(active)
+            if (!ok) previous.deleteRecursively()
             app.iaModelStore.edit { p ->
-                // Valeurs lues AVANT l'échange.
-                val curSha = p[K_SHA]
-                val curBytes = p[K_BYTES] ?: 0L
-                val prevSha = p[K_PREV_SHA]
-                // La précédente devient l'active (et la version fixée).
-                p[K_VERSION] = prevVersion
-                if (prevSha != null) p[K_SHA] = prevSha else p.remove(K_SHA)
-                p[K_COUNT] = old.previousSpeciesCount
-                p[K_BYTES] = old.previousBytes
-                p[K_PINNED] = prevVersion
-                // L'active quittée devient la précédente.
-                if (hadActive) {
-                    p[K_PREV_VERSION] = old.version!!
-                    if (curSha != null) p[K_PREV_SHA] = curSha else p.remove(K_PREV_SHA)
-                    p[K_PREV_COUNT] = old.speciesCount
-                    p[K_PREV_BYTES] = curBytes
+                if (ok) {
+                    p[K_VERSION] = prevVersion!!
+                    val prevSha = p[K_PREV_SHA]
+                    if (prevSha != null) p[K_SHA] = prevSha else p.remove(K_SHA)
+                    p[K_COUNT] = old.previousSpeciesCount
+                    p[K_BYTES] = old.previousBytes
+                    p[K_PINNED] = prevVersion
                 } else {
-                    p.remove(K_PREV_VERSION); p.remove(K_PREV_SHA); p.remove(K_PREV_COUNT); p.remove(K_PREV_BYTES)
+                    p.remove(K_VERSION); p.remove(K_SHA); p.remove(K_COUNT); p.remove(K_BYTES)
+                    // Aucun modèle : version fixée d'avant la bascule remise telle quelle.
+                    val prevPinned = p[K_PREV_PINNED]
+                    if (prevPinned != null) p[K_PINNED] = prevPinned else p.remove(K_PINNED)
                 }
+                p.remove(K_PREV_VERSION); p.remove(K_PREV_SHA); p.remove(K_PREV_COUNT); p.remove(K_PREV_BYTES)
+                p.remove(K_PREV_PINNED)
+                p[K_FAILED] = failedVersion
+                p[K_FAILED_KEPT] = ok
             }
-            true
+            ok
         }
-        if (ok) {
-            if (reason != null) ErrorLogger.log("IA", "Retour automatique au modèle précédent : $reason")
-            IaAssets.invalidate()
-        }
-        ok
+        ErrorLogger.log(
+            "IA",
+            if (restored) "Modèle $failedVersion refusé ($reason) : retour automatique à l'ancien modèle"
+            else "Modèle $failedVersion refusé ($reason) : supprimé, aucun ancien modèle à remettre",
+        )
+        IaAssets.invalidate()
+        restored
     }
 
-    /** Supprime le modèle précédent (libère la place). */
-    suspend fun deletePrevious(context: Context) = mutex.withLock {
+    /** Le nouveau modèle fonctionne : l'ancien (secours de la bascule) est supprimé, place libérée. */
+    suspend fun dropBackup(context: Context) = mutex.withLock {
         val app = context.applicationContext
         withContext(Dispatchers.IO) {
             previousDir(app).deleteRecursively()
             app.iaModelStore.edit { p ->
                 p.remove(K_PREV_VERSION); p.remove(K_PREV_SHA); p.remove(K_PREV_COUNT); p.remove(K_PREV_BYTES)
+                p.remove(K_PREV_PINNED)
+                // Plus d'échec à signaler : un modèle reçu vient d'être validé.
+                p.remove(K_FAILED); p.remove(K_FAILED_KEPT)
             }
         }
     }
 
-    /** Vrai si un modèle précédent complet est présent sur le téléphone. */
+    /** Vrai si l'ancien modèle (secours de la bascule) est encore présent : bascule non terminée. */
     fun hasPreviousFiles(context: Context): Boolean =
         previousDir(context).let { File(it, "champi-ia.onnx").isFile && File(it, "labels.json").isFile }
-
-    /** Statistiques du modèle précédent (stats.json, sinon rapport.txt). À appeler hors du fil principal. */
-    fun previousStats(context: Context, version: String?): IaStats? {
-        val dir = previousDir(context)
-        if (!dir.isDirectory) return null
-        fun text(name: String) = runCatching { File(dir, name).takeIf { it.isFile }?.readText() }.getOrNull()
-        return IaStats.from(text("stats.json"), text("rapport.txt"), null, File(dir, "champi-ia.onnx").length(), version)
-    }
 
     /** Taille totale d'un dossier (octets). */
     fun dirSize(dir: File): Long = dir.walkTopDown().filter { it.isFile }.sumOf { it.length() }

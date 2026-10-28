@@ -2,7 +2,6 @@ package fr.pushpull.champimap.feature.connect
 
 import android.content.Context
 import android.net.Uri
-import fr.pushpull.champimap.core.ErrorLogger
 import fr.pushpull.champimap.feature.spot.IaAssets
 import fr.pushpull.champimap.feature.spot.IaModel
 import fr.pushpull.champimap.feature.spot.OnnxSpeciesIdentifier
@@ -22,8 +21,10 @@ import java.security.MessageDigest
  *     taille et SHA-256 vérifiées au fil de la copie ;
  *  3. fichiers obligatoires présents, labels.json lisible → bascule (IaModel.commitNew : ia → ia_precedent,
  *     ia_tmp → ia), version enregistrée ;
- *  4. session ONNX rechargée et testée (retour automatique au précédent si elle échoue), catalogue rejoué.
- * En cas de problème, rien n'est basculé : le modèle actuel reste en place et ia_tmp est supprimé.
+ *  4. test immédiat du nouveau modèle (session ONNX + inférence de contrôle sur une image neutre) :
+ *     réussite → ancien modèle supprimé (IaModel.dropBackup) ; échec → nouveau supprimé, ancien remis
+ *     (IaModel.rejectNew, journal, message dans l'écran Connect). Puis catalogue rejoué.
+ * En cas de problème pendant la copie, rien n'est basculé : le modèle actuel reste en place et ia_tmp est supprimé.
  */
 internal object IaModelImport {
     /** Fichiers obligatoires du paquet. */
@@ -63,6 +64,8 @@ internal object IaModelImport {
         // Déjà installé (même version, même empreinte) : rien à copier.
         val current = IaModel.info(app)
         if (current.version == version && current.sha256 == archiveSha && withContext(Dispatchers.IO) { IaAssets.installedDir(app) } != null) {
+            // Bascule interrompue (appli fermée pendant le test) : on la termine maintenant.
+            if (IaModel.hasPreviousFiles(app)) checkNewModel(app, version, onStep)
             return true
         }
 
@@ -96,13 +99,30 @@ internal object IaModelImport {
             }
         }
 
-        // Nouveau modèle : session rechargée et testée (retour au précédent si elle échoue), catalogue rejoué.
-        onStep("Vérification du modèle d'identification…")
-        val ok = OnnxSpeciesIdentifier.preload(app)
-        if (!ok) ErrorLogger.log("IA", "Le modèle $version ne se charge pas")
+        // Nouveau modèle testé tout de suite (ancien supprimé ou remis en place), catalogue rejoué.
+        checkNewModel(app, version, onStep)
         SpeciesLoader.ensureLoaded(app)
         // Vrai même si le test échoue : le paquet est bien reçu (pas de nouvelle copie à chaque instantané).
         return true
+    }
+
+    /**
+     * Teste le modèle qui vient d'être basculé. Réussite → ancien modèle supprimé (place libérée).
+     * Échec → nouveau supprimé, ancien remis en place, entrée au journal et message dans l'écran Connect.
+     */
+    private suspend fun checkNewModel(app: Context, version: String, onStep: (String) -> Unit) {
+        onStep("Vérification du modèle d'identification $version…")
+        val failure = OnnxSpeciesIdentifier.validateInstalled(app)
+        if (failure == null) {
+            IaModel.dropBackup(app)
+            onStep("Modèle d'identification $version installé")
+        } else {
+            val keptOld = IaModel.rejectNew(app, version, failure)
+            onStep(
+                if (keptOld) "Le nouveau modèle n'a pas pu être chargé : l'ancien est conservé"
+                else "Le nouveau modèle n'a pas pu être chargé",
+            )
+        }
     }
 
     /** URI d'un fichier du modèle chez Connect (lecture accordée par préfixe). */

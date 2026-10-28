@@ -350,24 +350,27 @@ object ConnectClient {
      * version plus récente existe (ou la version fixée, si l'utilisateur en a choisi une).
      * @param refreshMaps true = « Actualiser les cartes » : tout est retéléchargé (cartes, contours, urgences, modèle).
      * @param background true = Connect rend la main tout de suite (avancement par diffusion).
-     * @param chooseIa true = seulement le modèle, Connect affiche la liste des versions publiées.
+     * @param iaOnly true = seulement le modèle : la version choisie dans le menu (version fixée), sinon la plus récente.
+     * @param iaListOnly true = seulement la liste des versions publiées (ia_versions.json), aucun téléchargement de modèle.
      */
     suspend fun buildSyncIntent(
         context: Context,
         refreshMaps: Boolean = false,
         background: Boolean = false,
-        chooseIa: Boolean = false,
+        iaOnly: Boolean = false,
+        iaListOnly: Boolean = false,
     ): Intent {
         val app = context.applicationContext
         val ia = IaModel.info(app)
         val iaInstalled = IaModel.installedVersion(app) ?: ""
-        if (chooseIa) {
-            // Choix de version : rien d'autre n'est demandé.
+        if (iaOnly || iaListOnly) {
+            // Modèle seul (ou sa liste de versions) : rien d'autre n'est demandé.
             return Intent(ConnectProtocol.ACTION_SYNC)
                 .setPackage(ConnectProtocol.CONNECT_PACKAGE)
                 .putExtra(ConnectProtocol.EXTRA_INCLUDE_IA, true)
-                .putExtra(ConnectProtocol.EXTRA_IA_CHOOSE, true)
+                .putExtra(ConnectProtocol.EXTRA_IA_LIST_ONLY, iaListOnly)
                 .putExtra(ConnectProtocol.EXTRA_IA_VERSION_INSTALLED, iaInstalled)
+                .putExtra(ConnectProtocol.EXTRA_IA_VERSION_WANTED, ia.pinnedVersion ?: "")
                 .putExtra(ConnectProtocol.EXTRA_BACKGROUND, background)
         }
         val departements = AppGraph.settings.flow.first().departements
@@ -553,6 +556,8 @@ object ConnectClient {
             name == ConnectProtocol.FILE_IA_MANIFEST -> IaModelImport.install(context, readText(context, uri)) { step ->
                 _sync.update { it.copy(message = step) }
             }
+            // Liste des versions publiées (menu de choix de version de l'écran Connect).
+            name == ConnectProtocol.FILE_IA_VERSIONS -> IaVersions.save(context, readText(context, uri))
             name == ConnectProtocol.FILE_ANTIPOISON -> {
                 val text = readText(context, uri)
                 // On ne remplace la liste que si elle contient au moins un centre lisible.

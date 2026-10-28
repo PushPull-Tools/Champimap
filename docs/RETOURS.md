@@ -57,12 +57,18 @@
   `ia-vN` (API publique GitHub), télécharge (reprenable, %), vérifie le SHA-256, extrait et remet le modèle à l'appli.
 - ✅ Appli : réception vérifiée (tailles + SHA-256) puis bascule atomique, modèle rechargé sans redémarrer,
   catalogue rejoué ; sans modèle, « Trouvé ! → Photo » mène à la liste avec un lien vers Connect.
-- ✅ Modèle précédent gardé (`ia_precedent/`), retour automatique si le nouveau ne se charge pas, « Revenir à ce
-  modèle » / « Supprimer » dans l'écran Connect ; choix d'une version précise dans Connect (liste des releases).
+- ✅ Ancien modèle gardé seulement pendant la bascule : le nouveau est testé tout de suite (session + inférence de
+  contrôle sur image neutre, nombre de sorties, pas de NaN) ; réussite → ancien supprimé ; échec → retour
+  automatique à l'ancien, nouveau supprimé, journal + message dans l'écran Connect. Plus de « Revenir à ce
+  modèle » / « Supprimer ».
+- ✅ Menu déroulant « Version du modèle » dans l'écran Connect de l'appli : la plus récente (automatique) ou une
+  version précise avec ses stats, liste reçue de Connect (`ia_versions.json`, « Actualiser la liste (via
+  Connect) »), « Télécharger cette version ». Connect 0.3.0 (versionCode 3, `MIN_CONNECT_VERSION_CODE` = 3).
 - ✅ Statistiques de chaque modèle (stats.json / rapport.txt) dans la liste de Connect et l'écran Connect.
 - ✅ Wi-Fi conseillé : fenêtre « Tu es sur les données mobiles » dans Connect (taille estimée), rappel fixe dans l'appli.
 - ⏳ À vérifier sur téléphone : lecture des fichiers par préfixe d'URI, reprise après coupure, durée de la copie
-  (~150 Mo), place libre nécessaire (jusqu'à ~600 Mo au pic : archive + extraction + copie + version précédente).
+  (~150 Mo), place libre nécessaire (jusqu'à ~600 Mo au pic : archive + extraction + copie + ancien modèle
+  pendant le test) ; menu des versions et test d'un modèle volontairement cassé.
 
 ## Sécurité IA et démarrage — compile, à tester
 - ✅ Propositions de l'IA sans verdict de comestibilité : « Ressemble à… », lien « Voir la fiche », TOXIQUE / MORTEL et sosies toujours marqués, « Identification incertaine » sous 60 % (sans pourcentages), rappel fixe en bas ; avertissement « Prudence » plein écran (4 s, « J'ai compris » après 2 s) à chaque lancement à froid.

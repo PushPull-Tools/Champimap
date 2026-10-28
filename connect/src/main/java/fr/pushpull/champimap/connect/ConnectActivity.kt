@@ -170,7 +170,9 @@ class ConnectActivity : ComponentActivity() {
     /** Après le choix de version : avertissement si données mobiles, sinon lancement. */
     private fun afterChoice(): Boolean {
         val p = pending ?: return true
-        if (Network.current(this) == Network.Kind.METERED) {
+        // Liste des versions seule : quelques Ko, pas d'avertissement « données mobiles ».
+        val listOnly = p.request.ia?.listOnly == true
+        if (!listOnly && Network.current(this) == Network.Kind.METERED) {
             stage = Stage.METERED
             return true
         }
