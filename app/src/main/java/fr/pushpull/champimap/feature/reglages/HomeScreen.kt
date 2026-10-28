@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
@@ -195,21 +196,21 @@ private fun InfoLine(today: LocalDate, sunset: String?, moon: AstroCalc.MoonPhas
 /** Titre simple de la carte verte (la phrase de départ aléatoire s'affiche au lancement de la sortie). */
 private const val START_TITLE = "Prêt pour l'aventure ?"
 
-/** Carte verte : titre centré, Démarrer / Reprendre la sortie, sous-texte centré. */
+/** Carte de départ, même style que les autres cartes de l'appli : titre, Démarrer / Reprendre, sous-texte. */
 @Composable
 private fun StartCard(current: Sortie?, onStart: () -> Unit, onResume: (String) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     Column(
         Modifier
             .fillMaxWidth()
-            .background(scheme.primary, RoundedCornerShape(22.dp))
+            .background(scheme.surface, RoundedCornerShape(22.dp))
             .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
             champiText(START_TITLE),
             style = MaterialTheme.typography.titleLarge,
-            color = scheme.onPrimary,
+            color = scheme.onSurface,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -222,7 +223,7 @@ private fun StartCard(current: Sortie?, onStart: () -> Unit, onResume: (String) 
             Text(
                 champiText("Lance la sortie à côté de ta voiture : sa position est enregistrée au départ."),
                 style = MaterialTheme.typography.bodySmall,
-                color = scheme.onPrimary,
+                color = scheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -230,14 +231,14 @@ private fun StartCard(current: Sortie?, onStart: () -> Unit, onResume: (String) 
     }
 }
 
-/** Gros bouton orange à icône, sur la carte verte. */
+/** Gros bouton principal à icône (vert du thème, comme « Trouvé ! »). */
 @Composable
 private fun BigButton(text: String, icon: ImageVector, onClick: () -> Unit) {
     Button(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary, contentColor = MaterialTheme.colorScheme.onSecondary),
+        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary),
     ) {
         Icon(icon, contentDescription = null)
         Spacer(Modifier.width(8.dp))
@@ -245,32 +246,34 @@ private fun BigButton(text: String, icon: ImageVector, onClick: () -> Unit) {
     }
 }
 
-/** Bandeau chasse (sécurité → SafetyTheme), centré sur 4 lignes, croix pour masquer. */
+/**
+ * Bandeau chasse : carte claire comme les autres, l'alerte portée par l'icône et le titre
+ * en orange girolle (couleur d'accent de l'appli). Croix pour masquer.
+ */
 @Composable
 private fun HuntBanner(onArretes: () -> Unit, onHide: () -> Unit) {
-    SafetyTheme {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(18.dp))
-                .padding(16.dp),
-        ) {
-            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                val c = MaterialTheme.colorScheme.onSecondaryContainer
-                Text(champiText("Période de chasse"), style = MaterialTheme.typography.titleMedium, color = c)
-                Text(champiText("Début septembre à fin février"), style = MaterialTheme.typography.bodyMedium, color = c)
-                Text(champiText("Reste visible !"), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = c)
-                Text(
-                    champiText("Consulte les arrêtés locaux"),
-                    style = MaterialTheme.typography.bodyMedium,
-                    textDecoration = TextDecoration.Underline,
-                    color = c,
-                    modifier = Modifier.clickable(onClick = onArretes).padding(vertical = 6.dp),
-                )
-            }
-            IconButton(onClick = onHide, modifier = Modifier.align(Alignment.TopEnd).size(40.dp)) {
-                Icon(Icons.Filled.Close, contentDescription = "Masquer jusqu'à la prochaine sortie")
-            }
+    val scheme = MaterialTheme.colorScheme
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .background(scheme.surface, RoundedCornerShape(18.dp))
+            .padding(16.dp),
+    ) {
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(Icons.Filled.Warning, contentDescription = null, tint = scheme.secondary)
+            Text(champiText("Période de chasse"), style = MaterialTheme.typography.titleMedium, color = scheme.secondary)
+            Text(champiText("Début septembre à fin février"), style = MaterialTheme.typography.bodyMedium, color = scheme.onSurface)
+            Text(champiText("Reste visible !"), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = scheme.onSurface)
+            Text(
+                champiText("Consulte les arrêtés locaux"),
+                style = MaterialTheme.typography.bodyMedium,
+                textDecoration = TextDecoration.Underline,
+                color = scheme.primary,
+                modifier = Modifier.clickable(onClick = onArretes).padding(vertical = 6.dp),
+            )
+        }
+        IconButton(onClick = onHide, modifier = Modifier.align(Alignment.TopEnd).size(40.dp)) {
+            Icon(Icons.Filled.Close, contentDescription = "Masquer jusqu'à la prochaine sortie", tint = scheme.onSurfaceVariant)
         }
     }
 }
