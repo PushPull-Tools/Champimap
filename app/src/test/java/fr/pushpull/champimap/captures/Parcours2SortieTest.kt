@@ -24,6 +24,7 @@ import fr.pushpull.champimap.feature.spot.IaResultsPanel
 import fr.pushpull.champimap.feature.spot.SpeciesLoader
 import fr.pushpull.champimap.nav.Routes
 import kotlinx.coroutines.runBlocking
+import androidx.compose.ui.test.hasText
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -131,8 +132,11 @@ class Parcours2SortieTest : CaptureHarness("2-sortie") {
             go(Routes.spot(CaptureData.SPOT_FICHE, id))
             waitText("Girolle")
             // Déplie la ligne des girolles (la ligne des cèpes reste repliée).
-            waitText("310 g")
-            click("310 g")
+            settle(6)
+            // Dépliée = nom latin affiché ; sinon on touche la ligne des girolles.
+            val ouverte = compose.onAllNodes(hasText("Cantharellus cibarius"), useUnmergedTree = true)
+                .fetchSemanticsNodes().isNotEmpty()
+            if (!ouverte) click("Girolle", last = true)
             scrollDown(900f)
             capture("11-recolte", "Récolte : 2 espèces (une dépliée)")
         }
