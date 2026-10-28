@@ -107,13 +107,16 @@ fun ChampiScreen(
 
 /** Bouton principal (vert mousse, ou dégradé en psyché). */
 @Composable
-fun ChampiButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, color: Color? = null) {
+fun ChampiButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, color: Color? = null, contentColor: Color? = null) {
     Button(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.fillMaxWidth().heightIn(min = BUTTON_HEIGHT),
         shape = RoundedCornerShape(16.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = color ?: MaterialTheme.colorScheme.primary),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = color ?: MaterialTheme.colorScheme.primary,
+            contentColor = contentColor ?: MaterialTheme.colorScheme.onPrimary,
+        ),
     ) { Text(champiText(text), style = MaterialTheme.typography.labelLarge) }
 }
 

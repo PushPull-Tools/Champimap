@@ -262,13 +262,6 @@ fun FicheEspeceScreen(nav: NavController, speciesId: String) {
                 }
             }
 
-            // Avertissement : espèce dangereuse elle-même, ou sosies dangereux.
-            val dangerous = s.edibility == Edibility.MORTEL || s.edibility == Edibility.TOXIQUE
-            val unknown = s.edibility == Edibility.INCONNU
-            if (dangerous || unknown || sosies.isNotEmpty() || !s.lookalikeWarning.isNullOrBlank()) {
-                WarningCard(s, sosies) { nav.navigate(Routes.ficheEspece(it)) }
-            }
-
             // Saison toujours visible ; habitat et description repliés (contenu secondaire).
             val habitat = s.habitat?.takeIf { it.isNotBlank() }
             val description = s.description?.takeIf { it.isNotBlank() }
@@ -282,6 +275,13 @@ fun FicheEspeceScreen(nav: NavController, speciesId: String) {
                     habitat?.let { Collapsible("Habitat") { Text(champiText(it), Modifier.padding(bottom = 8.dp)) } }
                     description?.let { Collapsible("Description") { Text(champiText(it), Modifier.padding(bottom = 8.dp)) } }
                 }
+            }
+
+            // Avertissement : espèce dangereuse elle-même, ou sosies dangereux.
+            val dangerous = s.edibility == Edibility.MORTEL || s.edibility == Edibility.TOXIQUE
+            val unknown = s.edibility == Edibility.INCONNU
+            if (dangerous || unknown || sosies.isNotEmpty() || !s.lookalikeWarning.isNullOrBlank()) {
+                WarningCard(s, sosies) { nav.navigate(Routes.ficheEspece(it)) }
             }
 
             Text(

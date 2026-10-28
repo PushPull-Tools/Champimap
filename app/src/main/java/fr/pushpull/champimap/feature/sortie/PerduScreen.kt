@@ -118,7 +118,9 @@ fun PerduScreen(nav: NavController, sortieId: String) {
             Column(Modifier.padding(16.dp)) {
                 ChampiButton(
                     "Appeler le 112",
-                    color = MaterialTheme.colorScheme.error,
+                    // Rouge franc + texte blanc dans tous les thèmes (le rouge du thème sombre est trop pâle).
+                    color = androidx.compose.ui.graphics.Color(0xFFC62828),
+                    contentColor = androidx.compose.ui.graphics.Color.White,
                     onClick = {
                         // Ouvre le clavier avec le numéro : c'est la personne qui lance l'appel.
                         runCatching {
