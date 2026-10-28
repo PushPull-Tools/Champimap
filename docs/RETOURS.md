@@ -83,3 +83,5 @@
 - Limites connues : la carte MapLibre (GPU) est remplacée par une zone neutre ; « Sortie à plusieurs » reste sur
   l'étape « Autoriser le Bluetooth » (le QR code demande le vrai Bluetooth) ; la mesure « Marquer un spot » est
   montrée en tout début (positions simulées).
+- ⏳ Vu sur les captures : en thème Psyché, le menu déroulant « Version du modèle » (écran Connect) a un texte
+  presque invisible (texte sombre sur menu sombre).
