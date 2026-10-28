@@ -52,6 +52,24 @@ Maquette validée (référence visuelle) : écrans décrits ci-dessous. Langue d
 - `feature/<module>/…Entry.kt` : écrans provisoires dont **les signatures doivent être conservées
   exactement** (appelées par `AppNav.kt`). Chaque module remplace ses écrans provisoires.
 
+## Tests : captures d'écran automatiques
+- À chaque envoi (job CI `captures`, séparé de l'APK : un échec ne bloque jamais la publication), chaque écran
+  est rendu en PNG 1080 × 2400 (420 dpi) en thème **clair**, **sombre** et **Psyché**, par
+  **Robolectric** (rendu natif) + **Roborazzi** 1.32 : tests `app/src/test/java/fr/pushpull/champimap/captures/`
+  (`gradle :app:testDebugUnitTest --tests 'fr.pushpull.champimap.captures.*'`).
+- Rangement par parcours : `1-premier-lancement/` (Prudence → Bienvenue → Départements → Connect → Préparation
+  des cartes → Accueil), `2-sortie/` (Accueil → Départ → transition → Sortie en cours → Marquer un spot → fiche
+  Spot → « Trouvé ! » → choix d'espèce → propositions de l'IA → récolte → Je suis perdu → fin de sortie),
+  `3-menu/` (onglets et tous les écrans ouverts depuis eux). Écran long = plusieurs captures (`-1`, `-2`…).
+- Publication : branche orpheline **`captures`** (réécrite à chaque passage) → `captures/<sha>/` et
+  `captures/derniere/`, avec `index.html` (planche : une section par parcours, 3 colonnes) et `rapport.txt`
+  (écrans manquants, erreurs) ; aussi en artefact « Captures ».
+- Données : base Room **en mémoire** remplie de données factices (`CaptureData` : spots imaginaires des Monts de
+  Blond, saison de sorties, récoltes, ventes, météo) ; propositions de l'IA factices. Points d'injection réservés
+  aux tests, sans effet dans l'appli : `AppGraph.initForTests` / `AppGraph.testMode` (la carte MapLibre, qui exige
+  un GPU, est remplacée par une zone neutre) et le paramètre facultatif `nav` d'`AppNav`.
+- Ajouter un écran : une étape `step("NN-nom") { go(route); capture("NN-nom", "Libellé") }` dans le bon parcours.
+
 ## Propriété des fichiers
 | Module | Paquet | Propriétaire aussi de |
 |---|---|---|

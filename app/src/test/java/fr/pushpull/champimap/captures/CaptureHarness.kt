@@ -278,8 +278,8 @@ abstract class CaptureHarness(private val parcours: String) {
         if (before >= range.maxValue() - 1f) return false
         all[i].performSemanticsAction(SemanticsActions.ScrollBy) { it(0f, px) }
         settle()
-        // Rien n'a bougé (déjà en bas) : pas de capture en double.
-        return range.value() > before + 1f
+        // Rien n'a bougé (déjà en bas, ou presque) : pas de capture en double.
+        return range.value() > before + 100f
     }
 
     /** Remonte tout en haut de la plus grande zone défilante. */
