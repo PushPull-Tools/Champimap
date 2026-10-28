@@ -16,8 +16,8 @@ android {
         minSdk = 26
         targetSdk = 35
         // 2 = modèle d'identification + choix Wi-Fi (ConnectProtocol.MIN_CONNECT_VERSION_CODE côté appli).
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
     }
 
     // Même clé que l'appli principale : obligatoire pour la permission « signature » partagée.

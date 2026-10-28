@@ -398,6 +398,41 @@ object ConnectClient {
     }
 
     /**
+     * « Réessayer » : redemande à Connect exactement les tâches en erreur [failed] (identifiants du
+     * protocole : contour_<code>, urgences_<code>, carte_<code>, antipoison, meteo, ia_versions, ia).
+     * Contour et urgences d'un département vont ensemble (même extra) ; la carte est redemandée même si
+     * un fichier existe déjà. Rien de reconnu (département décoché depuis…) : synchro normale.
+     */
+    suspend fun buildRetryIntent(context: Context, failed: List<SyncItem>): Intent {
+        val app = context.applicationContext
+        val ids = failed.map { it.id }.toSet()
+        val departements = AppGraph.settings.flow.first().departements
+            .filter { ConnectProtocol.DEPT_REGEX.matches(it) }
+        val dataDepartements = departements.filter { "contour_$it" in ids || "urgences_$it" in ids }
+        val mapDepartements = departements.filter { "carte_$it" in ids }
+        val zones = if ("meteo" in ids) weatherZones() else emptyList()
+        val poison = "antipoison" in ids
+        // Modèle : « ia » = téléchargement complet ; « ia_versions » seul = liste des versions seulement.
+        val iaModel = "ia" in ids
+        val iaList = !iaModel && "ia_versions" in ids
+        if (dataDepartements.isEmpty() && mapDepartements.isEmpty() && zones.isEmpty() && !poison && !iaModel && !iaList) {
+            return buildSyncIntent(context)
+        }
+        val ia = IaModel.info(app)
+        return Intent(ConnectProtocol.ACTION_SYNC)
+            .setPackage(ConnectProtocol.CONNECT_PACKAGE)
+            .putStringArrayListExtra(ConnectProtocol.EXTRA_DEPARTEMENTS, ArrayList(dataDepartements))
+            .putStringArrayListExtra(ConnectProtocol.EXTRA_MAP_DEPARTEMENTS, ArrayList(mapDepartements))
+            .putStringArrayListExtra(ConnectProtocol.EXTRA_WEATHER_ZONES, ArrayList(zones))
+            .putExtra(ConnectProtocol.EXTRA_POISON_CENTERS, poison)
+            .putExtra(ConnectProtocol.EXTRA_BACKGROUND, false)
+            .putExtra(ConnectProtocol.EXTRA_INCLUDE_IA, iaModel || iaList)
+            .putExtra(ConnectProtocol.EXTRA_IA_LIST_ONLY, iaList)
+            .putExtra(ConnectProtocol.EXTRA_IA_VERSION_INSTALLED, IaModel.installedVersion(app) ?: "")
+            .putExtra(ConnectProtocol.EXTRA_IA_VERSION_WANTED, ia.pinnedVersion ?: "")
+    }
+
+    /**
      * Zones météo à demander : « zoneId|du|au », uniquement les carrés de 0,25° (jamais un spot)
      * et seulement si des jours manquent en base.
      */

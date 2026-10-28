@@ -11,6 +11,7 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import fr.pushpull.champimap.connect.ConnectActivity
+import fr.pushpull.champimap.connect.SyncSnapshot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -21,7 +22,7 @@ import kotlinx.coroutines.launch
 
 /*
  * Service de premier plan : garde Connect en vie pendant la synchronisation, même quand l'écran
- * est fermé (mode arrière-plan). Notification « Synchronisation… x % » avec bouton Annuler ;
+ * est fermé (mode arrière-plan). Notification « x % » + résumé des tâches, avec bouton Annuler ;
  * le service s'arrête tout seul à la fin.
  */
 class SyncService : Service() {
@@ -49,7 +50,7 @@ class SyncService : Service() {
             return START_NOT_STICKY
         }
         createChannel()
-        val first = build(SyncEngine.state.value.percent, SyncEngine.state.value.step)
+        val first = build(SyncEngine.state.value)
         if (Build.VERSION.SDK_INT >= 29) {
             startForeground(NOTIF_ID, first, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
         } else {
@@ -63,7 +64,7 @@ class SyncService : Service() {
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
                 } else {
-                    getSystemService(NotificationManager::class.java)?.notify(NOTIF_ID, build(s.percent, s.step))
+                    getSystemService(NotificationManager::class.java)?.notify(NOTIF_ID, build(s))
                 }
             }
         }
@@ -83,8 +84,12 @@ class SyncService : Service() {
         }
     }
 
-    /** Notification d'avancement : appui = écran Connect, bouton = Annuler. */
-    private fun build(percent: Int, step: String): Notification {
+    /**
+     * Notification d'avancement : « Champimap Connect · 42 % » puis la ligne de résumé
+     * (« 3 tâches sur 9 · 42 % · Carte · Haute-Vienne »). Appui = écran Connect, bouton = Annuler.
+     */
+    private fun build(s: SyncSnapshot): Notification {
+        val percent = s.percent
         val open = PendingIntent.getActivity(
             this, 0, Intent(this, ConnectActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
@@ -96,7 +101,7 @@ class SyncService : Service() {
         return Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setContentTitle("Champimap Connect · $percent %")
-            .setContentText(step)
+            .setContentText(s.summary())
             .setProgress(100, percent, false)
             .setOngoing(true)
             .setOnlyAlertOnce(true)

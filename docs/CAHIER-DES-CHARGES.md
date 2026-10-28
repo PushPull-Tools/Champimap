@@ -95,8 +95,9 @@ manifeste, Gradle) : NE PAS modifier. Si un changement y est indispensable, le s
    météo) ». « Plus tard » ouvre une fenêtre : ce qui manque (pas de fond de carte : grille avec spots, trace et
    flèche ; pas de météo ; urgences moins à jour), ce qui marche, boutons « Ouvrir les paramètres » (va sur le
    bouton de synchro Connect) et « Continuer ».
-4. Téléchargement : avancement global en %, par département, liste dynamique (contours, urgences, cartes,
-   modèle d'identification ≈ 140 Mo). Texte fixe « Conseillé : en Wi-Fi (cartes et modèle d'identification
+4. Téléchargement (« Préparation de tes cartes ») : liste des **vraies tâches de Connect, dans l'ordre réel
+   d'exécution** (voir « Avancement de la synchro » dans le module connect), ligne de résumé
+   « 3 tâches sur 9 · 42 % · Carte · Haute-Vienne ». Texte fixe « Conseillé : en Wi-Fi (cartes et modèle d'identification
    volumineux) » (l'appli n'a pas ACCESS_NETWORK_STATE : la détection Wi-Fi / données mobiles est dans Connect).
    « Continuer, ça finit en arrière-plan ».
 Indicateur « Étape x sur 4 » + barre de progression en 4 segments.
@@ -323,8 +324,25 @@ Panneau « Comment tu démarres ? » : « Je suis garé » (on enregistre la voi
   Connect) ». Choisir une version = la fixer : téléchargée à la prochaine synchro, ou tout de suite avec
   « Télécharger cette version » (modèle seul). Mention : « Les versions se téléchargent avec Champimap Connect ;
   l'appli reste hors ligne. » Plus de ligne « Modèle précédent ».
-- Connect `versionCode` 2 (0.2.0) = premier à gérer le modèle, 3 (0.3.0) = liste des versions
-  (`MIN_CONNECT_VERSION_CODE` = 3) ; un Connect plus ancien installé → carte
+- **Avancement de la synchro** (Connect 4, `snapshot.format = 2`) : Connect diffuse les **vraies tâches, dans
+  l'ordre réel d'exécution** : pour chaque département « Contour du département », « Urgences les plus proches »,
+  « Carte » (groupe « 87 · Haute-Vienne »), puis le groupe « Général » : « Centres antipoison », « Météo de tes
+  sorties · N zones », « Liste des versions du modèle », « Modèle d'identification ». Chaque tâche : identifiant
+  (`contour_<code>`, `urgences_<code>`, `carte_<code>`, `antipoison`, `meteo`, `ia_versions`, `ia`), libellé court
+  (`title`) et complet (`label`, « Carte · Haute-Vienne »), groupe, état (en attente / en cours / fait / « Déjà à
+  jour » (`SKIPPED`, ex. modèle déjà installé) / erreur avec message court / « Annulé » (`CANCELLED`, pas fait)),
+  avancement 0–100, taille en octets si connue. Une tâche qui n'a pas eu lieu n'est **jamais** marquée faite.
+  Pourcentage global **pondéré par les octets estimés** (carte ≈ 35 Mo par département, modèle = taille de
+  l'archive publiée dès qu'elle est connue, sinon ≈ 140 Mo ; petites tâches = poids faible), **monotone**.
+  Le build de carte le plus récent est cherché une fois, au début de la première carte.
+  Affichage identique dans Connect (écran et notification) et dans l'appli (étape « Préparation de tes cartes »,
+  section « Avancement » de l'écran Connect, `feature/connect/SyncTasksUi.kt`) : ligne de résumé
+  « 3 tâches sur 9 · 42 % · Carte · Haute-Vienne » + barre, un bloc par département puis « Général », tâche en
+  cours surlignée (indicateur + %), tâches faites cochées, erreurs en rouge avec leur message et « Réessayer »
+  (relance seulement cette tâche : `ConnectClient.buildRetryIntent`). Ancien Connect (sans `format`) : ancien
+  affichage par famille.
+- Connect `versionCode` 2 (0.2.0) = premier à gérer le modèle, 3 (0.3.0) = liste des versions, 4 (0.4.0) = liste des
+  vraies tâches (`MIN_CONNECT_VERSION_CODE` = 4) ; un Connect plus ancien installé → carte
   « Mise à jour du module nécessaire » + « Mettre à jour le module » (APK incluse, `MIN_CONNECT_VERSION_CODE`).
   Toute évolution du protocole : augmenter `versionCode` de Connect et `MIN_CONNECT_VERSION_CODE`.
 - **Publier un nouveau modèle** : créer sur GitHub la release `ia-vN` (N = précédent + 1, non brouillon) avec

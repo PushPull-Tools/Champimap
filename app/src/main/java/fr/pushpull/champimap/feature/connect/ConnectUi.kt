@@ -2,6 +2,7 @@ package fr.pushpull.champimap.feature.connect
 
 import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -17,9 +18,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -97,18 +100,37 @@ fun ConnectResumeEffect() {
 @Composable
 fun rememberConnectSync(refreshMaps: Boolean = false, iaOnly: Boolean = false, iaListOnly: Boolean = false): () -> Unit {
     val context = LocalContext.current
+    val start = rememberConnectLaunch()
+    return { start { ConnectClient.buildSyncIntent(context, refreshMaps = refreshMaps, iaOnly = iaOnly, iaListOnly = iaListOnly) } }
+}
+
+/** Renvoie une fonction « Réessayer » : relance dans Connect seulement les tâches en erreur données. */
+@Composable
+fun rememberConnectRetry(): (List<SyncItem>) -> Unit {
+    val context = LocalContext.current
+    val start = rememberConnectLaunch()
+    return { failed -> start { ConnectClient.buildRetryIntent(context, failed) } }
+}
+
+/**
+ * Lanceur commun : vérifie que Connect est installé, construit l'Intent (fonction [buildIntent] donnée
+ * à l'appel), démarre l'activité Connect et traite son résultat.
+ */
+@Composable
+private fun rememberConnectLaunch(): (suspend () -> Intent) -> Unit {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         ConnectClient.handleResult(context, result.resultCode, result.data)
     }
-    return {
+    return { buildIntent ->
         scope.launch {
             if (!ConnectClient.isInstalled(context)) {
                 ConnectClient.markLaunchFailed("Le module Champimap Connect n'est pas installé.")
                 return@launch
             }
             ConnectClient.ensureListening(context)
-            val intent = ConnectClient.buildSyncIntent(context, refreshMaps = refreshMaps, iaOnly = iaOnly, iaListOnly = iaListOnly)
+            val intent = buildIntent()
             ConnectClient.markStarted()
             try {
                 launcher.launch(intent)
@@ -157,12 +179,17 @@ fun NumberedStep(n: Int, text: String) {
     }
 }
 
-/** Icône d'état : ✓ (fini), sablier (en cours), horloge (en attente), erreur. */
+/**
+ * Icône d'état : ✓ (fait), cercle coché discret (déjà à jour), indicateur (en cours), horloge (en attente),
+ * erreur, interdit (annulé / pas fait).
+ */
 @Composable
 fun StatusIcon(status: ItemStatus) {
     Box(Modifier.size(22.dp), contentAlignment = Alignment.Center) {
         when (status) {
-            ItemStatus.DONE, ItemStatus.SKIPPED -> Icon(Icons.Filled.Check, contentDescription = "Terminé", tint = MaterialTheme.colorScheme.primary)
+            ItemStatus.DONE -> Icon(Icons.Filled.Check, contentDescription = "Terminé", tint = MaterialTheme.colorScheme.primary)
+            ItemStatus.SKIPPED -> Icon(Icons.Outlined.CheckCircle, contentDescription = "Déjà à jour", tint = MaterialTheme.colorScheme.primary)
+            ItemStatus.CANCELLED -> Icon(Icons.Filled.Block, contentDescription = "Annulé", tint = MaterialTheme.colorScheme.onSurfaceVariant)
             ItemStatus.RUNNING -> CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
             ItemStatus.ERROR -> Icon(Icons.Filled.ErrorOutline, contentDescription = "Erreur", tint = MaterialTheme.colorScheme.error)
             ItemStatus.WAITING -> Icon(Icons.Filled.Schedule, contentDescription = "En attente", tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -191,11 +218,22 @@ private fun groupStatus(items: List<SyncItem>, phase: SyncPhase): ItemStatus = w
 }
 
 /**
- * Avancement complet : % global, barre, départements, liste dynamique par famille (✓ au fur et à mesure).
- * Affiche l'état « en cours » tant que Connect n'a rien renvoyé.
+ * Avancement de la synchro (étape « Préparation de tes cartes » et section « Avancement » de l'écran Connect).
+ * Connect 4 et plus : liste des vraies tâches, regroupées (TaskProgressBlock, SyncTasksUi.kt).
+ * Ancien Connect, ou rien reçu encore : ancien affichage par famille (LegacyProgressBlock).
  */
 @Composable
 fun SyncProgressBlock(ui: SyncUi) {
+    val snap = ui.snapshot
+    if (snap != null && snap.hasTasks) TaskProgressBlock(ui, snap) else LegacyProgressBlock(ui)
+}
+
+/**
+ * Ancien affichage (Connect 3 et moins) : % global, barre, départements, liste par famille.
+ * Affiche l'état « en cours » tant que Connect n'a rien renvoyé.
+ */
+@Composable
+private fun LegacyProgressBlock(ui: SyncUi) {
     val snap = ui.snapshot
     val percent = when {
         ui.phase == SyncPhase.DONE -> 100

@@ -1,5 +1,6 @@
 package fr.pushpull.champimap.connect.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -31,16 +32,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.util.Locale
 import fr.pushpull.champimap.connect.DeptProgress
 import fr.pushpull.champimap.connect.ItemStatus
 import fr.pushpull.champimap.connect.SyncItem
+import fr.pushpull.champimap.connect.SyncProtocol
 import fr.pushpull.champimap.connect.SyncSnapshot
 
 /*
  * Écran d'avancement de la synchronisation :
- *  - état général (« En cours… », « Terminé ✓ », « Échec ») + étape en cours + pourcentage global ;
- *  - avancement par département ;
- *  - liste détaillée des éléments (contours, urgences, météo, cartes) avec leur état ;
+ *  - état général (« En cours… », « Terminé ✓ », « Échec ») + pourcentage global + ligne de résumé
+ *    (« 3 tâches sur 9 · 42 % · Carte · Haute-Vienne ») ;
+ *  - les vraies tâches, dans l'ordre réel d'exécution, regroupées : un bloc par département
+ *    (pourcentage du département), puis « Général » ; tâche en cours mise en évidence ;
  *  - erreurs éventuelles, en clair ;
  *  - bouton Annuler (pendant) ou Fermer (après), avec le rappel « Conseillé : en Wi-Fi ».
  */
@@ -56,13 +60,11 @@ fun SyncScreen(snapshot: SyncSnapshot, onCancel: () -> Unit, onClose: () -> Unit
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item { Header(snapshot) }
-                if (snapshot.departements.isNotEmpty()) {
-                    item { SectionTitle("Par département") }
-                    items(snapshot.departements, key = { "d_" + it.code }) { DeptRow(it) }
-                }
-                if (snapshot.items.isNotEmpty()) {
-                    item { SectionTitle("Détail") }
-                    items(snapshot.items, key = { "i_" + it.id }) { ItemRow(it) }
+                // Un bloc par groupe, dans l'ordre réel : départements puis « Général ».
+                taskGroups(snapshot.items).forEach { (group, tasks) ->
+                    val dept = snapshot.departements.firstOrNull { d -> tasks.any { it.departement == d.code } }
+                    item(key = "g_$group") { GroupHeader(group, tasks, dept) }
+                    items(tasks, key = { "i_" + it.id }) { ItemRow(it) }
                 }
                 if (snapshot.errors.isNotEmpty()) {
                     item { ErrorsCard(snapshot.errors) }
@@ -105,58 +107,91 @@ private fun Header(s: SyncSnapshot) {
             Text("${s.percent} %", fontSize = 40.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.height(8.dp))
             Progress(s.percent, color)
-            if (s.step.isNotBlank()) {
-                Spacer(Modifier.height(8.dp))
-                Text(s.step, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
-            }
+            Spacer(Modifier.height(8.dp))
+            // Même ligne de résumé que dans Champimap et la notification.
+            Text(s.summary(), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
         }
     }
 }
 
-/** Petit titre de section. */
-@Composable
-private fun SectionTitle(text: String) {
-    Text(
-        text, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp),
-    )
+/**
+ * Groupes de tâches dans l'ordre réel : chaque département dans l'ordre de sa première tâche,
+ * puis le bloc « Général » (tâches sans département).
+ */
+private fun taskGroups(items: List<SyncItem>): List<Pair<String, List<SyncItem>>> {
+    val depts = items.filter { it.departement != null }.groupBy { it.group }.toList()
+    val general = items.filter { it.departement == null }
+    return if (general.isEmpty()) depts else depts + (SyncProtocol.GROUP_GENERAL to general)
 }
 
-/** Ligne d'un département : nom, pourcentage, barre. */
+/** Titre d'un groupe : nom, tâches traitées / total et, pour un département, son pourcentage. */
 @Composable
-private fun DeptRow(d: DeptProgress) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("${d.code} · ${d.name}", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-                Text("${statusSymbol(d.status)}  ${d.percent} %", color = statusColor(d.status), fontWeight = FontWeight.SemiBold)
-            }
-            Spacer(Modifier.height(6.dp))
-            Progress(d.percent, statusColor(d.status))
+private fun GroupHeader(group: String, tasks: List<SyncItem>, dept: DeptProgress?) {
+    Column(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                group, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f),
+            )
+            val done = tasks.count { it.isProcessed }
+            Text(
+                if (dept != null) "$done/${tasks.size} · ${dept.percent} %" else "$done/${tasks.size}",
+                style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (dept != null) {
+            Spacer(Modifier.height(4.dp))
+            Progress(dept.percent, statusColor(dept.status))
         }
     }
 }
 
-/** Ligne d'un élément : symbole d'état, libellé, détail et barre s'il est en cours. */
+/**
+ * Ligne d'une tâche : symbole d'état, libellé court, état à droite (%, « Déjà à jour », « Annulé », taille),
+ * détail (message d'erreur en rouge) et barre si elle est en cours. La tâche en cours est surlignée.
+ */
 @Composable
 private fun ItemRow(i: SyncItem) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.Top) {
+    val running = i.status == ItemStatus.RUNNING
+    val bg = if (running) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+    Row(
+        Modifier.fillMaxWidth().background(bg, RoundedCornerShape(10.dp)).padding(horizontal = 6.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
         Text(statusSymbol(i.status), color = statusColor(i.status), fontWeight = FontWeight.Bold, modifier = Modifier.width(28.dp))
         Column(Modifier.weight(1f)) {
             Row {
-                Text(i.label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                if (i.status == ItemStatus.RUNNING) Text("${i.percent} %", style = MaterialTheme.typography.bodySmall)
+                Text(
+                    i.title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (running) FontWeight.Bold else FontWeight.Normal,
+                )
+                statusText(i)?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = statusColor(i.status, muted = !running)) }
             }
-            i.detail?.takeIf { it.isNotBlank() }?.let {
+            i.detail?.takeIf { it.isNotBlank() && i.status != ItemStatus.SKIPPED }?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = statusColor(i.status, muted = true))
             }
-            if (i.status == ItemStatus.RUNNING) {
+            if (running) {
                 Spacer(Modifier.height(4.dp))
                 Progress(i.percent, MaterialTheme.colorScheme.primary)
             }
         }
     }
 }
+
+/** Texte d'état à droite d'une tâche (null = rien). */
+private fun statusText(i: SyncItem): String? = when (i.status) {
+    ItemStatus.RUNNING -> "${i.percent} %"
+    ItemStatus.SKIPPED -> "Déjà à jour"
+    ItemStatus.CANCELLED -> "Annulé"
+    ItemStatus.ERROR -> "Erreur"
+    ItemStatus.DONE -> i.sizeBytes?.let { sizeText(it) }
+    ItemStatus.WAITING -> null
+}
+
+/** Taille lisible : « 35,2 Mo » ou « 830 Ko ». */
+private fun sizeText(bytes: Long): String =
+    if (bytes >= 1024 * 1024) String.format(Locale.FRANCE, "%.1f Mo", bytes / 1048576.0)
+    else String.format(Locale.FRANCE, "%d Ko", (bytes + 1023) / 1024)
 
 /** Carte des erreurs (chaque raison sur sa ligne). */
 @Composable
@@ -219,13 +254,14 @@ private fun statusSymbol(s: ItemStatus): String = when (s) {
     ItemStatus.RUNNING -> "…"
     ItemStatus.DONE -> "✓"
     ItemStatus.ERROR -> "✗"
-    ItemStatus.SKIPPED -> "–"
+    ItemStatus.SKIPPED -> "✓"
+    ItemStatus.CANCELLED -> "–"
 }
 
 /** Couleur de l'état. */
 @Composable
 private fun statusColor(s: ItemStatus, muted: Boolean = false): Color = when (s) {
-    ItemStatus.DONE -> if (muted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary
+    ItemStatus.DONE, ItemStatus.SKIPPED -> if (muted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary
     ItemStatus.ERROR -> MaterialTheme.colorScheme.error
     ItemStatus.RUNNING -> if (muted) MaterialTheme.colorScheme.onSurfaceVariant else ConnectColors.Orange
     else -> MaterialTheme.colorScheme.onSurfaceVariant

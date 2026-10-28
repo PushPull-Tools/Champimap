@@ -12,6 +12,7 @@ import fr.pushpull.champimap.connect.ItemStatus
 import fr.pushpull.champimap.connect.SyncFile
 import fr.pushpull.champimap.connect.SyncItem
 import fr.pushpull.champimap.connect.SyncProtocol
+import fr.pushpull.champimap.connect.SyncRequest
 import fr.pushpull.champimap.connect.SyncSnapshot
 import fr.pushpull.champimap.connect.data.Departements
 import fr.pushpull.champimap.connect.download.ContourDownloader
@@ -47,14 +48,15 @@ import java.util.TreeSet
 import java.util.UUID
 
 /*
- * Moteur de synchronisation (un seul à la fois, au niveau du processus) :
- *  1. centres antipoison (liste intégrée) ;
- *  2. pour chaque département coché : contour puis hôpitaux avec urgences ;
- *  3. météo de toutes les zones demandées ;
- *  4. cartes des départements demandés ;
- *  5. modèle d'identification, s'il est demandé et qu'une version plus récente (ou choisie) existe.
- *     La liste des versions publiées (ia_versions.json) est toujours renvoyée quand le modèle est demandé.
- * Chaque élément est indépendant : un échec est noté (liste d'erreurs) et la suite continue.
+ * Moteur de synchronisation (un seul à la fois, au niveau du processus).
+ * Ordre réel d'exécution, identique à la liste des tâches diffusée (planItems) :
+ *  1. département par département : contour, urgences (hôpitaux avec urgences), carte ;
+ *     (la recherche du build de carte le plus récent est faite une fois, au début de la première carte) ;
+ *  2. « Général » : centres antipoison (liste intégrée), météo de toutes les zones demandées,
+ *     liste des versions publiées du modèle (ia_versions.json), puis le modèle d'identification
+ *     s'il existe une version plus récente (ou choisie) — sinon tâche « Déjà à jour » (SKIPPED).
+ * Chaque tâche est indépendante : un échec est noté (liste d'erreurs) et la suite continue.
+ * Pourcentage global pondéré par les octets estimés de chaque tâche, monotone (voir recompute).
  * Chaque fichier terminé est aussitôt autorisé en lecture pour Champimap et annoncé (diffusion + state.json).
  * Aucune donnée de spot n'est reçue ni envoyée : seulement des départements et des carrés de 0,25°
  * (et, pour le modèle, un simple GET de la liste publique des releases GitHub).
@@ -63,13 +65,16 @@ object SyncEngine {
     private const val STATE_FILE = "state.json"
     private const val PUBLISH_INTERVAL_MS = 400L
 
-    // Poids relatifs dans le pourcentage global.
-    private const val W_CONTOUR = 2
-    private const val W_URGENCES = 2
-    private const val W_METEO = 6
-    private const val W_ANTIPOISON = 1
-    private const val W_CARTE = 40
-    private const val W_IA = 40
+    // Poids dans le pourcentage global : octets estimés de chaque tâche.
+    // Les petites tâches réseau ont un poids plancher (le temps de réponse du serveur compte plus que leur taille).
+    private const val MO = 1024L * 1024L
+    private const val W_CONTOUR = MO / 2
+    private const val W_URGENCES = MO           // Overpass : réponse lente
+    private const val W_METEO_ZONE = MO / 4      // par zone météo
+    private const val W_ANTIPOISON = 16L * 1024  // liste intégrée, aucun réseau
+    private const val W_IA_VERSIONS = 64L * 1024
+    private const val W_CARTE = 35 * MO          // ≈ 35 Mo par département (zoom 15)
+    private const val W_IA_DEFAULT = 140 * MO    // avant de connaître la taille de l'archive publiée
 
     /** Fichiers obligatoires du paquet du modèle (à la racine de l'archive). */
     private val IA_REQUIRED = listOf("champi-ia.onnx", "labels.json", "especes_ia.json")
@@ -121,31 +126,45 @@ object SyncEngine {
 
     // ------------------------------------------------------------------ Plan
 
-    /** Liste des éléments à traiter, dans l'ordre d'exécution. */
+    /**
+     * Liste des tâches, dans l'ordre réel d'exécution (même ordre que execute) :
+     * un bloc par département (contour, urgences, carte), puis le bloc « Général ».
+     */
     private fun planItems(p: ParsedRequest): List<SyncItem> {
         val r = p.request
         val items = ArrayList<SyncItem>()
-        if (r.poisonCenters) items += SyncItem("antipoison", ItemKind.ANTIPOISON, "Centres antipoison", weight = W_ANTIPOISON)
-        for (code in r.departements) {
-            val name = Departements.byCode(code)?.name ?: code
-            items += SyncItem("contour_$code", ItemKind.CONTOUR, "Contour · $name", code, weight = W_CONTOUR)
-            items += SyncItem("urgences_$code", ItemKind.URGENCES, "Urgences · $name", code, weight = W_URGENCES)
+        for (code in deptOrder(r)) {
+            val name = Departements.byCode(code)?.name ?: continue
+            val group = "$code · $name"
+            // title : libellé court sous le nom du groupe ; label : « Carte · Haute-Vienne », lisible seul.
+            fun task(id: String, kind: ItemKind, title: String, short: String, weight: Long) = SyncItem(
+                id = id, kind = kind, label = "$short · $name", departement = code,
+                weight = weight, title = title, group = group,
+            )
+            if (code in r.departements) {
+                items += task("contour_$code", ItemKind.CONTOUR, "Contour du département", "Contour", W_CONTOUR)
+                items += task("urgences_$code", ItemKind.URGENCES, "Urgences les plus proches", "Urgences", W_URGENCES)
+            }
+            if (code in r.mapDepartements) items += task("carte_$code", ItemKind.CARTE, "Carte", "Carte", W_CARTE)
         }
+        // Bloc « Général » : tâches indépendantes des départements.
+        fun general(id: String, kind: ItemKind, label: String, weight: Long) =
+            SyncItem(id = id, kind = kind, label = label, weight = weight)
+        if (r.poisonCenters) items += general("antipoison", ItemKind.ANTIPOISON, "Centres antipoison", W_ANTIPOISON)
         if (r.zones.isNotEmpty()) {
             val n = r.zones.map { it.zoneId }.distinct().size
-            items += SyncItem("meteo", ItemKind.METEO, "Météo · $n zone${if (n > 1) "s" else ""}", weight = W_METEO)
-        }
-        for (code in r.mapDepartements) {
-            val name = Departements.byCode(code)?.name ?: code
-            items += SyncItem("carte_$code", ItemKind.CARTE, "Carte · $name", code, weight = W_CARTE)
+            items += general("meteo", ItemKind.METEO, "Météo de tes sorties · $n zone${if (n > 1) "s" else ""}", n * W_METEO_ZONE)
         }
         r.ia?.let { ia ->
-            // Liste des versions seule : élément léger (quelques Ko).
-            items += if (ia.listOnly) SyncItem("ia", ItemKind.IA, "Versions du modèle d'identification", weight = 1)
-            else SyncItem("ia", ItemKind.IA, "Modèle d'identification", weight = W_IA)
+            items += general("ia_versions", ItemKind.IA, "Liste des versions du modèle", W_IA_VERSIONS)
+            if (!ia.listOnly) items += general("ia", ItemKind.IA, "Modèle d'identification", W_IA_DEFAULT)
         }
         return items
     }
+
+    /** Départements dans l'ordre de la demande (contours/urgences d'abord, puis cartes seules), sans doublon. */
+    private fun deptOrder(r: SyncRequest): List<String> =
+        (r.departements + r.mapDepartements).distinct()
 
     // ------------------------------------------------------------------ Exécution
 
@@ -157,73 +176,63 @@ object SyncEngine {
             prepareDir(dir)
             if (p.isEmpty) throw IOException("Rien à télécharger dans la demande")
 
-            // 1. Centres antipoison (aucun réseau).
+            // 1. Département par département : contour, urgences, carte.
+            val maps = MapBuildCache()
+            for (code in deptOrder(r)) {
+                val dept = Departements.byCode(code) ?: continue
+                if (code in r.departements) {
+                    runItem("contour_$code") {
+                        val bytes = runInterruptible { ContourDownloader.download(dept) }
+                        writeBytes(dir, "contour_$code.geojson", bytes)
+                        sizeText(bytes.size.toLong())
+                    }
+                    runItem("urgences_$code") {
+                        val json = runInterruptible { HospitalDownloader.download(dept) }
+                        writeJson(dir, "hospitals_$code.json", json)
+                        val n = json.size
+                        "$n hôpita${if (n > 1) "ux" else "l"} avec urgences"
+                    }
+                    delay(500) // politesse envers le serveur Overpass public
+                }
+                if (code in r.mapDepartements) {
+                    runItem("carte_$code") {
+                        // Build Protomaps le plus récent : cherché une seule fois pour toutes les cartes.
+                        setItem("carte_$code") { it.copy(detail = "Recherche de la carte la plus récente…") }
+                        val build = maps.get()
+                        val part = File(dir, "map_$code.pmtiles.part")
+                        val stats = MapDownloader.extract(build, dept, p.mapMaxZoom, part) { pct, phase ->
+                            setItem("carte_$code") { it.copy(percent = pct, detail = phase) }
+                        }
+                        val final = File(dir, "map_$code.pmtiles")
+                        final.delete()
+                        if (!part.renameTo(final)) throw IOException("Écriture de la carte impossible")
+                        registerFile(final)
+                        setItem("carte_$code") { it.copy(sizeBytes = stats.bytes) }
+                        "${sizeText(stats.bytes)} · ${stats.tiles} tuiles · zoom ${stats.maxZoom}"
+                    }
+                }
+            }
+
+            // 2. Général : centres antipoison (aucun réseau), météo, modèle d'identification.
             if (r.poisonCenters) {
-                step("Centres antipoison")
                 runItem("antipoison") {
                     writeJson(dir, "antipoison.json", PoisonCenters.toJson())
                     "${PoisonCenters.ALL.size} centres"
                 }
             }
-
-            // 2. Contours et urgences, département par département.
-            for (code in r.departements) {
-                val dept = Departements.byCode(code) ?: continue
-                step("Contour et urgences · ${dept.name}")
-                runItem("contour_$code") {
-                    val bytes = runInterruptible { ContourDownloader.download(dept) }
-                    writeBytes(dir, "contour_$code.geojson", bytes)
-                    sizeText(bytes.size.toLong())
-                }
-                runItem("urgences_$code") {
-                    val json = runInterruptible { HospitalDownloader.download(dept) }
-                    writeJson(dir, "hospitals_$code.json", json)
-                    val n = json.size
-                    "$n hôpita${if (n > 1) "ux" else "l"} avec urgences"
-                }
-                delay(500) // politesse envers le serveur Overpass public
-            }
-
-            // 3. Météo.
-            if (r.zones.isNotEmpty()) {
-                step("Météo")
-                runItem("meteo") { downloadWeather(p, dir) }
-            }
-
-            // 4. Cartes.
-            if (r.mapDepartements.isNotEmpty()) {
-                step("Recherche de la carte la plus récente")
-                val build = try {
-                    runInterruptible { MapDownloader.findLatestBuild() }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    for (code in r.mapDepartements) failItem("carte_$code", reason(e))
-                    null
-                }
-                if (build != null) {
-                    for (code in r.mapDepartements) {
-                        val dept = Departements.byCode(code) ?: continue
-                        step("Carte · ${dept.name}")
-                        runItem("carte_$code") {
-                            val part = File(dir, "map_$code.pmtiles.part")
-                            val stats = MapDownloader.extract(build, dept, p.mapMaxZoom, part) { pct, phase ->
-                                setItem("carte_$code") { it.copy(percent = pct, detail = phase) }
-                            }
-                            val final = File(dir, "map_$code.pmtiles")
-                            final.delete()
-                            if (!part.renameTo(final)) throw IOException("Écriture de la carte impossible")
-                            registerFile(final)
-                            "${sizeText(stats.bytes)} · ${stats.tiles} tuiles · zoom ${stats.maxZoom}"
-                        }
-                    }
-                }
-            }
-
-            // 5. Modèle d'identification (gros fichier, en dernier).
+            if (r.zones.isNotEmpty()) runItem("meteo") { downloadWeather(p, dir) }
             r.ia?.let { ia ->
-                step("Modèle d'identification")
-                runItem("ia") { syncIa(ia, dir) }
+                var releases: List<IaModelDownloader.IaRelease>? = null
+                runItem("ia_versions") {
+                    val list = runInterruptible { listIaVersions(dir) }
+                    releases = list
+                    "${list.size} version${if (list.size > 1) "s" else ""} publiée${if (list.size > 1) "s" else ""}"
+                }
+                if (!ia.listOnly) {
+                    val list = releases
+                    if (list == null) failItem("ia", "Impossible sans la liste des versions")
+                    else runItem("ia") { syncIa(ia, list, dir) }
+                }
             }
             finish(cancelled = false, fatal = null)
         } catch (e: CancellationException) {
@@ -234,6 +243,29 @@ object SyncEngine {
         } finally {
             // Nettoyage des fichiers partiels (annulation ou erreur).
             dir.listFiles()?.filter { it.name.endsWith(".part") }?.forEach { it.delete() }
+        }
+    }
+
+    /**
+     * Build Protomaps le plus récent, cherché une seule fois par synchro, au début de la première carte.
+     * Un échec est mémorisé : chaque carte échoue alors avec la même raison, sans nouvelle requête.
+     */
+    private class MapBuildCache {
+        private var url: String? = null
+        private var failure: String? = null
+
+        suspend fun get(): String {
+            url?.let { return it }
+            failure?.let { throw IOException(it) }
+            return try {
+                runInterruptible { MapDownloader.findLatestBuild() }.also { url = it }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                val msg = reason(e)
+                failure = msg
+                throw IOException(msg)
+            }
         }
     }
 
@@ -272,20 +304,25 @@ object SyncEngine {
     }
 
     /**
-     * Modèle d'identification :
-     *  1. liste publique des versions (GitHub) → version voulue ou la plus récente ;
-     *  2. rien à faire si l'appli l'a déjà (sauf actualisation forcée) ;
+     * Liste publique des versions du modèle (GitHub), remise à l'appli à chaque fois (ia_versions.json,
+     * menu de choix de version). Renvoie les versions, de la plus récente à la plus ancienne.
+     */
+    private fun listIaVersions(dir: File): List<IaModelDownloader.IaRelease> {
+        val releases = IaModelDownloader.listReleases()
+        writeJson(dir, SyncProtocol.IA_VERSIONS, versionsJson(releases))
+        return releases
+    }
+
+    /**
+     * Modèle d'identification (la liste des versions a déjà été lue par listIaVersions) :
+     *  1. version voulue ou la plus récente ;
+     *  2. rien à faire si l'appli l'a déjà (sauf actualisation forcée) : tâche « Déjà à jour » ;
      *  3. téléchargement reprenable dans cacheDir/ia_download/ (0–85 %), empreinte SHA-256 (85–90 %),
      *     extraction dans sync/ia/<version>/ (90–99 %), statistiques dans stats.json ;
      *  4. lecture accordée à Champimap pour tout le dossier, puis ia_manifest.json annoncé (dernier fichier).
      */
-    private suspend fun syncIa(req: IaRequest, dir: File): String {
-        setItem("ia") { it.copy(detail = "Recherche de la dernière version…") }
-        val releases = runInterruptible { IaModelDownloader.listReleases() }
-        // Liste des versions publiées remise à l'appli à chaque fois (menu de choix de version).
-        writeJson(dir, SyncProtocol.IA_VERSIONS, versionsJson(releases))
+    private suspend fun syncIa(req: IaRequest, releases: List<IaModelDownloader.IaRelease>, dir: File): String {
         if (releases.isEmpty()) throw IOException("Aucun modèle publié pour le moment")
-        if (req.listOnly) return "${releases.size} version${if (releases.size > 1) "s" else ""} publiée${if (releases.size > 1) "s" else ""}"
         val target = if (req.wanted != null) {
             releases.firstOrNull { it.tag == req.wanted } ?: throw IOException("Version ${req.wanted} introuvable")
         } else releases.first()
@@ -299,8 +336,10 @@ object SyncEngine {
         }
         if (upToDate) {
             _state.update { it.copy(ia = IaSyncInfo(version = req.installed ?: target.tag, upToDate = true)) }
-            return "À jour · ${target.summary()}"
+            throw AlreadyUpToDate("Déjà à jour · ${target.summary()}")
         }
+        // Taille réelle connue : elle remplace l'estimation dans le pourcentage global.
+        if (target.size > 0) setItem("ia") { it.copy(weight = target.size, sizeBytes = target.size) }
 
         // Téléchargement reprenable (le partiel survit à une annulation ou à une coupure).
         val cache = File(app.cacheDir, "ia_download").apply { mkdirs() }
@@ -407,15 +446,24 @@ object SyncEngine {
         },
     )
 
+    /** Levée par une tâche qui n'a rien à faire (déjà à jour) : elle devient SKIPPED, jamais DONE. */
+    private class AlreadyUpToDate(message: String) : Exception(message)
+
     /**
-     * Exécute un élément : statut « en cours », puis « terminé » (avec un détail) ou « erreur ».
+     * Exécute une tâche : statut « en cours » (et étape affichée = son libellé), puis « fait » (avec un
+     * détail), « déjà à jour » (AlreadyUpToDate) ou « erreur ».
      * Une erreur n'arrête PAS la synchronisation ; une annulation, si.
      */
     private suspend fun runItem(id: String, block: suspend () -> String?) {
+        val label = _state.value.items.firstOrNull { it.id == id }?.label ?: return
+        _state.update { it.copy(step = label) }
         setItem(id) { it.copy(status = ItemStatus.RUNNING, percent = 0, detail = "En cours…") }
+        publish(force = true)
         try {
             val detail = block()
             setItem(id) { it.copy(status = ItemStatus.DONE, percent = 100, detail = detail) }
+        } catch (e: AlreadyUpToDate) {
+            setItem(id) { it.copy(status = ItemStatus.SKIPPED, percent = 100, detail = e.message) }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -439,8 +487,9 @@ object SyncEngine {
         wasCancelled = cancelled
         val snap = _state.updateAndGet { s ->
             val items = s.items.map {
+                // Tâche non commencée ou interrompue : « pas faite », jamais « faite » ni « déjà à jour ».
                 if (it.status == ItemStatus.WAITING || it.status == ItemStatus.RUNNING) {
-                    it.copy(status = ItemStatus.SKIPPED, detail = if (cancelled) "Annulé" else it.detail)
+                    it.copy(status = ItemStatus.CANCELLED, detail = if (cancelled) "Annulé" else "Pas fait")
                 } else it
             }
             val errors = s.errors.toMutableList()
@@ -464,12 +513,6 @@ object SyncEngine {
 
     // ------------------------------------------------------------------ État
 
-    /** Change l'étape affichée. */
-    private fun step(text: String) {
-        _state.update { it.copy(step = text) }
-        publish(force = true)
-    }
-
     /** Modifie un élément puis recalcule les pourcentages. */
     private fun setItem(id: String, change: (SyncItem) -> SyncItem) {
         _state.update { s -> recompute(s.copy(items = s.items.map { if (it.id == id) change(it) else it })) }
@@ -481,26 +524,33 @@ object SyncEngine {
         _state.update { it.copy(errors = it.errors + msg) }
     }
 
-    /** Pourcentage global (pondéré) et avancement par département. */
+    /**
+     * Pourcentage global et avancement par département, pondérés par les octets estimés.
+     * Une tâche faite, déjà à jour ou en erreur compte pour 100 % (plus rien à attendre) ;
+     * en attente, en cours ou annulée : son avancement réel.
+     * Le pourcentage global ne recule jamais (le poids du modèle peut changer quand sa taille est connue).
+     */
     private fun recompute(s: SyncSnapshot): SyncSnapshot {
-        fun eff(i: SyncItem) = if (i.status == ItemStatus.WAITING || i.status == ItemStatus.RUNNING) i.percent else 100
-        val totalW = s.items.sumOf { it.weight }
-        val global = if (totalW == 0) (if (s.finished) 100 else 0) else s.items.sumOf { eff(it) * it.weight } / totalW
+        fun eff(i: SyncItem): Long = if (i.isProcessed) 100L else i.percent.coerceIn(0, 100).toLong()
+        val totalW = s.items.sumOf { it.weight.coerceAtLeast(1) }
+        val global = if (s.items.isEmpty()) (if (s.finished) 100 else 0)
+        else (s.items.sumOf { eff(it) * it.weight.coerceAtLeast(1) } / totalW).toInt()
         val depts = s.items.mapNotNull { it.departement }.distinct().map { code ->
             val list = s.items.filter { it.departement == code }
-            val w = list.sumOf { it.weight }.coerceAtLeast(1)
-            val pct = list.sumOf { eff(it) * it.weight } / w
+            val w = list.sumOf { it.weight.coerceAtLeast(1) }
+            val pct = (list.sumOf { eff(it) * it.weight.coerceAtLeast(1) } / w).toInt()
             val status = when {
                 list.any { it.status == ItemStatus.RUNNING } -> ItemStatus.RUNNING
                 list.all { it.status == ItemStatus.WAITING } -> ItemStatus.WAITING
                 list.any { it.status == ItemStatus.WAITING } -> ItemStatus.RUNNING
                 list.any { it.status == ItemStatus.ERROR } -> ItemStatus.ERROR
+                list.any { it.status == ItemStatus.CANCELLED } -> ItemStatus.CANCELLED
                 list.all { it.status == ItemStatus.SKIPPED } -> ItemStatus.SKIPPED
                 else -> ItemStatus.DONE
             }
             DeptProgress(code, Departements.byCode(code)?.name ?: code, pct, status)
         }
-        return s.copy(percent = global.coerceIn(0, 100), departements = depts)
+        return s.copy(percent = maxOf(s.percent, global.coerceIn(0, 100)), departements = depts)
     }
 
     // ------------------------------------------------------------------ Fichiers et diffusion

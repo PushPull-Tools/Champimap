@@ -85,3 +85,15 @@
   montrée en tout début (positions simulées).
 - ⏳ Vu sur les captures : en thème Psyché, le menu déroulant « Version du modèle » (écran Connect) a un texte
   presque invisible (texte sombre sur menu sombre).
+
+## Avancement des téléchargements — compile, à tester
+- ✅ « C'est tout mêlé, les étapes ne sont pas représentatives » : Connect 0.4.0 (versionCode 4,
+  `MIN_CONNECT_VERSION_CODE` = 4) diffuse ses vraies tâches dans l'ordre réel (un département après l'autre :
+  contour, urgences, carte ; puis Général : antipoison, météo, liste des versions, modèle), avec état
+  (« Déjà à jour » et « Annulé » distincts de « fait »), % par tâche et taille connue.
+- ✅ Pourcentage global pondéré par les octets (cartes ≈ 35 Mo, modèle = taille réelle de l'archive), qui ne recule jamais.
+- ✅ Appli (« Préparation de tes cartes » et écran Connect) et Connect (écran + notification) : résumé
+  « 3 tâches sur 9 · 42 % · Carte · Haute-Vienne », blocs par département puis « Général », tâche en cours
+  surlignée, erreurs en rouge avec « Réessayer » (relance seulement la tâche en échec). Ancien Connect : ancien affichage.
+- ⏳ À vérifier sur téléphone : ordre et pourcentages sur une vraie synchro (3 départements + modèle), « Réessayer »
+  d'une carte en échec.

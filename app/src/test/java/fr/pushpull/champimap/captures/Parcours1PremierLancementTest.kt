@@ -99,28 +99,47 @@ class Parcours1PremierLancementTest : CaptureHarness("1-premier-lancement") {
         finish()
     }
 
-    /** Synchro en cours : 62 %, Haute-Vienne finie, Corrèze en cours, Creuse en attente. */
+    /**
+     * Synchro en cours (format des tâches de Connect 4), dans l'ordre réel : Haute-Vienne finie, Corrèze en
+     * cours (carte à 64 %), Creuse en attente, puis le bloc « Général ». 24 % pondéré par les octets estimés
+     * (cartes ≈ 35 Mo, modèle ≈ 140 Mo).
+     */
     private fun fakeSync(): SyncUi {
         val depts = listOf(
             DeptProgress("87", "Haute-Vienne", 100, ItemStatus.DONE),
-            DeptProgress("19", "Corrèze", 64, ItemStatus.RUNNING),
+            DeptProgress("19", "Corrèze", 65, ItemStatus.RUNNING),
             DeptProgress("23", "Creuse", 0, ItemStatus.WAITING),
         )
+        /** Tâche d'un département (libellé court + groupe « 87 · Haute-Vienne »). */
+        fun dept(
+            id: String, kind: ItemKind, title: String, short: String, code: String, name: String,
+            status: ItemStatus, percent: Int, detail: String?, size: Long? = null,
+        ) = SyncItem(id, kind, "$short · $name", code, status, percent, detail, title, "$code · $name", size)
+        /** Tâche du bloc « Général ». */
+        fun general(id: String, kind: ItemKind, label: String) =
+            SyncItem(id, kind, label, null, ItemStatus.WAITING, 0, null)
         val items = listOf(
-            SyncItem("c87", ItemKind.CONTOUR, "Contour · Haute-Vienne", "87", ItemStatus.DONE, 100, null),
-            SyncItem("c19", ItemKind.CONTOUR, "Contour · Corrèze", "19", ItemStatus.DONE, 100, null),
-            SyncItem("c23", ItemKind.CONTOUR, "Contour · Creuse", "23", ItemStatus.DONE, 100, null),
-            SyncItem("u87", ItemKind.URGENCES, "Urgences · Haute-Vienne", "87", ItemStatus.DONE, 100, null),
-            SyncItem("u19", ItemKind.URGENCES, "Urgences · Corrèze", "19", ItemStatus.RUNNING, 40, null),
-            SyncItem("m87", ItemKind.CARTE, "Carte · Haute-Vienne", "87", ItemStatus.DONE, 100, "212 Mo"),
-            SyncItem("m19", ItemKind.CARTE, "Carte · Corrèze", "19", ItemStatus.RUNNING, 64, "128 / 201 Mo"),
-            SyncItem("m23", ItemKind.CARTE, "Carte · Creuse", "23", ItemStatus.WAITING, 0, null),
-            SyncItem("meteo", ItemKind.METEO, "Météo des zones larges", null, ItemStatus.WAITING, 0, null),
-            SyncItem("ia", ItemKind.IA, "Modèle d'identification", null, ItemStatus.WAITING, 0, null),
+            dept("contour_87", ItemKind.CONTOUR, "Contour du département", "Contour", "87", "Haute-Vienne", ItemStatus.DONE, 100, "212 Ko"),
+            dept("urgences_87", ItemKind.URGENCES, "Urgences les plus proches", "Urgences", "87", "Haute-Vienne", ItemStatus.DONE, 100, "4 hôpitaux avec urgences"),
+            dept("carte_87", ItemKind.CARTE, "Carte", "Carte", "87", "Haute-Vienne", ItemStatus.DONE, 100, "34,1 Mo · 18 412 tuiles · zoom 15", 35_756_032L),
+            dept("contour_19", ItemKind.CONTOUR, "Contour du département", "Contour", "19", "Corrèze", ItemStatus.DONE, 100, "187 Ko"),
+            dept("urgences_19", ItemKind.URGENCES, "Urgences les plus proches", "Urgences", "19", "Corrèze", ItemStatus.DONE, 100, "3 hôpitaux avec urgences"),
+            dept("carte_19", ItemKind.CARTE, "Carte", "Carte", "19", "Corrèze", ItemStatus.RUNNING, 64, "Tuiles 11 802 sur 18 440"),
+            dept("contour_23", ItemKind.CONTOUR, "Contour du département", "Contour", "23", "Creuse", ItemStatus.WAITING, 0, null),
+            dept("urgences_23", ItemKind.URGENCES, "Urgences les plus proches", "Urgences", "23", "Creuse", ItemStatus.WAITING, 0, null),
+            dept("carte_23", ItemKind.CARTE, "Carte", "Carte", "23", "Creuse", ItemStatus.WAITING, 0, null),
+            general("antipoison", ItemKind.ANTIPOISON, "Centres antipoison"),
+            general("meteo", ItemKind.METEO, "Météo de tes sorties · 2 zones"),
+            general("ia_versions", ItemKind.IA, "Liste des versions du modèle"),
+            general("ia", ItemKind.IA, "Modèle d'identification"),
         )
         return SyncUi(
             phase = SyncPhase.RUNNING,
-            snapshot = SyncSnapshot(syncId = "demo", running = true, percent = 62, step = "Cartes", departements = depts, items = items),
+            message = "Carte · Corrèze",
+            snapshot = SyncSnapshot(
+                syncId = "demo", running = true, percent = 24, step = "Carte · Corrèze",
+                departements = depts, items = items, format = 2,
+            ),
         )
     }
 }

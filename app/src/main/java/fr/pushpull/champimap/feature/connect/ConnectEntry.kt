@@ -357,7 +357,7 @@ private fun ConnectUpdateCard(install: InstallState) {
         Text(
             champiText(
                 "Ton module Champimap Connect est ancien : il ne gère pas encore tout le modèle d'identification " +
-                    "(téléchargement, liste des versions).",
+                    "(téléchargement, liste des versions) ni le suivi détaillé des téléchargements.",
             ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

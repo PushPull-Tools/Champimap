@@ -1,5 +1,6 @@
 package fr.pushpull.champimap.feature.connect
 
+import fr.pushpull.champimap.core.util.pluriel
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -31,15 +32,28 @@ import kotlinx.serialization.json.longOrNull
  * EXTRA_IA_LIST_ONLY (Connect 3 : seulement la liste des versions). Connect 3 renvoie ia_versions.json
  * (versions publiées et statistiques) à chaque demande incluant le modèle.
  * Résultat EXTRA_WAIT_WIFI = true : l'utilisateur a choisi « Attendre le Wi-Fi » (rien n'a été lancé).
+ *
+ * Liste des tâches (Connect 4, snapshot.format = 2) : snapshot.items = les vraies tâches dans l'ordre réel
+ * d'exécution, avec "title" (libellé court), "group" (« 87 · Haute-Vienne » ou « Général »), "bytes" (taille
+ * réelle si connue), états WAITING / RUNNING / DONE / SKIPPED (déjà à jour) / ERROR / CANCELLED (pas fait) ;
+ * percent pondéré par les octets et monotone. Identifiants : contour_<code>, urgences_<code>, carte_<code>,
+ * antipoison, meteo, ia_versions, ia (servent à « Réessayer » une tâche précise).
+ * Ancien Connect (pas de "format") : l'appli garde l'ancien affichage par famille.
  */
 object ConnectProtocol {
     /** Paquet de l'appli Champimap Connect (seule à avoir Internet). */
     const val CONNECT_PACKAGE = "fr.pushpull.champimap.connect"
     /**
      * Version minimale de Connect comprenant ce protocole : sinon « Mettre à jour ».
-     * 2 = modèle d'identification ; 3 = liste des versions du modèle (ia_versions.json, EXTRA_IA_LIST_ONLY).
+     * 2 = modèle d'identification ; 3 = liste des versions du modèle (ia_versions.json, EXTRA_IA_LIST_ONLY) ;
+     * 4 = liste des vraies tâches (snapshot.format = 2).
      */
-    const val MIN_CONNECT_VERSION_CODE = 3L
+    const val MIN_CONNECT_VERSION_CODE = 4L
+
+    /** Format d'instantané à partir duquel les tâches détaillées (title, group, bytes) sont fournies. */
+    const val TASKS_FORMAT = 2
+    /** Nom du groupe des tâches qui ne dépendent pas d'un département. */
+    const val GROUP_GENERAL = "Général"
 
     const val MAIN_PACKAGE = "fr.pushpull.champimap"
     const val PERMISSION = "fr.pushpull.champimap.permission.CONNECT"
@@ -89,22 +103,37 @@ object ConnectProtocol {
     val json = Json { ignoreUnknownKeys = true; isLenient = true }
 }
 
-/** État d'un élément de la liste d'avancement (mêmes noms que côté Connect). */
-enum class ItemStatus { WAITING, RUNNING, DONE, ERROR, SKIPPED }
+/**
+ * État d'une tâche (mêmes noms que côté Connect). SKIPPED = ignorée car déjà à jour ;
+ * CANCELLED = pas faite (annulation ou arrêt). Valeur inconnue = WAITING.
+ */
+enum class ItemStatus { WAITING, RUNNING, DONE, ERROR, SKIPPED, CANCELLED }
 
 /** Nature d'un élément (sert à l'icône et au regroupement). */
 enum class ItemKind { CONTOUR, URGENCES, CARTE, METEO, ANTIPOISON, IA }
 
-/** Un élément de la liste dynamique (« Carte · Haute-Vienne »…). */
+/** Une tâche de la synchro (« Carte » du groupe « 87 · Haute-Vienne »…). */
 data class SyncItem(
     val id: String,
     val kind: ItemKind,
+    /** Libellé complet, lisible seul (« Carte · Haute-Vienne »). */
     val label: String,
     val departement: String?,
     val status: ItemStatus,
     val percent: Int,
+    /** Détail (avancement, résultat) ou message d'erreur court. */
     val detail: String?,
-)
+    /** Libellé court affiché sous le nom du groupe (« Carte ») ; = label avec un ancien Connect. */
+    val title: String = label,
+    /** Groupe : « 87 · Haute-Vienne » ou « Général ». */
+    val group: String = ConnectProtocol.GROUP_GENERAL,
+    /** Taille réelle en octets, si connue. */
+    val sizeBytes: Long? = null,
+) {
+    /** Vrai si la tâche n'est plus à faire (faite, déjà à jour ou en erreur). */
+    val isProcessed: Boolean
+        get() = status == ItemStatus.DONE || status == ItemStatus.SKIPPED || status == ItemStatus.ERROR
+}
 
 /** Avancement d'un département. */
 data class DeptProgress(val code: String, val name: String, val percent: Int, val status: ItemStatus)
@@ -125,7 +154,29 @@ data class SyncSnapshot(
     val errors: List<String> = emptyList(),
     val startedAt: Long = 0,
     val endedAt: Long = 0,
+    /** 1 = ancien Connect (affichage par famille) ; 2 = vraies tâches (ConnectProtocol.TASKS_FORMAT). */
+    val format: Int = 1,
 ) {
+    /** Vrai si Connect décrit ses vraies tâches (title, group, états détaillés). */
+    val hasTasks: Boolean get() = format >= ConnectProtocol.TASKS_FORMAT
+
+    /** Nombre de tâches traitées (faites, déjà à jour ou en erreur). */
+    val processedCount: Int get() = items.count { it.isProcessed }
+
+    /** Tâche en cours (la première, Connect n'en mène qu'une à la fois). */
+    val currentItem: SyncItem? get() = items.firstOrNull { it.status == ItemStatus.RUNNING }
+
+    /**
+     * Ligne de résumé : « 3 tâches sur 9 · 42 % · Carte · Haute-Vienne ».
+     * [percent] : pourcentage à afficher ; [fallback] : fin de ligne sans tâche en cours.
+     */
+    fun summary(percent: Int, fallback: String): String = buildString {
+        if (items.isNotEmpty()) append("${pluriel(processedCount, "tâche")} sur ${items.size} · ")
+        append("$percent %")
+        val tail = currentItem?.label ?: fallback
+        if (tail.isNotBlank()) append(" · $tail")
+    }
+
     companion object {
         /** Décode le JSON envoyé par Connect (null si illisible). Les valeurs inconnues sont tolérées. */
         fun parse(text: String?): SyncSnapshot? {
@@ -155,6 +206,9 @@ data class SyncSnapshot(
                             status = statusOf(it.str("status")),
                             percent = (it.int("percent") ?: 0).coerceIn(0, 100),
                             detail = it.str("detail"),
+                            title = it.str("title") ?: it.str("label") ?: "",
+                            group = it.str("group") ?: ConnectProtocol.GROUP_GENERAL,
+                            sizeBytes = it.long("bytes")?.takeIf { b -> b > 0 },
                         )
                     },
                     files = o.objects("files").mapNotNull {
@@ -165,6 +219,7 @@ data class SyncSnapshot(
                     errors = (o["errors"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull } ?: emptyList(),
                     startedAt = o.long("startedAt") ?: 0L,
                     endedAt = o.long("endedAt") ?: 0L,
+                    format = o.int("format") ?: 1,
                 )
             }.getOrNull()
         }
