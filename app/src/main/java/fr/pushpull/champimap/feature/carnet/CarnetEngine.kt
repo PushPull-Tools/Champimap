@@ -27,7 +27,9 @@ import java.util.concurrent.ConcurrentHashMap
 
 /*
  * Moteur du carnet : lit les données (CarnetDao), calcule l'XP et les succès (fonctions pures
- * CarnetXp et CarnetRules), enregistre les NOUVEAUX succès avec leur date, et expose l'état aux écrans.
+ * CarnetXp et CarnetRules), enregistre les NOUVEAUX succès avec leur date, ajoute l'XP de chaque succès
+ * enregistré (une fois chacun) et expose l'état aux écrans. Le niveau des anciens utilisateurs est donc
+ * recalculé tout seul : leurs succès déjà obtenus rapportent leur XP dès la mise à jour.
  * Rien n'est incrémenté à la main : tout est recalculé à chaque changement des données.
  */
 object CarnetEngine {
@@ -81,10 +83,13 @@ object CarnetEngine {
             dao.insertBadges(ordered.mapIndexed { i, id -> UnlockedBadge(id = id, unlockedAt = now + i, announced = false) })
         }
         val all = dao.badges()
+        val unlocked = all.associate { it.id to it.unlockedAt }
+        // XP des succès : un gain par succès enregistré (idempotent), ajouté à celle des données.
+        val total = xp + CarnetXp.badgeEvents(unlocked, data.sorties)
         CarnetState(
-            level = CarnetLevels.levelInfo(xp.total),
-            xp = xp,
-            unlocked = all.associate { it.id to it.unlockedAt },
+            level = CarnetLevels.levelInfo(total.total),
+            xp = total,
+            unlocked = unlocked,
             toAnnounce = all.filter { !it.announced }.sortedBy { it.unlockedAt }.map { it.id },
         )
     }

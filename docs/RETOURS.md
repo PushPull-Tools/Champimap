@@ -109,3 +109,19 @@
 - ✅ Menu déroulant « Version du modèle » (écran Connect) lisible : toutes les surfaces Material du thème
   (menus, dialogues, champs) sont définies en nuit violette avec texte clair.
 - ⏳ À vérifier sur téléphone : rendu et fluidité du fond (Android 13+ et plus ancien), étirement du mode party.
+
+## Recettes, infobulle XP, XP des succès — compile, à tester
+- ✅ « 3 recettes par champignon comestible, sans tout le détail » : section repliable « Idées recettes » sur la fiche
+  des espèces COMESTIBLES uniquement (après Saison/Habitat/Description et l'avertissement) : 3 idées (titre + une
+  ligne), puis « Toujours bien cuire les champignons sauvages. ». Données : assets/recettes.json (chargé à la
+  demande, hors du fil principal) : idées propres à 39 espèces, idées par genre pour les autres (les 128 espèces
+  comestibles du catalogue sont couvertes), idées génériques en dernier recours. Jamais d'idée pour une espèce
+  à éviter, toxique, mortelle, psychotrope ou inconnue.
+- ✅ « Fenêtre plus petite d'infobulle pour ce qui rapporte de l'XP » : la grande fenêtre devient une petite infobulle
+  ancrée sous le bouton « i » : libellés courts, montants alignés en colonne, barème des succès en dessous.
+- ✅ « Un succès devrait rapporter de l'XP suivant sa difficulté » : 4 difficultés — facile 25 XP, moyen 75,
+  difficile 200, légendaire 500 (22 / 31 / 22 / 5 succès, ~9 800 XP en tout). XP affichée sur chaque succès
+  (grille, fenêtre du succès, annonce de fin de sortie), ligne « Succès obtenus » dans « D'où vient ton XP » et
+  dans le récap de fin de sortie. Comptée une seule fois par succès enregistré (recalcul sans double comptage) ;
+  les succès déjà obtenus rapportent leur XP dès la mise à jour (niveau recalculé tout seul).
+- ⏳ À vérifier sur téléphone : lisibilité de l'infobulle, XP d'un succès obtenu pendant une sortie dans le récap.

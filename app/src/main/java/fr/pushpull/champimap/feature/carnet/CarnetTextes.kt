@@ -67,7 +67,9 @@ object CarnetTextes {
     /** Bouton « i » du carnet et titre de sa fenêtre (barème de l'XP). */
     const val INFO_XP_TITRE = "Ce qui rapporte de l'XP"
     /** Note en bas de la fenêtre du barème. */
-    const val INFO_XP_SUCCES = "Les succès ne rapportent pas d'XP : ils se collectionnent. Ton niveau ne dépend que de l'XP."
+    const val INFO_XP_SUCCES = "Chaque succès rapporte de l'XP une seule fois, selon sa difficulté."
+    /** Titre du bloc « succès » de la fenêtre du barème. */
+    const val INFO_XP_SUCCES_TITRE = "Succès"
     /** Fenêtre d'un succès. */
     const val OBTENU_LE = "Obtenu le"
     /** Fenêtre d'un succès. */
@@ -237,6 +239,15 @@ object CarnetTextes {
         XpSource.PHOTO to TexteSource("Photo d'espèce", "5 XP par espèce photographiée, 6 photos au plus par jour."),
         XpSource.PLUSIEURS to TexteSource("Sortie à plusieurs", "25 XP de plus pour une sortie à plusieurs."),
         XpSource.SPOT_REDONNE to TexteSource("Spot qui redonne", "50 XP quand un spot redonne une nouvelle année."),
+        XpSource.SUCCES to TexteSource("Succès obtenus", "25 à 500 XP par succès, selon sa difficulté."),
+    )
+
+    /** Nom de chaque difficulté de succès (fenêtre d'un succès, barème). */
+    val DIFFICULTES: Map<BadgeTier, String> = mapOf(
+        BadgeTier.FACILE to "Facile",
+        BadgeTier.MOYEN to "Moyen",
+        BadgeTier.DIFFICILE to "Difficile",
+        BadgeTier.LEGENDAIRE to "Légendaire",
     )
 
     // =========================================================================== Succès

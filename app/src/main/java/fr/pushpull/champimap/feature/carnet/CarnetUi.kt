@@ -275,8 +275,21 @@ fun BadgeTile(def: BadgeDef, unlockedAt: Long?, isNew: Boolean, modifier: Modifi
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        // XP du succès : en couleur s'il est obtenu, grisée sinon (ce qu'il rapportera).
+        Text(
+            badgeXp(def),
+            style = MaterialTheme.typography.labelSmall,
+            textAlign = TextAlign.Center,
+            color = if (unlocked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
+
+/** « +75 XP » : XP rapportée par un succès. */
+fun badgeXp(def: BadgeDef): String = "+${def.xp} XP"
+
+/** « Moyen · +75 XP » : difficulté et XP d'un succès. */
+fun badgeTierLine(def: BadgeDef): String = "${CarnetTextes.DIFFICULTES[def.tier] ?: def.tier.name} · ${badgeXp(def)}"
 
 /**
  * Fenêtre de détail d'un succès. Obtenu : nom, date, condition, message dans le ton choisi.
@@ -299,6 +312,7 @@ fun BadgeDialog(def: BadgeDef, unlockedAt: Long?, tone: MessageTone, onDismiss: 
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Text(badgeTierLine(def), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                     Text(
                         "${CarnetTextes.OBTENU_LE} ${badgeDate(unlockedAt)}",
                         style = MaterialTheme.typography.bodySmall,
@@ -306,6 +320,7 @@ fun BadgeDialog(def: BadgeDef, unlockedAt: Long?, tone: MessageTone, onDismiss: 
                     )
                 } else {
                     Text(champiText(t.condition), textAlign = TextAlign.Center)
+                    Text(badgeTierLine(def), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(champiText(CarnetTextes.PAS_ENCORE), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }

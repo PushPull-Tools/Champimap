@@ -1,0 +1,481 @@
+{
+ "especes": {
+  "boletus-edulis": [
+   {"titre": "Poêlée persillade", "ligne": "Tranches dorées au beurre, ail et persil en fin de cuisson"},
+   {"titre": "Risotto aux cèpes", "ligne": "Riz arborio, bouillon, parmesan, cèpes poêlés à part"},
+   {"titre": "Cèpes à la bordelaise", "ligne": "Sautés à la graisse de canard, échalote et chapelure"}
+  ],
+  "boletus-aereus": [
+   {"titre": "Poêlée persillade", "ligne": "Chair ferme saisie au beurre, ail et persil"},
+   {"titre": "Omelette aux cèpes", "ligne": "Cèpes revenus d'abord, puis œufs battus et ciboulette"},
+   {"titre": "Tagliatelles aux cèpes", "ligne": "Pâtes fraîches, crème légère et parmesan"}
+  ],
+  "boletus-reticulatus": [
+   {"titre": "Poêlée d'été", "ligne": "Cèpes sautés à l'huile d'olive, ail et thym"},
+   {"titre": "Pommes de terre sarladaises", "ligne": "Rissolées à la graisse de canard avec les cèpes"},
+   {"titre": "Velouté de cèpes", "ligne": "Pieds et chapeaux mixés avec oignon, bouillon et crème"}
+  ],
+  "boletus-pinophilus": [
+   {"titre": "Poêlée persillade", "ligne": "Tranches épaisses au beurre, ail et persil"},
+   {"titre": "Risotto aux cèpes", "ligne": "Riz crémeux, bouillon et parmesan"},
+   {"titre": "Tarte fine aux cèpes", "ligne": "Pâte feuilletée, cèpes revenus, oignon confit"}
+  ],
+  "amanita-caesarea": [
+   {"titre": "Oronges grillées", "ligne": "Chapeaux entiers au gril, huile d'olive et fleur de sel"},
+   {"titre": "Omelette aux oronges", "ligne": "Lamelles revenues au beurre puis œufs baveux"},
+   {"titre": "Poêlée à l'huile d'olive", "ligne": "Saisies vivement, ail et persil plat"}
+  ],
+  "macrolepiota-procera": [
+   {"titre": "Chapeaux panés", "ligne": "Comme une escalope : œuf, chapelure, poêle chaude"},
+   {"titre": "Chapeaux farcis au four", "ligne": "Farce chair à saucisse ou fromage frais, 20 min"},
+   {"titre": "Poêlée simple", "ligne": "Chapeaux en lanières au beurre (pieds fibreux écartés)"}
+  ],
+  "cantharellus-cibarius": [
+   {"titre": "Poêlée de girolles", "ligne": "Revenues à sec puis au beurre, échalote et persil"},
+   {"titre": "Omelette aux girolles", "ligne": "Girolles sautées puis œufs et ciboulette"},
+   {"titre": "Volaille aux girolles", "ligne": "Poulet ou pintade, sauce crème et vin blanc"}
+  ],
+  "craterellus-cornucopioides": [
+   {"titre": "Sauce trompettes", "ligne": "Revenues au beurre, crème : parfaite avec poisson ou volaille"},
+   {"titre": "Risotto noir", "ligne": "Trompettes poêlées à part, ajoutées en fin de cuisson"},
+   {"titre": "Poudre de trompettes", "ligne": "Séchées puis mixées pour parfumer sauces et purées"}
+  ],
+  "craterellus-tubaeformis": [
+   {"titre": "Poêlée persillade", "ligne": "Saisies vivement, ail et persil"},
+   {"titre": "Fricassée aux lardons", "ligne": "Lardons, pommes de terre sautées et chanterelles"},
+   {"titre": "Tartines forestières", "ligne": "Pain grillé, chanterelles à la crème, ciboulette"}
+  ],
+  "craterellus-lutescens": [
+   {"titre": "Poêlée persillade", "ligne": "Saisies vivement, ail et persil"},
+   {"titre": "Accompagnement de gibier", "ligne": "Revenues au beurre avec échalote et une goutte de vin"},
+   {"titre": "Omelette forestière", "ligne": "Chanterelles sautées puis œufs battus"}
+  ],
+  "morchella-esculenta": [
+   {"titre": "Morilles à la crème", "ligne": "Bien cuites au beurre, échalote, vin jaune puis crème"},
+   {"titre": "Poulet aux morilles", "ligne": "Volaille mijotée, sauce crème aux morilles"},
+   {"titre": "Morilles farcies", "ligne": "Farce fine de volaille, cuisson au four 25 min"}
+  ],
+  "morchella-elata": [
+   {"titre": "Morilles à la crème", "ligne": "Bien cuites, échalote, vin jaune, crème"},
+   {"titre": "Pâtes aux morilles", "ligne": "Tagliatelles, sauce crème et parmesan"},
+   {"titre": "Asperges et morilles", "ligne": "Poêlée de printemps au beurre"}
+  ],
+  "hydnum-repandum": [
+   {"titre": "Poêlée de pieds-de-mouton", "ligne": "Blanchis 2 min puis sautés au beurre et ail"},
+   {"titre": "Gratin forestier", "ligne": "Avec pommes de terre, crème et fromage râpé"},
+   {"titre": "Accompagnement de viande", "ligne": "Mijotés au jus de rôti avec échalote"}
+  ],
+  "calocybe-gambosa": [
+   {"titre": "Omelette de printemps", "ligne": "Mousserons revenus, œufs et ciboulette"},
+   {"titre": "Poêlée aux asperges", "ligne": "Asperges vertes et mousserons au beurre"},
+   {"titre": "Blanquette de veau", "ligne": "Mousserons ajoutés en fin de cuisson"}
+  ],
+  "marasmius-oreades": [
+   {"titre": "Omelette aux faux mousserons", "ligne": "Chapeaux revenus au beurre (pieds coriaces écartés)"},
+   {"titre": "Sauce crème", "ligne": "Pour viande blanche ou pâtes ; se fait aussi avec des secs"},
+   {"titre": "Séchés pour l'hiver", "ligne": "Ils sèchent très bien : soupes, ragoûts, sauces"}
+  ],
+  "lepista-nuda": [
+   {"titre": "Pieds bleus en persillade", "ligne": "Toujours bien cuits : beurre, ail, persil"},
+   {"titre": "Omelette aux pieds bleus", "ligne": "Champignons cuits d'abord, puis œufs"},
+   {"titre": "Ragoût forestier", "ligne": "Mijotés avec oignons, lardons et vin rouge"}
+  ],
+  "coprinus-comatus": [
+   {"titre": "Velouté de coprins", "ligne": "Jeunes coprins blancs, oignon, bouillon, crème"},
+   {"titre": "Coprins sautés", "ligne": "Au beurre, cuisinés le jour même de la cueillette"},
+   {"titre": "Omelette aux coprins", "ligne": "Lamelles revenues, œufs et ciboulette"}
+  ],
+  "agaricus-campestris": [
+   {"titre": "Rosés à la crème", "ligne": "Sautés au beurre, échalote et crème"},
+   {"titre": "Chapeaux farcis", "ligne": "Farce aux herbes et fromage, au four"},
+   {"titre": "Omelette des prés", "ligne": "Lamelles revenues puis œufs battus"}
+  ],
+  "calvatia-gigantea": [
+   {"titre": "Tranches panées", "ligne": "Chair bien blanche, tranches épaisses comme une escalope"},
+   {"titre": "Steak de vesse-de-loup", "ligne": "Tranches poêlées au beurre, sel et poivre"},
+   {"titre": "Dés en soupe", "ligne": "Cubes sautés ajoutés dans un bouillon de légumes"}
+  ],
+  "fistulina-hepatica": [
+   {"titre": "Langue de bœuf poêlée", "ligne": "Tranches saisies, déglacées au vinaigre de cidre"},
+   {"titre": "Émincé à la crème", "ligne": "Lanières dégorgées puis cuites à la crème"},
+   {"titre": "Ragoût de champignons", "ligne": "En mélange avec d'autres espèces, oignons et vin"}
+  ],
+  "laetiporus-sulphureus": [
+   {"titre": "« Poulet des bois » pané", "ligne": "Jeunes bords tendres, longuement cuits puis panés"},
+   {"titre": "Émincé à la crème", "ligne": "Lanières bien cuites, crème et paprika"},
+   {"titre": "Fricassée au wok", "ligne": "Lamelles fines sautées avec légumes et sauce soja"}
+  ],
+  "sparassis-crispa": [
+   {"titre": "Sparassis à la crème", "ligne": "Bien rincé, blanchi puis mijoté à la crème"},
+   {"titre": "Bouillon parfumé", "ligne": "Morceaux cuits dans un bouillon, nouilles et herbes"},
+   {"titre": "Poêlée au beurre", "ligne": "Bouquets détaillés, saisis puis assaisonnés"}
+  ],
+  "hericium-erinaceus": [
+   {"titre": "Façon Saint-Jacques", "ligne": "Tranches épaisses saisies au beurre noisette"},
+   {"titre": "Sauté au wok", "ligne": "Ail, gingembre, sauce soja et cébette"},
+   {"titre": "Velouté délicat", "ligne": "Mixé avec poireau, bouillon et crème"}
+  ],
+  "grifola-frondosa": [
+   {"titre": "Maitake rôti", "ligne": "Bouquets au four, huile d'olive, ail et thym"},
+   {"titre": "Sauté au wok", "ligne": "Avec légumes croquants et sauce soja"},
+   {"titre": "Bouillon miso", "ligne": "Morceaux mijotés dans un bouillon au miso"}
+  ],
+  "tricholoma-matsutake": [
+   {"titre": "Matsutake gohan", "ligne": "Riz cuit avec lamelles, dashi et sauce soja"},
+   {"titre": "Matsutake grillé", "ligne": "Tranches au gril, un trait de citron"},
+   {"titre": "Bouillon dobin mushi", "ligne": "Dashi léger, matsutake et crevettes"}
+  ],
+  "tuber-melanosporum": [
+   {"titre": "Œufs brouillés truffés", "ligne": "Œufs gardés 24 h avec la truffe, brouillés doucement"},
+   {"titre": "Pâtes à la truffe", "ligne": "Pâtes chaudes au beurre, truffe râpée au dernier moment"},
+   {"titre": "Purée truffée", "ligne": "Pommes de terre, beurre et truffe hachée"}
+  ],
+  "tuber-aestivum": [
+   {"titre": "Œufs brouillés truffés", "ligne": "Truffe râpée sur des œufs juste pris"},
+   {"titre": "Risotto à la truffe", "ligne": "Risotto au parmesan, truffe râpée en fin"},
+   {"titre": "Beurre de truffe", "ligne": "Beurre mou et truffe hachée, sur viande grillée"}
+  ],
+  "lactarius-deliciosus": [
+   {"titre": "Lactaires grillés", "ligne": "Chapeaux au gril ou à la plancha, ail et huile d'olive"},
+   {"titre": "Poêlée catalane", "ligne": "Sautés avec ail, persil et un peu de jambon cru"},
+   {"titre": "Riz aux lactaires", "ligne": "Façon paella avec poivron et oignon"}
+  ],
+  "pleurotus-ostreatus": [
+   {"titre": "Pleurotes poêlées", "ligne": "Saisies à l'huile, ail et persil"},
+   {"titre": "Pleurotes panées", "ligne": "Chapeaux en tempura ou panure, sauce aux herbes"},
+   {"titre": "Sauté au wok", "ligne": "Avec légumes, gingembre et sauce soja"}
+  ],
+  "russula-cyanoxantha": [
+   {"titre": "Russules grillées", "ligne": "Chapeaux au gril, huile d'olive et ail"},
+   {"titre": "Poêlée forestière", "ligne": "En mélange avec d'autres champignons"},
+   {"titre": "Omelette aux charbonnières", "ligne": "Lamelles revenues puis œufs"}
+  ],
+  "russula-virescens": [
+   {"titre": "Palomets grillés", "ligne": "Chapeaux au gril, ail et persil"},
+   {"titre": "Poêlée simple", "ligne": "Saisis au beurre, sel et poivre"},
+   {"titre": "Omelette forestière", "ligne": "Lamelles revenues puis œufs battus"}
+  ],
+  "auricularia-auricula-judae": [
+   {"titre": "Soupe aigre-piquante", "ligne": "Lanières dans un bouillon, vinaigre et poivre"},
+   {"titre": "Sauté au wok", "ligne": "Avec légumes croquants, ail et sauce soja"},
+   {"titre": "Nems et farces", "ligne": "Émincées fines dans une farce cuite"}
+  ],
+  "flammulina-velutipes": [
+   {"titre": "Bouillon d'hiver", "ligne": "Chapeaux ajoutés en fin de cuisson d'une soupe"},
+   {"titre": "Poêlée au beurre", "ligne": "Chapeaux seuls (pieds coriaces écartés)"},
+   {"titre": "Nouilles sautées", "ligne": "Au wok avec légumes et sauce soja"}
+  ],
+  "clitocybe-odora": [
+   {"titre": "Condiment anisé", "ligne": "Quelques chapeaux pour parfumer une poêlée"},
+   {"titre": "Poudre aromatique", "ligne": "Séchés puis mixés, pour sauces et poissons"},
+   {"titre": "Sauce pour poisson", "ligne": "Revenus, crème et une touche de citron"}
+  ],
+  "infundibulicybe-geotropa": [
+   {"titre": "Poêlée de têtes de moine", "ligne": "Chapeaux saisis, ail et persil"},
+   {"titre": "Ragoût forestier", "ligne": "Mijotés avec oignons et lardons"},
+   {"titre": "Omelette forestière", "ligne": "Chapeaux revenus puis œufs"}
+  ],
+  "lyophyllum-decastes": [
+   {"titre": "Poêlée de touffes", "ligne": "Chapeaux saisis, échalote et persil"},
+   {"titre": "Garniture de rôti", "ligne": "Mijotés dans le jus de cuisson"},
+   {"titre": "Soupe forestière", "ligne": "Avec poireau, pommes de terre et crème"}
+  ],
+  "tricholoma-portentosum": [
+   {"titre": "Poêlée de prétentieux", "ligne": "Saisis au beurre, ail et persil"},
+   {"titre": "Omelette d'automne", "ligne": "Lamelles revenues puis œufs"},
+   {"titre": "En conserve au vinaigre", "ligne": "Blanchis puis bocaux aromatisés"}
+  ],
+  "hygrophorus-marzuolus": [
+   {"titre": "Poêlée de printemps", "ligne": "Saisis au beurre, échalote et persil"},
+   {"titre": "Risotto de mars", "ligne": "Riz crémeux, champignons poêlés à part"},
+   {"titre": "Omelette aux marzuolus", "ligne": "Lamelles revenues puis œufs"}
+  ],
+  "cyclocybe-aegerita": [
+   {"titre": "Poêlée de pholiotes", "ligne": "Chapeaux saisis, ail et persil"},
+   {"titre": "Pâtes forestières", "ligne": "Sauce crème et parmesan"},
+   {"titre": "Omelette aux pholiotes", "ligne": "Revenues d'abord, puis œufs"}
+  ]
+ },
+ "genres": {
+  "boletus": [
+   {"titre": "Poêlée persillade", "ligne": "Tranches dorées au beurre, ail et persil"},
+   {"titre": "Risotto aux bolets", "ligne": "Riz crémeux, bolets poêlés à part"},
+   {"titre": "Omelette aux bolets", "ligne": "Bolets revenus puis œufs battus"}
+  ],
+  "butyriboletus": [
+   {"titre": "Poêlée persillade", "ligne": "Tranches saisies au beurre, ail et persil"},
+   {"titre": "Tagliatelles aux bolets", "ligne": "Crème légère et parmesan"},
+   {"titre": "Omelette aux bolets", "ligne": "Bolets revenus puis œufs"}
+  ],
+  "imleria": [
+   {"titre": "Poêlée de bolets", "ligne": "Bien saisis au beurre, ail et persil"},
+   {"titre": "Pommes de terre sautées", "ligne": "Rissolées avec les bolets et lardons"},
+   {"titre": "Séchés en lamelles", "ligne": "Pour parfumer sauces et risottos en hiver"}
+  ],
+  "neoboletus": [
+   {"titre": "Poêlée bien cuite", "ligne": "Toxique cru : 20 min au moins, ail et persil"},
+   {"titre": "Omelette forestière", "ligne": "Bolets longuement revenus puis œufs"},
+   {"titre": "Ragoût de bolets", "ligne": "Mijotés avec oignons et lardons"}
+  ],
+  "xerocomellus": [
+   {"titre": "Poêlée de jeunes bolets", "ligne": "Chair jeune et ferme, saisie au beurre"},
+   {"titre": "Mélange forestier", "ligne": "En poêlée avec d'autres bolets"},
+   {"titre": "Soupe de champignons", "ligne": "Mixés avec oignon, bouillon et crème"}
+  ],
+  "xerocomus": [
+   {"titre": "Poêlée de bolets", "ligne": "Saisis au beurre, ail et persil"},
+   {"titre": "Mélange forestier", "ligne": "En poêlée avec d'autres espèces"},
+   {"titre": "Sauce aux bolets", "ligne": "Revenus, crème : sur viande blanche"}
+  ],
+  "hortiboletus": [
+   {"titre": "Poêlée de bolets", "ligne": "Saisis au beurre, ail et persil"},
+   {"titre": "Mélange forestier", "ligne": "En poêlée avec d'autres bolets"},
+   {"titre": "Omelette forestière", "ligne": "Revenus d'abord, puis œufs"}
+  ],
+  "aureoboletus": [
+   {"titre": "Poêlée de bolets", "ligne": "Cuticule visqueuse ôtée, saisis au beurre"},
+   {"titre": "Mélange forestier", "ligne": "En poêlée avec d'autres espèces"},
+   {"titre": "Omelette forestière", "ligne": "Revenus d'abord, puis œufs"}
+  ],
+  "hemileccinum": [
+   {"titre": "Poêlée de bolets", "ligne": "Chair ferme saisie au beurre et ail"},
+   {"titre": "Tagliatelles aux bolets", "ligne": "Crème légère et parmesan"},
+   {"titre": "Omelette forestière", "ligne": "Revenus d'abord, puis œufs"}
+  ],
+  "leccinum": [
+   {"titre": "Poêlée bien cuite", "ligne": "Toujours bien cuits : 20 min au beurre et ail"},
+   {"titre": "Ragoût de bolets", "ligne": "Mijotés avec oignons, lardons et vin blanc"},
+   {"titre": "Séchés en lamelles", "ligne": "La chair noircit mais reste bonne en sauce"}
+  ],
+  "suillus": [
+   {"titre": "Poêlée de nonnettes", "ligne": "Cuticule visqueuse ôtée, saisis à sec puis au beurre"},
+   {"titre": "Bolets marinés", "ligne": "Blanchis puis bocaux au vinaigre et aromates"},
+   {"titre": "Soupe forestière", "ligne": "Avec pommes de terre, oignon et crème"}
+  ],
+  "cantharellus": [
+   {"titre": "Poêlée de chanterelles", "ligne": "Revenues à sec puis au beurre et persil"},
+   {"titre": "Omelette aux chanterelles", "ligne": "Champignons sautés puis œufs"},
+   {"titre": "Volaille aux chanterelles", "ligne": "Sauce crème et vin blanc"}
+  ],
+  "craterellus": [
+   {"titre": "Poêlée persillade", "ligne": "Saisies vivement, ail et persil"},
+   {"titre": "Sauce à la crème", "ligne": "Pour poisson, volaille ou pâtes"},
+   {"titre": "Séchées pour l'hiver", "ligne": "Réhydratées dans les sauces et risottos"}
+  ],
+  "pseudocraterellus": [
+   {"titre": "Poêlée persillade", "ligne": "Saisies vivement, ail et persil"},
+   {"titre": "Mélange forestier", "ligne": "Avec d'autres chanterelles en poêlée"},
+   {"titre": "Sauce à la crème", "ligne": "Pour volaille ou pâtes"}
+  ],
+  "gomphus": [
+   {"titre": "Poêlée bien cuite", "ligne": "Tranches saisies au beurre et échalote"},
+   {"titre": "Accompagnement de viande", "ligne": "Mijotées au jus de rôti"},
+   {"titre": "Gratin forestier", "ligne": "Avec pommes de terre et crème"}
+  ],
+  "morchella": [
+   {"titre": "Morilles à la crème", "ligne": "Toujours bien cuites : beurre, échalote, crème"},
+   {"titre": "Volaille aux morilles", "ligne": "Poulet mijoté, sauce crème et vin jaune"},
+   {"titre": "Pâtes aux morilles", "ligne": "Tagliatelles et sauce crème"}
+  ],
+  "disciotis": [
+   {"titre": "Poêlée de printemps", "ligne": "Bien cuite au beurre, échalote et persil"},
+   {"titre": "En sauce crème", "ligne": "Mijotée, sur volaille ou pâtes"},
+   {"titre": "Omelette de printemps", "ligne": "Revenue d'abord, puis œufs"}
+  ],
+  "hydnum": [
+   {"titre": "Poêlée de pieds-de-mouton", "ligne": "Blanchis 2 min puis sautés au beurre"},
+   {"titre": "Gratin forestier", "ligne": "Pommes de terre, crème et fromage"},
+   {"titre": "Fricassée aux lardons", "ligne": "Revenus avec lardons et échalote"}
+  ],
+  "agaricus": [
+   {"titre": "Agarics à la crème", "ligne": "Sautés au beurre, échalote et crème"},
+   {"titre": "Chapeaux farcis", "ligne": "Farce aux herbes et fromage, au four"},
+   {"titre": "Velouté de champignons", "ligne": "Mixés avec oignon, bouillon et crème"}
+  ],
+  "macrolepiota": [
+   {"titre": "Chapeaux panés", "ligne": "Œuf, chapelure, poêle chaude"},
+   {"titre": "Chapeaux farcis", "ligne": "Farce aux herbes, au four 20 min"},
+   {"titre": "Poêlée simple", "ligne": "Chapeaux en lanières au beurre"}
+  ],
+  "calocybe": [
+   {"titre": "Omelette de printemps", "ligne": "Champignons revenus, œufs et ciboulette"},
+   {"titre": "Poêlée aux asperges", "ligne": "Asperges vertes et champignons au beurre"},
+   {"titre": "Sauce crème", "ligne": "Pour viande blanche"}
+  ],
+  "marasmius": [
+   {"titre": "Omelette aux mousserons", "ligne": "Chapeaux revenus au beurre"},
+   {"titre": "Sauce crème", "ligne": "Pour viande blanche ou pâtes"},
+   {"titre": "Séchés pour l'hiver", "ligne": "Soupes, ragoûts, sauces"}
+  ],
+  "lepista": [
+   {"titre": "Persillade bien cuite", "ligne": "Toxiques crus : beurre, ail, persil, 15 min"},
+   {"titre": "Ragoût forestier", "ligne": "Oignons, lardons et vin rouge"},
+   {"titre": "Omelette forestière", "ligne": "Champignons cuits d'abord, puis œufs"}
+  ],
+  "leucopaxillus": [
+   {"titre": "Poêlée de jeunes chapeaux", "ligne": "Jeunes exemplaires seulement, bien cuits"},
+   {"titre": "Tranches panées", "ligne": "Chapeaux épais en panure"},
+   {"titre": "Soupe forestière", "ligne": "Avec poireau et pommes de terre"}
+  ],
+  "clitocybe": [
+   {"titre": "Poêlée simple", "ligne": "Chapeaux saisis, ail et persil"},
+   {"titre": "Condiment", "ligne": "En petite quantité pour parfumer un plat"},
+   {"titre": "Ragoût forestier", "ligne": "En mélange avec d'autres espèces"}
+  ],
+  "infundibulicybe": [
+   {"titre": "Poêlée simple", "ligne": "Chapeaux saisis, ail et persil"},
+   {"titre": "Ragoût forestier", "ligne": "Mijotés avec oignons"},
+   {"titre": "Omelette forestière", "ligne": "Revenus d'abord, puis œufs"}
+  ],
+  "tricholoma": [
+   {"titre": "Poêlée de tricholomes", "ligne": "Saisis au beurre, ail et persil"},
+   {"titre": "Omelette d'automne", "ligne": "Revenus d'abord, puis œufs"},
+   {"titre": "Ragoût forestier", "ligne": "Mijotés avec oignons et lardons"}
+  ],
+  "lyophyllum": [
+   {"titre": "Poêlée de touffes", "ligne": "Saisis, échalote et persil"},
+   {"titre": "Garniture de rôti", "ligne": "Mijotés dans le jus"},
+   {"titre": "Soupe forestière", "ligne": "Avec poireau et crème"}
+  ],
+  "coprinus": [
+   {"titre": "Velouté de coprins", "ligne": "Jeunes coprins blancs, bouillon et crème"},
+   {"titre": "Coprins sautés", "ligne": "Au beurre, le jour même"},
+   {"titre": "Omelette aux coprins", "ligne": "Revenus d'abord, puis œufs"}
+  ],
+  "cuphophyllus": [
+   {"titre": "Poêlée d'hygrophores", "ligne": "Saisis au beurre, échalote"},
+   {"titre": "Omelette des prés", "ligne": "Revenus d'abord, puis œufs"},
+   {"titre": "Mélange forestier", "ligne": "En poêlée avec d'autres espèces"}
+  ],
+  "hygrophorus": [
+   {"titre": "Poêlée d'hygrophores", "ligne": "Cuticule visqueuse essuyée, saisis au beurre"},
+   {"titre": "Omelette forestière", "ligne": "Revenus d'abord, puis œufs"},
+   {"titre": "Risotto forestier", "ligne": "Champignons poêlés à part, ajoutés en fin"}
+  ],
+  "lycoperdon": [
+   {"titre": "Tranches panées", "ligne": "Chair bien blanche seulement, poêlées dorées"},
+   {"titre": "Dés sautés", "ligne": "Au beurre et ail, en garniture"},
+   {"titre": "Dans une soupe", "ligne": "Cubes ajoutés à un bouillon"}
+  ],
+  "calvatia": [
+   {"titre": "Tranches panées", "ligne": "Chair bien blanche, comme une escalope"},
+   {"titre": "Steak poêlé", "ligne": "Tranches épaisses au beurre"},
+   {"titre": "Dés en soupe", "ligne": "Cubes sautés dans un bouillon"}
+  ],
+  "bovista": [
+   {"titre": "Tranches poêlées", "ligne": "Chair bien blanche seulement, au beurre"},
+   {"titre": "Dés sautés", "ligne": "Ail et persil, en garniture"},
+   {"titre": "Mélange forestier", "ligne": "Avec d'autres champignons"}
+  ],
+  "russula": [
+   {"titre": "Russules grillées", "ligne": "Chapeaux au gril, huile d'olive et ail"},
+   {"titre": "Poêlée forestière", "ligne": "En mélange avec d'autres champignons"},
+   {"titre": "Omelette aux russules", "ligne": "Lamelles revenues puis œufs"}
+  ],
+  "lactarius": [
+   {"titre": "Lactaires grillés", "ligne": "Chapeaux au gril ou à la plancha"},
+   {"titre": "Poêlée à l'ail", "ligne": "Saisis à l'huile d'olive, ail et persil"},
+   {"titre": "Riz aux lactaires", "ligne": "Façon paella, poivron et oignon"}
+  ],
+  "pleurotus": [
+   {"titre": "Pleurotes poêlées", "ligne": "Saisies à l'huile, ail et persil"},
+   {"titre": "Pleurotes panées", "ligne": "En tempura ou en panure"},
+   {"titre": "Sauté au wok", "ligne": "Légumes, gingembre et sauce soja"}
+  ],
+  "hypsizygus": [
+   {"titre": "Poêlée simple", "ligne": "Saisie à l'huile, ail et persil"},
+   {"titre": "Sauté au wok", "ligne": "Légumes et sauce soja"},
+   {"titre": "Bouillon parfumé", "ligne": "Lamelles dans une soupe de nouilles"}
+  ],
+  "hericium": [
+   {"titre": "Façon Saint-Jacques", "ligne": "Tranches saisies au beurre noisette"},
+   {"titre": "Sauté au wok", "ligne": "Ail, gingembre et sauce soja"},
+   {"titre": "Velouté délicat", "ligne": "Poireau, bouillon et crème"}
+  ],
+  "grifola": [
+   {"titre": "Rôti au four", "ligne": "Huile d'olive, ail et thym"},
+   {"titre": "Sauté au wok", "ligne": "Légumes et sauce soja"},
+   {"titre": "Bouillon miso", "ligne": "Morceaux mijotés au miso"}
+  ],
+  "sparassis": [
+   {"titre": "À la crème", "ligne": "Bien rincé, blanchi puis mijoté"},
+   {"titre": "Bouillon parfumé", "ligne": "Avec nouilles et herbes"},
+   {"titre": "Poêlée au beurre", "ligne": "Bouquets saisis"}
+  ],
+  "polyporus": [
+   {"titre": "Lamelles frites", "ligne": "Jeunes exemplaires tendres, tranches fines"},
+   {"titre": "Bouillon parfumé", "ligne": "Les morceaux plus fermes parfument une soupe"},
+   {"titre": "Sauté au wok", "ligne": "Émincé fin avec légumes"}
+  ],
+  "fistulina": [
+   {"titre": "Tranches poêlées", "ligne": "Saisies, déglacées au vinaigre"},
+   {"titre": "Émincé à la crème", "ligne": "Lanières cuites à la crème"},
+   {"titre": "Ragoût de champignons", "ligne": "En mélange, oignons et vin"}
+  ],
+  "laetiporus": [
+   {"titre": "Pané bien cuit", "ligne": "Jeunes bords tendres seulement"},
+   {"titre": "Émincé à la crème", "ligne": "Lanières bien cuites, paprika"},
+   {"titre": "Sauté au wok", "ligne": "Lamelles fines, légumes et sauce soja"}
+  ],
+  "auricularia": [
+   {"titre": "Soupe aigre-piquante", "ligne": "Lanières, vinaigre et poivre"},
+   {"titre": "Sauté au wok", "ligne": "Légumes croquants et sauce soja"},
+   {"titre": "Farce de nems", "ligne": "Émincées fines dans une farce cuite"}
+  ],
+  "pseudohydnum": [
+   {"titre": "Confit au sirop", "ligne": "Poché dans un sirop léger, en dessert"},
+   {"titre": "Garniture de soupe", "ligne": "Ajouté en fin de cuisson d'un bouillon"},
+   {"titre": "Sauté au wok", "ligne": "Rapidement saisi avec légumes"}
+  ],
+  "flammulina": [
+   {"titre": "Bouillon d'hiver", "ligne": "Chapeaux en fin de cuisson"},
+   {"titre": "Poêlée au beurre", "ligne": "Chapeaux seuls, pieds écartés"},
+   {"titre": "Nouilles sautées", "ligne": "Au wok avec légumes"}
+  ],
+  "hymenopellis": [
+   {"titre": "Poêlée de chapeaux", "ligne": "Chapeaux seuls (pied coriace), au beurre"},
+   {"titre": "Mélange forestier", "ligne": "En poêlée avec d'autres espèces"},
+   {"titre": "Dans une soupe", "ligne": "Chapeaux ajoutés à un bouillon"}
+  ],
+  "pluteus": [
+   {"titre": "Mélange forestier", "ligne": "Goût discret : en poêlée avec d'autres espèces"},
+   {"titre": "Velouté de champignons", "ligne": "Mixé avec oignon et crème"},
+   {"titre": "Omelette forestière", "ligne": "Revenus d'abord, puis œufs"}
+  ],
+  "cyclocybe": [
+   {"titre": "Poêlée de pholiotes", "ligne": "Saisies, ail et persil"},
+   {"titre": "Pâtes forestières", "ligne": "Sauce crème et parmesan"},
+   {"titre": "Omelette forestière", "ligne": "Revenues d'abord, puis œufs"}
+  ],
+  "cortinarius": [
+   {"titre": "Poêlée de pholiotes ridées", "ligne": "Chapeaux saisis au beurre, échalote"},
+   {"titre": "Ragoût forestier", "ligne": "Mijotées avec oignons et lardons"},
+   {"titre": "Omelette forestière", "ligne": "Revenues d'abord, puis œufs"}
+  ],
+  "aleuria": [
+   {"titre": "Décor de plat", "ligne": "Coupes revenues 5 min au beurre, sur une poêlée"},
+   {"titre": "Mélange forestier", "ligne": "Goût discret, apporte de la couleur"},
+   {"titre": "Garniture de salade tiède", "ligne": "Sautée puis posée sur une salade"}
+  ],
+  "gomphidius": [
+   {"titre": "Poêlée bien cuite", "ligne": "Cuticule visqueuse ôtée, saisis au beurre"},
+   {"titre": "Mélange forestier", "ligne": "Avec bolets ou autres espèces"},
+   {"titre": "Ragoût de champignons", "ligne": "Mijotés avec oignons"}
+  ],
+  "chroogomphus": [
+   {"titre": "Poêlée simple", "ligne": "Saisis au beurre (la chair rosit à la cuisson)"},
+   {"titre": "Mélange forestier", "ligne": "Avec bolets ou autres espèces"},
+   {"titre": "Ragoût de champignons", "ligne": "Mijotés avec oignons"}
+  ],
+  "tuber": [
+   {"titre": "Œufs brouillés truffés", "ligne": "Truffe râpée sur des œufs juste pris"},
+   {"titre": "Pâtes à la truffe", "ligne": "Pâtes chaudes au beurre, truffe râpée"},
+   {"titre": "Purée truffée", "ligne": "Pommes de terre, beurre et truffe hachée"}
+  ]
+ },
+ "defaut": [
+  {"titre": "Poêlée persillade", "ligne": "Saisis au beurre, ail et persil"},
+  {"titre": "Omelette forestière", "ligne": "Champignons revenus d'abord, puis œufs"},
+  {"titre": "Sauce à la crème", "ligne": "Pour viande blanche ou pâtes"}
+ ]
+}

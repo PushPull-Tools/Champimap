@@ -176,6 +176,7 @@ Au-delà du niveau 50 : « Esprit de la forêt » + une étoile ★ tous les 10 
 | Photo d'espèce | 5 XP par espèce photographiée, 6 photos au plus par jour. |
 | Sortie à plusieurs | 25 XP de plus pour une sortie à plusieurs. |
 | Spot qui redonne | 50 XP quand un spot redonne une nouvelle année. |
+| Succès obtenus | 25 à 500 XP par succès, selon sa difficulté (facile 25, moyen 75, difficile 200, légendaire 500). |
 
 ## Textes d'interface
 
@@ -198,7 +199,7 @@ Au-delà du niveau 50 : « Esprit de la forêt » + une étoile ★ tous les 10 
 | « Secrets · 2 découverts » (2 et plus) | découverts |
 | Bloc du carnet | D'où vient ton XP |
 | Bouton « i » du carnet (titre de la fenêtre du barème, montants lus dans CarnetXp) | Ce qui rapporte de l'XP |
-| Note en bas de la fenêtre du barème | Les succès ne rapportent pas d'XP : ils se collectionnent. Ton niveau ne dépend que de l'XP. |
+| Note en bas de la fenêtre du barème | Chaque succès rapporte de l'XP une seule fois, selon sa difficulté. |
 | Fenêtre d'un succès | Obtenu le |
 | Fenêtre d'un succès | Pas encore obtenu. |
 | Pastille sur un succès récent | Nouveau |

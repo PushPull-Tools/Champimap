@@ -1,6 +1,7 @@
 package fr.pushpull.champimap.feature.carnet
 
 import fr.pushpull.champimap.core.db.PhotoOwner
+import fr.pushpull.champimap.core.db.Sortie
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -19,6 +20,11 @@ import java.time.ZoneId
  *  - photo d'espèce ...................... 5, 6 photos au plus par jour (30 XP)
  *  - sortie à plusieurs .................. +25
  *  - spot qui redonne une année suivante . 50 (une fois par spot et par année)
+ *  - succès obtenu ....................... 25 / 75 / 200 / 500 selon sa difficulté (BadgeTier)
+ *
+ * L'XP des succès vient des succès ENREGISTRÉS en base (un seul enregistrement par identifiant) :
+ * comptée exactement une fois, même après mille recalculs, et un succès obtenu garde son XP
+ * même si les données qui l'ont déclenché sont supprimées ensuite.
  */
 object CarnetXp {
 
@@ -112,6 +118,24 @@ object CarnetXp {
 
         return XpResult(events.sortedBy { it.time })
     }
+
+    /** Délai après la fin d'une sortie pendant lequel un succès lui est encore rattaché (recalcul différé). */
+    private const val RATTACHEMENT_SUCCES_MS = 2 * 3_600_000L
+
+    /**
+     * Gains d'XP des succès obtenus : un gain par succès connu, daté de son obtention, rattaché à la
+     * sortie en cours à ce moment-là (ou terminée depuis moins de 2 h), sinon à aucune sortie.
+     * Fonction pure : mêmes succès → mêmes gains (pas de double comptage possible).
+     * @param unlocked succès obtenus : identifiant → date d'obtention.
+     */
+    fun badgeEvents(unlocked: Map<String, Long>, sorties: List<Sortie>): List<XpEvent> =
+        unlocked.mapNotNull { (id, at) ->
+            val def = CarnetBadges.BY_ID[id] ?: return@mapNotNull null
+            val sortie = sorties
+                .filter { s -> s.startedAt <= at && at <= (s.endedAt ?: Long.MAX_VALUE - RATTACHEMENT_SUCCES_MS) + RATTACHEMENT_SUCCES_MS }
+                .maxByOrNull { it.startedAt }
+            XpEvent(XpSource.SUCCES, def.xp, sortie?.id, at)
+        }
 
     /** XP de pesée pour un cumul de grammes dans la journée (plafonnée). */
     private fun weighXp(grams: Int): Int = ((grams / 100) * XP_PAR_100G).coerceAtMost(XP_PESEE_MAX_JOUR)

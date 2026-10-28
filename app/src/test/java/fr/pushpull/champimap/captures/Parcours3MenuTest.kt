@@ -73,6 +73,14 @@ class Parcours3MenuTest : CaptureHarness("3-menu") {
             waitText("Cèpe de Bordeaux")
             captureLong("07-fiche-espece", "Fiche espèce (photos absentes)", maxPages = 2)
         }
+        step("07b-fiche-recettes") {
+            // Section « Idées recettes » dépliée (espèce comestible).
+            go(Routes.ficheEspece("boletus-edulis"))
+            waitText("Idées recettes")
+            click("Idées recettes")
+            waitText("Toujours bien cuire")
+            capture("07b-fiche-recettes", "Fiche espèce : idées recettes")
+        }
         step("08-carnet") {
             go(Routes.CARNET)
             settle()

@@ -21,6 +21,8 @@ import kotlin.math.roundToLong
  *    → ~7 800 XP, niveau 19–20 en 2 ans.
  *  - acharné, ~80 sorties/an, beaucoup d'espèces : ~150 XP par sortie (pesée plafonnée à 150/jour) + espèces
  *    + spots qui redonnent ≈ 13 000–15 000 XP/an → niveau 50 (67 800 XP) en ~5 ans au maximum.
+ *  - les succès ajoutent 25 à 500 XP chacun selon leur difficulté (~9 800 XP pour les 80) : un coup de pouce,
+ *    surtout la 1re saison (premières fois), sans changer l'ordre de grandeur ci-dessus.
  *  - au-delà du niveau 50, les niveaux continuent (51, 52…) avec le titre « Esprit de la forêt »
  *    et une étoile ★ tous les 10 niveaux (60, 70…).
  */

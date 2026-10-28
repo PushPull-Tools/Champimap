@@ -17,8 +17,26 @@ import kotlinx.serialization.Serializable
 /** Familles de succès, dans l'ordre d'affichage du carnet. */
 enum class BadgeFamily { PREMIERES, COLLECTION, SAISONS, FIDELITE, EXPLORATEUR, METEO, PERSEVERANCE, PRECISION, SECRETS }
 
+/**
+ * Difficulté d'un succès et XP qu'il rapporte (une seule fois, à son obtention).
+ * Repères du barème : sortie 20, nouveau spot 30, nouvelle espèce 100, coût d'un niveau ~415 au début.
+ *  - FACILE ....... 25  (une première fois : à peine plus qu'une sortie)
+ *  - MOYEN ........ 75  (quelques sorties ciblées ou un peu de chance)
+ *  - DIFFICILE .... 200 (une saison bien remplie, ~ un demi-niveau)
+ *  - LEGENDAIRE ... 500 (des années de cueillette, ~ un niveau entier)
+ */
+enum class BadgeTier(val xp: Int) { FACILE(25), MOYEN(75), DIFFICILE(200), LEGENDAIRE(500) }
+
 /** Définition d'un succès. `secret` = invisible tant qu'il n'est pas obtenu. */
-data class BadgeDef(val id: String, val family: BadgeFamily, val secret: Boolean = false)
+data class BadgeDef(
+    val id: String,
+    val family: BadgeFamily,
+    val secret: Boolean = false,
+    val tier: BadgeTier = BadgeTier.FACILE,
+) {
+    /** XP rapportée par ce succès. */
+    val xp: Int get() = tier.xp
+}
 
 /**
  * Liste complète et FINIE des succès (80). L'ordre est celui de l'affichage.
@@ -26,7 +44,37 @@ data class BadgeDef(val id: String, val family: BadgeFamily, val secret: Boolean
  * Les conditions sont dans CarnetRules.kt, les textes dans CarnetTextes.kt.
  */
 object CarnetBadges {
-    private fun fam(f: BadgeFamily, vararg ids: String) = ids.map { BadgeDef(it, f, secret = f == BadgeFamily.SECRETS) }
+
+    // Difficulté de chaque succès (tous les autres sont FACILE). Déclarée AVANT la liste qui l'utilise.
+    private val MOYENS = setOf(
+        "premiere_morille", "especes_10", "russules_5", "pied_bleu",
+        "morilles_printemps", "pieds_mouton_hiver", "st_georges", "quatre_saisons", "cepe_ete",
+        "trompettes_toussaint", "leve_tot", "pleine_lune",
+        "spot_redonne", "spot_10_visites", "anniversaire_1",
+        "km_100", "sortie_10km", "longue_sortie", "spots_10",
+        "sous_la_pluie", "apres_gelee", "apres_deluge", "canicule", "grand_froid",
+        "bredouille", "retour_apres_vide", "sorties_25", "trois_en_semaine",
+        "au_pied_5", "fiche_complete", "pesees_10",
+    )
+    private val DIFFICILES = setOf(
+        "especes_25", "especes_50", "tous_cepes", "bolets_courants", "chanterelles", "trio_limousin",
+        "oronge", "truffe", "cumul_10kg", "douze_mois",
+        "fidele_3", "fidele_5", "spots_productifs_10",
+        "depts_5", "km_500", "spots_50", "sourcier",
+        "vides_10_affilee", "vides_25", "sorties_50", "spots_3m_10", "photos_50",
+    )
+    private val LEGENDAIRES = setOf("especes_100", "fidele_10", "anniversaire_5", "km_1000", "sorties_100")
+
+    /** Difficulté d'un succès d'après les listes ci-dessus. */
+    private fun tierOf(id: String): BadgeTier = when (id) {
+        in LEGENDAIRES -> BadgeTier.LEGENDAIRE
+        in DIFFICILES -> BadgeTier.DIFFICILE
+        in MOYENS -> BadgeTier.MOYEN
+        else -> BadgeTier.FACILE
+    }
+
+    private fun fam(f: BadgeFamily, vararg ids: String) =
+        ids.map { BadgeDef(it, f, secret = f == BadgeFamily.SECRETS, tier = tierOf(it)) }
 
     val ALL: List<BadgeDef> =
         fam(
@@ -74,7 +122,7 @@ object CarnetBadges {
 }
 
 /** Sources d'XP (détail du récap de fin de sortie et du carnet). */
-enum class XpSource { SORTIE, NOUVEAU_SPOT, NOUVELLE_ESPECE, PESEE, SPOT_VIDE, PHOTO, PLUSIEURS, SPOT_REDONNE }
+enum class XpSource { SORTIE, NOUVEAU_SPOT, NOUVELLE_ESPECE, PESEE, SPOT_VIDE, PHOTO, PLUSIEURS, SPOT_REDONNE, SUCCES }
 
 /**
  * Instantané de TOUTES les données utiles au carnet, déjà filtrées sur « moi »
@@ -117,6 +165,9 @@ data class XpEvent(val source: XpSource, val xp: Int, val sortieId: String?, val
 /** Résultat du calcul d'XP. */
 data class XpResult(val events: List<XpEvent>) {
     val total: Long = events.sumOf { it.xp.toLong() }
+
+    /** Ajoute des gains (ex. XP des succès) en gardant l'ordre chronologique. */
+    operator fun plus(more: List<XpEvent>): XpResult = if (more.isEmpty()) this else XpResult((events + more).sortedBy { it.time })
 
     /** XP par source, toutes sorties confondues. */
     fun bySource(): Map<XpSource, Int> = events.groupBy { it.source }.mapValues { (_, l) -> l.sumOf { it.xp } }

@@ -284,6 +284,13 @@ fun FicheEspeceScreen(nav: NavController, speciesId: String) {
                 WarningCard(s, sosies) { nav.navigate(Routes.ficheEspece(it)) }
             }
 
+            // Idées recettes (espèces comestibles uniquement), repliées par défaut.
+            if (s.edibility == Edibility.COMESTIBLE) {
+                ChampiCard(Modifier.fillMaxWidth(), padding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
+                    IdeesRecettes(s)
+                }
+            }
+
             Text(
                 champiText(RAPPEL_SECURITE),
                 style = MaterialTheme.typography.bodyMedium,

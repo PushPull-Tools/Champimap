@@ -44,7 +44,8 @@ import kotlinx.coroutines.launch
  * Bloc « Carnet » de la fin de sortie (inséré dans FinSortieScreen) :
  *  - récap « +N XP » de la sortie, détaillé par source ;
  *  - passage de niveau éventuel (et nouveau titre) ;
- *  - succès débloqués annoncés un par un (carte qui se retourne), dans le ton choisi.
+ *  - succès débloqués annoncés un par un (carte qui se retourne), dans le ton choisi, avec leur XP
+ *    (ligne « Succès obtenus » du récap : comptée une seule fois, voir CarnetXp.badgeEvents).
  *
  * Page de transition (instant = false) : les lignes d'XP apparaissent une par une, leurs points
  * s'ajoutent au total qui compte et la barre de niveau se remplit en direct ; si un niveau est
@@ -319,6 +320,8 @@ private fun BadgeAnnouncer(toAnnounce: List<String>, tone: MessageTone, onOpenCa
             BadgePicto(def.family, unlocked = true, size = 72.dp)
             VSpace(8.dp)
             Text(champiText(textes.nom), style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
+            // XP rapportée par ce succès (déjà comptée dans le « +N XP » de la sortie).
+            Text(badgeTierLine(def), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             VSpace(4.dp)
             Text(champiText(textes.message.pour(tone)), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
             VSpace(12.dp)
