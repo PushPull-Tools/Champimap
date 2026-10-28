@@ -62,7 +62,7 @@ import kotlinx.coroutines.withContext
  */
 
 /** Filtres de comestibilité proposés (dans cet ordre). */
-private val FILTRES = listOf(Edibility.COMESTIBLE, Edibility.A_EVITER, Edibility.TOXIQUE, Edibility.MORTEL, Edibility.PSYCHOTROPE)
+private val FILTRES = listOf(Edibility.COMESTIBLE, Edibility.TOXIQUE, Edibility.MORTEL, Edibility.PSYCHOTROPE)
 
 /** Lettres de l'index du bord droit. */
 private val LETTRES = ('A'..'Z').toList()

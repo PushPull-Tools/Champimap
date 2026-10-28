@@ -294,35 +294,19 @@ fun FicheEspeceScreen(nav: NavController, speciesId: String) {
     }
 }
 
-/** Encadré d'avertissement (sosies dangereux, toxicité). Couleurs fixes, lisibles dans tous les thèmes. */
+/** Avertissement compact : une ligne (danger de l'espèce ou sosies), dépliable pour les détails. */
 @Composable
 private fun WarningCard(s: Species, sosies: List<Species>, onOpen: (String) -> Unit) {
-    ChampiCard(Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-            Spacer(Modifier.width(8.dp))
-            Text(champiText("Attention"), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
-        }
-        when (s.edibility) {
-            Edibility.MORTEL -> Text(champiText("Espèce mortelle : ne jamais consommer, même en petite quantité."))
-            Edibility.TOXIQUE -> Text(champiText("Espèce toxique : ne pas consommer."))
-            Edibility.INCONNU -> Text(champiText("Comestibilité non renseignée — ne pas consommer."))
-            else -> {}
-        }
-        s.lookalikeWarning?.takeIf { it.isNotBlank() }?.let { Text(champiText(it), Modifier.padding(top = 6.dp)) }
-        if (sosies.isNotEmpty()) {
-            SectionTitle("Sosies à ne pas confondre")
-            sosies.forEach { o ->
-                Row(
-                    Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable { onOpen(o.id) },
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    SpeciesDot(o, 12)
-                    Spacer(Modifier.width(8.dp))
-                    Text(champiText(o.nameFr), modifier = Modifier.weight(1f))
-                    EdibilityChip(o.edibility)
-                }
-            }
-        }
+    val danger = s.edibility == Edibility.MORTEL || s.edibility == Edibility.TOXIQUE || s.edibility == Edibility.INCONNU
+    val titre = when (s.edibility) {
+        Edibility.MORTEL -> "Mortelle : ne jamais consommer"
+        Edibility.TOXIQUE -> "Toxique : ne pas consommer"
+        Edibility.INCONNU -> "Comestibilité inconnue : ne pas consommer"
+        else -> if (sosies.isNotEmpty()) "Attention aux sosies (${sosies.size})" else "Attention aux confusions"
     }
+    val texte = listOfNotNull(
+        s.lookalikeWarning?.takeIf { it.isNotBlank() },
+        if (danger && sosies.isNotEmpty()) "Sosies à ne pas confondre :" else null,
+    ).joinToString("\n").ifBlank { null }
+    SosiesRepliables(titre, texte, sosies, onOpen)
 }

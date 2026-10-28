@@ -231,45 +231,10 @@ private fun CalmBanner(text: String) {
     }
 }
 
-/** Avertissement de sosie (piste comestible avec sosies toxiques ou mortels). */
+/** Avertissement de sosie (piste comestible avec sosies toxiques ou mortels) : une ligne dépliable. */
 @Composable
 private fun LookalikeWarning(sp: Species, dangerous: List<Species>, onOpen: (String) -> Unit) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.errorContainer,
-        contentColor = MaterialTheme.colorScheme.onErrorContainer,
-        border = BorderStroke(2.dp, MaterialTheme.colorScheme.error),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    champiText("Attention aux sosies : ${sp.nameFr}"),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-            sp.lookalikeWarning?.takeIf { it.isNotBlank() }?.let { Text(champiText(it), style = MaterialTheme.typography.bodyMedium) }
-            dangerous.forEach { o ->
-                Surface(
-                    onClick = { onOpen(o.id) },
-                    shape = RoundedCornerShape(10.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                ) {
-                    Row(Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        SpeciesDot(o, 12)
-                        Spacer(Modifier.width(8.dp))
-                        Text(champiText(o.nameFr), modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        EdibilityChip(o.edibility)
-                    }
-                }
-            }
-        }
-    }
+    SosiesRepliables("Attention aux sosies : ${sp.nameFr}", sp.lookalikeWarning, dangerous, onOpen)
 }
 
 /**
