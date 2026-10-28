@@ -22,10 +22,7 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onFirst
-import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
@@ -278,12 +275,13 @@ abstract class CaptureHarness(private val parcours: String) {
         val i = nodes.indices.maxBy { nodes[it].boundsInRoot.height * nodes[it].boundsInRoot.width }
         val range = nodes[i].config[SemanticsProperties.VerticalScrollAxisRange]
         if (range.value() >= range.maxValue() - 1f) return false
-        val before = compose.onRoot().captureToImage().asAndroidBitmap()
+        val before = range.value()
         all[i].performSemanticsAction(SemanticsActions.ScrollBy) { it(0f, px) }
         settle()
-        // Écran identique après défilement (déjà en bas) : pas de capture en double.
-        val after = compose.onRoot().captureToImage().asAndroidBitmap()
-        return !after.sameAs(before)
+        // Position relue sur un nœud neuf (l'ancien peut garder une valeur périmée).
+        // Moins de 300 px parcourus (bas atteint) : pas de capture presque en double.
+        val now = all.fetchSemanticsNodes()[i].config[SemanticsProperties.VerticalScrollAxisRange].value()
+        return now > before + 300f
     }
 
     /** Remonte tout en haut de la plus grande zone défilante. */
