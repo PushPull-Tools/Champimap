@@ -35,7 +35,7 @@
 - ✅ Picto par sortie : abandonné (la date reste affichée).
 
 ## Idées (après la base)
-- Début d'aventure au lancement d'une sortie : cercle qui se ferme + UNE mélodie de démarrage originale (style Zelda, flûte/pipeau doux), phrase de départ affichée à ce moment ; son coupable.
+- ✅ Pages de transition : démarrage et fin de sortie (cercle façon iris, phrase de départ ~2 s ; récap animé : chiffres qui comptent, XP en direct ligne par ligne, passage de niveau, succès un par un ; toucher pour passer, « animations réduites » respecté).
 - Sortie à plusieurs : retrouver le téléphone d'un membre (dernière position connue) et le faire sonner fort.
 - Seul : le téléphone sonne fort quand on siffle (détection de sifflement en local).
 - ✅ Option vendeur : dans Paramètres, marquée « Expérimental — pourra être modifiée ou supprimée à la sortie officielle » ; ventes par sortie/jour (prix au kilo, poids vendu), stats de ventes. Paiement (Play Store, compte dév existant) plus tard.

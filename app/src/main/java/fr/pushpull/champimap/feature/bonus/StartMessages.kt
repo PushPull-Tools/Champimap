@@ -4,7 +4,7 @@ import fr.pushpull.champimap.core.AppGraph
 import kotlinx.coroutines.flow.first
 
 /*
- * Messages de départ affichés au lancement d'une sortie (écran « début d'aventure », AdventureIntro.kt).
+ * Messages de départ affichés au lancement d'une sortie (page de transition de démarrage, StartTransition.kt).
  * Pioche « sac de billes » : chaque message sort une fois avant de remélanger,
  * et jamais deux fois de suite le même, même au moment du remélange.
  * L'état (sac restant + dernier message) est gardé dans les réglages (DataStore).

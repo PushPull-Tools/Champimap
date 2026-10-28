@@ -1,6 +1,8 @@
 package fr.pushpull.champimap.feature.sortie
 
-import fr.pushpull.champimap.feature.bonus.AdventureIntroOverlay
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,7 +34,12 @@ import fr.pushpull.champimap.core.db.PositionSource
 import fr.pushpull.champimap.core.db.SpotMarker
 import fr.pushpull.champimap.core.map.ChampiMapView
 import fr.pushpull.champimap.core.ui.ChampiScreen
+import fr.pushpull.champimap.core.ui.CircularReveal
 import fr.pushpull.champimap.core.ui.ConfirmDialog
+import fr.pushpull.champimap.core.ui.RevealMode
+import fr.pushpull.champimap.feature.bonus.SortieTransitions
+import fr.pushpull.champimap.feature.bonus.StartTransitionOverlay
+import fr.pushpull.champimap.feature.bonus.animationsEnabled
 import fr.pushpull.champimap.nav.Routes
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -43,7 +50,13 @@ import org.maplibre.android.maps.MapLibreMap
  * Écran « Sortie en cours » : carte (trace, position, départ, spots), barre haute (durée, spots,
  * distance, Terminer), pastilles (groupe, GPS, batterie), bandeaux (chasse, nuit, batterie),
  * panneau bas (flèche vers la voiture, nuit en forêt, Marquer un spot, Spot existant, Je suis perdu).
+ * Transitions : page de démarrage par-dessus la carte (nouvelle sortie), fermeture circulaire
+ * vers le récap animé à la fin de la sortie.
  */
+
+/** Durée de la fermeture circulaire vers le récap. */
+private const val CLOSE_MS = 650
+
 @Composable
 fun SortieScreen(nav: NavController, sortieId: String) {
     val context = LocalContext.current
@@ -83,6 +96,9 @@ fun SortieScreen(nav: NavController, sortieId: String) {
     var huntHidden by remember { mutableStateOf(false) }
     var nightHidden by remember { mutableStateOf(false) }
     var batteryHidden by remember { mutableStateOf(false) }
+    // Fermeture circulaire de fin de sortie : 0 = carte visible, 1 = écran couvert.
+    val anim = animationsEnabled()
+    val closing = remember { Animatable(0f) }
 
     SortieIntentHandler(nav, currentSortieId = sortieId)
 
@@ -92,9 +108,13 @@ fun SortieScreen(nav: NavController, sortieId: String) {
         val s = sortie ?: return@LaunchedEffect
         if (s.endedAt == null && running != s.id) SortieActions.startTracking(context, s.id)
     }
-    // Sortie terminée (ex. depuis la notification) → récapitulatif.
+    // Sortie terminée (ex. depuis la notification) → fermeture en cercle, puis récap animé.
     LaunchedEffect(sortie?.endedAt) {
-        if (sortie?.endedAt != null) nav.navigate(Routes.fin(sortieId)) { popUpTo(Routes.SORTIE) { inclusive = true } }
+        if (sortie?.endedAt == null) return@LaunchedEffect
+        SortieTransitions.end.request(sortieId)
+        // Écran caché (fin depuis la notification) : pas d'animation, on passe directement au récap.
+        if (anim && visible) closing.animateTo(1f, tween(CLOSE_MS, easing = FastOutSlowInEasing))
+        nav.navigate(Routes.fin(sortieId)) { popUpTo(Routes.SORTIE) { inclusive = true } }
     }
     // Écran visible : on réveille le GPS s'il était en pause.
     LaunchedEffect(visible) { if (visible) SortieTracker.wakeGps() }
@@ -211,8 +231,13 @@ fun SortieScreen(nav: NavController, sortieId: String) {
         }
     }
 
-    // « Début d'aventure » par-dessus tout l'écran (seulement au lancement d'une nouvelle sortie).
-    AdventureIntroOverlay(sortieId)
+    // Page de transition de démarrage par-dessus tout l'écran (seulement au lancement d'une nouvelle sortie).
+    StartTransitionOverlay(sortieId)
+
+    // Fermeture circulaire vers le récap (le trou se referme sur le centre).
+    if (closing.value > 0f) {
+        CircularReveal(progress = { 1f - closing.value }, mode = RevealMode.HOLE)
+    }
 
     // --- Fenêtres --------------------------------------------------------------------------------
     if (showMark) {

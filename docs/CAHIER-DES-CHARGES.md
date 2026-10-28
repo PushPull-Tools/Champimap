@@ -87,7 +87,7 @@ Indicateur « Étape x sur 4 » + barre de progression en 4 segments.
 - « Bonjour <prénom> » + **bouton invisible** à côté (easter egg → route AVATAR) + avatar choisi s'il existe.
 - Ligne : date, « coucher du soleil 17 h 46 », phase de lune.
 - Carte verte : titre simple centré « Prêt pour l'aventure ? » (la phrase de départ aléatoire s'affiche au
-  lancement de la sortie : écran « début d'aventure », cercle façon iris + phrase ~2 s, toucher pour passer ;
+  lancement de la sortie : page de transition, cercle façon iris + phrase ~2 s, toucher pour passer ;
   pioche sans répétition du module bonus), bouton « Démarrer une sortie » (icône boussole) → route DEPART,
   sous-texte centré « Lance la sortie à côté de ta voiture : sa position est enregistrée au départ. »
   Si une sortie est en cours : bouton « Reprendre la sortie ».
@@ -128,6 +128,15 @@ Panneau « Comment tu démarres ? » : « Je suis garé » (on enregistre la voi
   n'appelle pas directement).
 - Fin de sortie : récap (durée, km, spots), liste des spots (« Compléter » si vide), « Ajouter une autre sortie »,
   « Retour à l'accueil », lien discret « En cas d'intoxication » (masquable dans les réglages).
+- Pages de transition (composant réutilisable `CircularReveal`, core/ui) :
+  - démarrage d'une NOUVELLE sortie : le fond du thème envahit l'écran en cercle depuis « C'est parti ! »,
+    phrase de départ en surimpression ~2 s (trait du temps restant), puis ouverture en cercle sur la carte ;
+  - fin de sortie : fermeture en cercle sur la carte, ouverture du récap ; les chiffres (durée, distance, spots,
+    poids) comptent ; l'XP se remplit en direct ligne par ligne (« Sortie terminée +20 »…), la barre de niveau
+    suit, se vide et repart si un niveau est atteint (« Niveau N ! » qui rebondit) ; puis carte de niveau et
+    succès un par un (carte qui se retourne, « Suivant ») ; seulement juste après la fin (pas depuis l'historique) ;
+  - toucher n'importe où = état final ; « animations réduites » d'Android = état final direct ;
+  - couleurs du thème ; en Psyché, fond dégradé violet nuit et liseré jaune, texte blanc (toujours lisible).
 - Carte globale (onglet Carte) : tous les spots, cadrage automatique sur l'ensemble des spots, sinon centrée sur
   les départements cochés. Légende des couleurs d'un appui.
 
