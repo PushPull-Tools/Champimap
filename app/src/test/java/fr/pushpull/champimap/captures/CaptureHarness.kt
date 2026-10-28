@@ -303,7 +303,9 @@ abstract class CaptureHarness(private val parcours: String) {
      * [label] = nom lisible sous l'image dans la planche. [frozen] = horloge arrêtée (transition en cours).
      */
     protected fun capture(name: String, label: String, frozen: Boolean = false) {
-        for ((mode, suffix) in THEMES) {
+        // Premier lancement : le mode Psyché n'est pas encore débloqué, pas de capture Psyché.
+        val themes = if (parcours == "1-premier-lancement") THEMES.filter { it.first != ThemeMode.PSYCHE } else THEMES
+        for ((mode, suffix) in themes) {
             compose.runOnUiThread { CaptureHost.theme = mode }
             if (frozen) {
                 compose.mainClock.advanceTimeByFrame()

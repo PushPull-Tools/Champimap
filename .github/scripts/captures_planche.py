@@ -64,7 +64,7 @@ def main():
                         f'alt="{html.escape(libelle)}"></a><figcaption>{html.escape(libelle)}</figcaption></figure>'
                     )
                 else:
-                    cellules.append('<figure class="vide"><div>absente</div></figure>')
+                    cellules.append('<figure class="vide"><div>non disponible</div></figure>')
             rangs.append('<div class="rang">' + "".join(cellules) + "</div>")
         for m in lire(os.path.join(dossier, "_manquants.txt")).splitlines():
             if m.strip():
