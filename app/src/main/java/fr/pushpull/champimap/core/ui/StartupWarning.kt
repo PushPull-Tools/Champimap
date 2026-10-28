@@ -57,9 +57,9 @@ private const val BOUTON_ACTIF_A = 0.5f
 
 /** Texte validé de l'avertissement. */
 private const val TEXTE_PRUDENCE =
-    "Champimap t'aide à noter et à reconnaître tes champignons, mais ne remplace pas un expert. " +
-        "Ne consomme jamais un champignon identifié seulement par l'appli. " +
-        "En cas de doute : pharmacien ou société mycologique. " +
+    "Champimap t'aide à noter et à reconnaître tes champignons, mais ne remplace pas un expert.\n\n" +
+        "Ne consomme jamais un champignon identifié seulement par l'appli.\n\n" +
+        "En cas de doute : pharmacien ou société mycologique.\n\n" +
         "Intoxication : 15 ou centre antipoison."
 
 /**
