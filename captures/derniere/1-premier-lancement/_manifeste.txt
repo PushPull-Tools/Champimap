@@ -1,0 +1,7 @@
+01-prudence	Avertissement « Prudence »
+02-bienvenue	Bienvenue (prénom)
+03-departements	Départements
+04-connect	Champimap Connect (installation)
+05-connect-installe	Champimap Connect (module installé)
+06-preparation-cartes	Préparation des cartes
+07-accueil	Accueil (premier lancement terminé)

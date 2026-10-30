@@ -1,0 +1,14 @@
+01-accueil	Accueil
+02-depart	Départ (garé / à pied)
+03-transition-depart	Transition de démarrage (phrase de départ)
+04-sortie-en-cours	Sortie en cours (carte remplacée par une zone neutre)
+05-marquer-spot	Marquer un spot (mesure de précision)
+06-fiche-spot-1	Fiche spot (infos, actions) (1)
+07-trouve	« Trouvé ! » (Photo / Liste)
+08-choix-espece	Choix d'espèce (liste A–Z)
+09-ia-propositions	Propositions de l'IA (5 pistes, une MORTEL)
+10-ia-incertaine	Propositions de l'IA (identification incertaine)
+11-recolte	Récolte : 2 espèces (une dépliée)
+12-perdu	Je suis perdu
+13-fin-sortie-1	Fin de sortie (récap, XP, succès) (1)
+13-fin-sortie-2	Fin de sortie (récap, XP, succès) (2)

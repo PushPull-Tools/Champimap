@@ -1,0 +1,35 @@
+01-accueil-1	Accueil (1)
+01-accueil-2	Accueil (2)
+02-carte	Carte (zone neutre à la place du fond de carte)
+03-stats-jour	Stats : Jour
+03-stats-semaine	Stats : Semaine
+03-stats-mois	Stats : Mois
+03-stats-saison	Stats : Saison
+03-stats-saison-detail-1	Stats : Saison (suite) (1)
+03-stats-saison-detail-2	Stats : Saison (suite) (2)
+03-stats-saison-detail-3	Stats : Saison (suite) (3)
+04-calendrier	Calendrier
+05-tresors	Carte aux trésors
+06-especes	Espèces (liste)
+07-fiche-espece-1	Fiche espèce (photos absentes) (1)
+07b-fiche-recettes	Fiche espèce : idées recettes
+08-carnet-1	Mon carnet (1)
+08-carnet-2	Mon carnet (2)
+09-carnet-xp	Mon carnet : ce qui rapporte de l'XP
+10-parametres-1	Plus / Paramètres (sections dépliées) (1)
+10-parametres-2	Plus / Paramètres (sections dépliées) (2)
+10-parametres-3	Plus / Paramètres (sections dépliées) (3)
+11-connect-1	Champimap Connect (module installé) (1)
+11-connect-2	Champimap Connect (module installé) (2)
+12-connect-versions	Champimap Connect : menu des versions du modèle
+13-preuves	Preuves « hors ligne »
+14-journal	Journal
+15-sauvegarde	Sauvegarde
+16-corbeille	Corbeille
+17-ventes-1	Mes ventes (mode vendeur) (1)
+18-credits	Crédits des photos et du modèle
+19-intoxication-1	Intoxication (1)
+20-intoxication-fiches	Intoxication : liste des fiches
+21-partage-spot	Partage d'un spot
+22-sortie-a-plusieurs	Sortie à plusieurs (QR code)
+23-rejoindre	Sortie à plusieurs : rejoindre
